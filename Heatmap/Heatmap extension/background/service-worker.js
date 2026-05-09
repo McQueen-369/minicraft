@@ -5,7 +5,6 @@ importScripts('../vendor/jszip.min.js');
 const CFG = {
   DB_NAME: 'session_tracker',
   DB_VERSION: 1,
-  SCREENSHOT_DELAY_MS: 1500,
   MAX_SESSIONS: 10,
 };
 
@@ -121,7 +120,9 @@ async function startSession(tabId) {
   await chrome.action.setBadgeText({ text: '●' });
   await chrome.action.setBadgeBackgroundColor({ color: '#22c55e' });
 
-  setTimeout(() => captureScreenshot(tabId, sessionId), CFG.SCREENSHOT_DELAY_MS);
+  // Capture without setTimeout — SW may be suspended before a timer fires,
+  // losing the screenshot. Chrome API awaits keep the SW alive.
+  await captureScreenshot(tabId, sessionId);
 
   return sessionId;
 }
@@ -206,23 +207,46 @@ async function deleteSessionData(db, sessionId) {
 
 /* ── Screenshots ───────────────────────────────────── */
 
+// Captures the full scrollable page via CDP. Shows a brief "DevTools debugging"
+// banner while attached — acceptable for a self-capture tool.
+async function captureFullPage(tabId) {
+  await chrome.debugger.attach({ tabId }, '1.3');
+  try {
+    const metrics = await chrome.debugger.sendCommand({ tabId }, 'Page.getLayoutMetrics');
+    const fullW = Math.ceil(metrics.cssContentSize.width);
+    const fullH = Math.ceil(metrics.cssContentSize.height);
+    const result = await chrome.debugger.sendCommand(
+      { tabId },
+      'Page.captureScreenshot',
+      {
+        format: 'png',
+        captureBeyondViewport: true,
+        clip: { x: 0, y: 0, width: fullW, height: fullH, scale: 1 },
+      }
+    );
+    return { dataUrl: 'data:image/png;base64,' + result.data, width: fullW, height: fullH };
+  } finally {
+    try { await chrome.debugger.detach({ tabId }); } catch (_) {}
+  }
+}
+
 async function captureScreenshot(tabId, sessionId) {
   try {
     const tab = await chrome.tabs.get(tabId);
     if (!tab.active) return;
-    const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
+    const { dataUrl, width, height } = await captureFullPage(tabId);
     const resp = await fetch(dataUrl);
     const blob = await resp.blob();
     await dbPut('screenshots', {
       sessionId,
       page: tab.url,
       blob,
-      width: tab.width || 1280,
-      height: tab.height || 800,
+      width,
+      height,
       ts: Date.now(),
     });
-  } catch (err) {
-    // Screenshot failed; silently continue.
+  } catch (_) {
+    // Screenshot failed (e.g. chrome:// page, another debugger attached); silently skip.
   }
 }
 
@@ -440,7 +464,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     });
   } catch (_) {}
 
-  setTimeout(() => captureScreenshot(tabId, state.sessionId), CFG.SCREENSHOT_DELAY_MS);
+  await captureScreenshot(tabId, state.sessionId);
 });
 
 /* ── Message Handler ───────────────────────────────── */
