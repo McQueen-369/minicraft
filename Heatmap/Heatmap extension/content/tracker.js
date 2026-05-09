@@ -137,8 +137,10 @@ chrome.runtime.sendMessage({ type: 'GET_SESSION_ID' }).then(resp => {
 }).catch(() => {});
 
 // Listen for stop signal from background
-chrome.runtime.onMessage.addListener((msg) => {
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'STOP_TRACKING') {
     stopTracking();
+    sendResponse({ ok: true });
   }
+  return false;
 });
