@@ -35,7 +35,7 @@
   "web_accessible_resources": [
     {
       "resources": ["viewer/viewer.html", "viewer/viewer.js", "vendor/jszip.min.js", "vendor/jspdf.umd.min.js"],
-      "matches": ["<all_urls>"]
+      "matches": ["chrome-extension://*/*"]
     }
   ]
 }
