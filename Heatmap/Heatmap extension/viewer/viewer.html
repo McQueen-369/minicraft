@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Heatmap Research Viewer</title>
+  <script src="../vendor/jszip.min.js"></script>
+  <script src="../vendor/jspdf.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root, [data-theme="dark"] {
+      --bg: #0c0c18;
+      --surface: #151528;
+      --surface-2: #1e1e3a;
+      --border: #2a2a50;
+      --text: #e4e4f0;
+      --text-dim: #7878a0;
+      --accent: #4f6df5;
+      --accent-hover: #6b84ff;
+      --success: #34d399;
+      --danger: #f87171;
+      --radius: 10px;
+    }
+    [data-theme="light"] {
+      --bg: #f4f5f7;
+      --surface: #ffffff;
+      --surface-2: #eef0f4;
+      --border: #d4d8e1;
+      --text: #1a1d26;
+      --text-dim: #6b7280;
+      --accent: #4355db;
+      --accent-hover: #5468f0;
+      --success: #16a34a;
+      --danger: #dc2626;
+    }
+    html { height: 100%; }
+    body {
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.5;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: 16px 32px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      backdrop-filter: blur(12px);
+    }
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    header h1 {
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+      white-space: nowrap;
+    }
+    header p { color: var(--text-dim); font-size: 13px; margin-top: 2px; }
+    #header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .btn-sm {
+      padding: 5px 10px;
+      font-size: 12px;
+      border-radius: 5px;
+    }
+    .btn-divider {
+      width: 1px;
+      height: 24px;
+      background: var(--border);
+      margin: 0 4px;
+    }
+
+    main { max-width: 1400px; margin: 0 auto; padding: 24px 32px 60px; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+
+    /* ── Import Zone ──────────────────────── */
+    #import-zone {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 200px;
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    #import-zone:hover, #import-zone.dragover {
+      border-color: var(--accent);
+      background: rgba(79,109,245,0.06);
+    }
+    #import-zone svg {
+      display: block;
+      margin: 0 auto 12px;
+      opacity: 0.4;
+    }
+    #import-zone .label { font-size: 16px; font-weight: 500; }
+    #import-zone .sublabel { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+
+    /* ── Session Bar ─────────────────────── */
+    #session-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 24px;
+      align-items: center;
+      font-size: 14px;
+    }
+    .stat-label { color: var(--text-dim); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-value { font-size: 18px; font-weight: 600; margin-top: 2px; }
+    .stat-value.accent { color: var(--accent); }
+
+    /* ── Controls ─────────────────────────── */
+    #controls {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .ctrl-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: flex-end;
+    }
+    .ctrl-group label {
+      display: block;
+      font-size: 12px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .ctrl-group select {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 14px;
+      min-width: 220px;
+      cursor: pointer;
+    }
+
+    /* ── Custom Page Dropdown ──────────────── */
+    .page-dropdown {
+      position: relative;
+      min-width: 280px;
+    }
+    .page-dropdown-trigger {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      width: 100%;
+      text-align: left;
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 32px 8px 12px;
+      cursor: pointer;
+      position: relative;
+      transition: border-color 0.15s;
+    }
+    .page-dropdown-trigger:hover,
+    .page-dropdown.open .page-dropdown-trigger {
+      border-color: var(--accent);
+    }
+    .page-dropdown-trigger::after {
+      content: '';
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      border: 4px solid transparent;
+      border-top: 5px solid var(--text-dim);
+      transition: transform 0.15s;
+    }
+    .page-dropdown.open .page-dropdown-trigger::after {
+      transform: translateY(-50%) rotate(180deg);
+    }
+    .page-dropdown-trigger .pd-title {
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.3;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .page-dropdown-trigger .pd-caption {
+      font-size: 11px;
+      color: var(--text-dim);
+      line-height: 1.2;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .page-dropdown-list {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+      z-index: 100;
+      max-height: 320px;
+      overflow-y: auto;
+      padding: 4px;
+    }
+    .page-dropdown.open .page-dropdown-list { display: block; }
+    .page-dropdown-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .page-dropdown-item:hover { background: var(--surface-2); }
+    .page-dropdown-item.active { background: var(--accent); color: #fff; }
+    .page-dropdown-item.active .pd-caption { color: rgba(255,255,255,0.7); }
+    .page-dropdown-item .pd-title {
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.3;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .page-dropdown-item .pd-caption {
+      font-size: 11px;
+      color: var(--text-dim);
+      line-height: 1.2;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .btn-group { display: flex; gap: 0; }
+    .btn-group button {
+      background: var(--surface-2);
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      padding: 8px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-group button:first-child { border-radius: 6px 0 0 6px; }
+    .btn-group button:last-child { border-radius: 0 6px 6px 0; }
+    .btn-group button:not(:first-child) { margin-left: -1px; }
+    .btn-group button:hover { color: var(--text); background: var(--border); }
+    .btn-group button.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+      z-index: 1;
+      position: relative;
+    }
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 140px;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+    }
+
+    /* ── Viewport ─────────────────────────── */
+    #viewport {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 16px;
+      overflow: auto;
+      max-height: 75vh;
+      padding: 16px;
+      text-align: center;
+    }
+    #viewport canvas {
+      display: inline-block;
+      border-radius: 4px;
+      box-shadow: 0 2px 20px rgba(0,0,0,0.4);
+    }
+    #viewport.view-original {
+      max-height: none;
+      text-align: left;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn:hover { background: var(--border); }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); }
+
+    /* ── Click Path ────────────────────────── */
+    #click-path-section > summary {
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 500;
+      padding: 4px 0;
+      user-select: none;
+    }
+    .click-path-sub { margin-top: 10px; }
+    .click-path-sub summary {
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      padding: 4px 0;
+      user-select: none;
+    }
+    .click-flow {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 0;
+    }
+    .cf-chip {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      padding: 3px 7px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      font-size: 10px;
+      line-height: 1.25;
+      max-width: 160px;
+    }
+    .cf-chip .cf-label {
+      font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .cf-chip .cf-meta {
+      font-size: 9px;
+      color: var(--text-dim);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .cf-chip.cf-page {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .cf-chip.cf-page .cf-meta { color: rgba(255,255,255,0.65); }
+    .cf-arrow {
+      color: var(--text-dim);
+      font-size: 11px;
+      flex-shrink: 0;
+      line-height: 1;
+    }
+    .click-path-empty {
+      color: var(--text-dim);
+      font-size: 11px;
+      font-style: italic;
+      padding: 8px 0;
+    }
+
+    /* ── Data Table ────────────────────────── */
+    #data-section summary {
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 500;
+      padding: 4px 0;
+      user-select: none;
+    }
+    #data-wrap {
+      max-height: 400px;
+      overflow: auto;
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+    #data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    #data-table th {
+      position: sticky;
+      top: 0;
+      background: var(--surface-2);
+      padding: 10px 12px;
+      text-align: left;
+      font-weight: 500;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+    }
+    #data-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(42,42,80,0.4);
+      white-space: nowrap;
+      max-width: 300px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #data-table tr:hover td { background: rgba(79,109,245,0.04); }
+
+    #page-stats { margin-top: 8px; }
+    .stats-summary {
+      display: flex;
+      gap: 32px;
+      flex-wrap: wrap;
+      margin-bottom: 4px;
+    }
+    .stats-summary .stat-item {
+      display: flex;
+      flex-direction: column;
+    }
+    .stats-summary .stat-item .stat-label { margin-bottom: 2px; }
+    .stats-summary .stat-item .stat-value { font-size: 16px; }
+    #page-stats h3 {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-dim);
+      margin: 16px 0 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .elements-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .elements-table th {
+      background: var(--surface-2);
+      padding: 9px 14px;
+      text-align: left;
+      font-weight: 500;
+      color: var(--text-dim);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      border-bottom: 1px solid var(--border);
+    }
+    .elements-table td {
+      padding: 9px 14px;
+      border-bottom: 1px solid rgba(42,42,80,0.3);
+    }
+    .elements-table tr:last-child td { border-bottom: none; }
+    .elements-table tr:hover td { background: rgba(79,109,245,0.04); }
+    .elements-table .el-tag {
+      display: inline-block;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-family: 'SF Mono', SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      color: var(--accent);
+    }
+    .elements-table .el-text {
+      color: var(--text-dim);
+      font-size: 12px;
+      margin-left: 8px;
+    }
+    .elements-table .click-count {
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .elements-table .click-pct {
+      color: var(--text-dim);
+      font-variant-numeric: tabular-nums;
+    }
+    .elements-table .rank {
+      color: var(--text-dim);
+      font-weight: 600;
+      width: 32px;
+    }
+
+    /* ── History Section ──────────────────────── */
+    #history-section { margin-bottom: 24px; }
+    #history-section h2 {
+      font-size: 15px;
+      font-weight: 500;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    #history-section h2 span { color: var(--text-dim); font-size: 13px; font-weight: 400; }
+    .history-list { display: flex; flex-direction: column; gap: 6px; }
+    .history-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .history-item:hover {
+      border-color: var(--accent);
+      background: rgba(79,109,245,0.04);
+    }
+    .history-item .hi-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      background: var(--surface-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--accent);
+      font-size: 14px;
+    }
+    .history-item .hi-info { flex: 1; min-width: 0; }
+    .history-item .hi-name {
+      font-size: 14px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .history-item .hi-meta {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 1px;
+    }
+    .history-item .hi-actions {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .history-item:hover .hi-actions { opacity: 1; }
+    .hi-actions button {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+    .hi-actions button:hover { color: var(--text); border-color: var(--text-dim); }
+    .hi-actions button.hi-delete:hover { color: var(--danger); border-color: var(--danger); }
+    #btn-clear-history {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+      border-radius: 5px;
+      padding: 3px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+    #btn-clear-history:hover { color: var(--danger); border-color: var(--danger); }
+
+    /* ── Theme Toggle ─────────────────────────── */
+    .theme-toggle {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .theme-toggle::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      transition: transform 0.2s;
+    }
+    [data-theme="light"] .theme-toggle::after {
+      transform: translateX(20px);
+    }
+    .theme-toggle-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .theme-toggle-label {
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    /* ── Version ─────────────────────────────── */
+    .version-tag {
+      font-size: 11px;
+      color: var(--text-dim);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      margin-left: 8px;
+      font-weight: 400;
+      vertical-align: middle;
+    }
+
+    /* ── Mode Toggle ─────────────────────────── */
+    .mode-toggle {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .mode-toggle .btn-group button {
+      padding: 10px 28px;
+      font-size: 14px;
+    }
+
+    /* ── Compare Import ──────────────────────── */
+    .compare-import {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .import-slot {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 180px;
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      text-align: center;
+      padding: 20px;
+    }
+    .import-slot:hover, .import-slot.dragover {
+      border-color: var(--accent);
+      background: rgba(79,109,245,0.06);
+    }
+    .import-slot.loaded {
+      border-color: var(--success);
+      border-style: solid;
+      background: rgba(52,211,153,0.06);
+      cursor: default;
+    }
+    .import-slot .slot-label {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+    .import-slot.loaded .slot-label { color: var(--success); }
+    .import-slot .slot-text { font-size: 14px; font-weight: 500; }
+    .import-slot .slot-sub { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+    .import-slot .slot-file {
+      font-size: 12px;
+      color: var(--success);
+      margin-top: 8px;
+      font-weight: 500;
+    }
+    .import-slot svg { opacity: 0.3; margin-bottom: 8px; }
+
+    /* ── Compare Viewport ────────────────────── */
+    .compare-viewport {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .compare-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .compare-panel .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-2);
+    }
+    .compare-panel .panel-label {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .panel-label.label-a { color: var(--accent); }
+    .panel-label.label-b { color: var(--success); }
+    .compare-panel .panel-stats {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+    .compare-panel .panel-canvas-wrap {
+      overflow: auto;
+      max-height: 65vh;
+      display: flex;
+      justify-content: center;
+      padding: 12px;
+    }
+    .compare-panel canvas {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 4px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    }
+
+    .viewport-overlay {
+      position: absolute;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none;
+    }
+    #viewport:hover .viewport-overlay { opacity: 1; }
+    .viewport-overlay > * { pointer-events: auto; }
+
+    .viewport-png-overlay {
+      top: 24px;
+      right: 24px;
+    }
+    .viewport-zoom-controls {
+      top: 24px;
+      left: 24px;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 3px 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+    .viewport-zoom-controls button {
+      width: 26px;
+      height: 26px;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.1s;
+    }
+    .viewport-zoom-controls button:hover { background: var(--surface-2); }
+    .viewport-zoom-controls .zoom-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      min-width: 38px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      user-select: none;
+    }
+    .viewport-zoom-controls .zoom-divider {
+      width: 1px;
+      height: 18px;
+      background: var(--border);
+      margin: 0 2px;
+    }
+    .viewport-zoom-controls .zoom-reset {
+      width: auto;
+      padding: 0 6px;
+      font-size: 10px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    #viewport.view-original .viewport-zoom-controls { display: none; }
+    .panel-png {
+      margin-left: auto;
+      padding: 3px 10px !important;
+      font-size: 11px !important;
+    }
+
+    @media (max-width: 1200px) {
+      .compare-import { grid-template-columns: 1fr; }
+      .compare-viewport { grid-template-columns: 1fr; }
+    }
+
+    .hidden { display: none !important; }
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--text-dim); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div>
+        <h1>Heatmap Research Viewer <span class="version-tag">v1.3.0</span></h1>
+        <p>UX Research Heatmap Tool — by Maggie Chau</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:20px;flex-shrink:0;">
+        <div id="header-actions" class="hidden" style="display:none;align-items:center;gap:8px;">
+          <button class="btn btn-primary btn-sm" id="btn-pdf">Export PDF Report</button>
+          <div class="btn-divider"></div>
+          <button class="btn btn-sm" id="btn-new">Import New Session</button>
+        </div>
+        <div class="theme-toggle-wrap">
+          <span class="theme-toggle-label">&#9790;</span>
+          <div class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode"></div>
+          <span class="theme-toggle-label">&#9788;</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div id="mode-bar" class="mode-toggle">
+      <div class="btn-group" id="mode-btns">
+        <button class="active" data-mode="single">Single Session</button>
+        <button data-mode="compare">Compare Sessions</button>
+      </div>
+    </div>
+
+    <div id="import-zone">
+      <div>
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <div class="label">Drop session ZIP here</div>
+        <div class="sublabel">or click to browse files</div>
+        <input type="file" id="file-input" accept=".zip" hidden>
+      </div>
+    </div>
+
+    <div id="compare-import" class="hidden">
+      <div class="compare-import">
+        <div class="import-slot" id="slot-a">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <div class="slot-label">Session A</div>
+          <div class="slot-text">Drop ZIP here</div>
+          <div class="slot-sub">or click to browse</div>
+          <div class="slot-file" id="slot-a-file"></div>
+          <input type="file" id="file-input-a" accept=".zip" hidden>
+        </div>
+        <div class="import-slot" id="slot-b">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          <div class="slot-label">Session B</div>
+          <div class="slot-text">Drop ZIP here</div>
+          <div class="slot-sub">or click to browse</div>
+          <div class="slot-file" id="slot-b-file"></div>
+          <input type="file" id="file-input-b" accept=".zip" hidden>
+        </div>
+      </div>
+    </div>
+
+    <div id="history-section" class="hidden">
+      <h2>
+        <span>Recent Sessions <span id="history-count"></span></span>
+        <button id="btn-clear-history">Clear All</button>
+      </h2>
+      <div class="history-list" id="history-list"></div>
+    </div>
+
+    <div id="viewer" class="hidden">
+      <div id="session-bar" class="card">
+        <div><div class="stat-label">Date</div><div class="stat-value" id="s-date">—</div></div>
+        <div><div class="stat-label">Duration</div><div class="stat-value accent" id="s-duration">—</div></div>
+        <div><div class="stat-label">Pages</div><div class="stat-value" id="s-pages">—</div></div>
+        <div><div class="stat-label">Clicks</div><div class="stat-value" id="s-clicks">—</div></div>
+        <div><div class="stat-label">Mouse Samples</div><div class="stat-value" id="s-moves">—</div></div>
+      </div>
+
+      <div id="controls" class="card">
+        <div class="ctrl-row">
+          <div class="ctrl-group" style="flex:1;min-width:0;">
+            <label>Page</label>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="page-dropdown" id="page-dropdown" style="max-width:none;flex:1;">
+                <button type="button" class="page-dropdown-trigger" id="page-dropdown-trigger">
+                  <span class="pd-title">—</span>
+                  <span class="pd-caption"></span>
+                </button>
+                <div class="page-dropdown-list" id="page-dropdown-list"></div>
+              </div>
+              <span id="page-counter" style="font-size:13px;color:var(--text-dim);white-space:nowrap;font-variant-numeric:tabular-nums;"></span>
+            </div>
+          </div>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-group">
+            <label>Heatmap Type</label>
+            <div class="btn-group" id="type-btns">
+              <button class="active" data-type="clicks">Clicks</button>
+              <button data-type="movement">Movement</button>
+              <button data-type="scroll">Scroll Depth</button>
+              <button data-type="dwell">Dwell Time</button>
+            </div>
+          </div>
+          <div class="ctrl-group">
+            <label>View</label>
+            <div class="btn-group" id="view-btns">
+              <button class="active" data-view="fit">Fit</button>
+              <button data-view="original">Original</button>
+            </div>
+          </div>
+          <div class="ctrl-group">
+            <label>Radius <span id="radius-val">80</span>px</label>
+            <input type="range" id="radius-range" min="10" max="100" value="80">
+          </div>
+          <div class="ctrl-group">
+            <label>Intensity <span id="opacity-val">40</span>%</label>
+            <input type="range" id="opacity-range" min="10" max="100" value="40">
+          </div>
+        </div>
+      </div>
+
+      <div id="viewport" class="view-fit">
+        <div class="viewport-overlay viewport-zoom-controls" id="zoom-controls">
+          <button id="zoom-out" title="Zoom out">&minus;</button>
+          <span class="zoom-label" id="zoom-level">100%</span>
+          <button id="zoom-in" title="Zoom in">&plus;</button>
+          <div class="zoom-divider"></div>
+          <button class="zoom-reset" id="zoom-reset" title="Reset to fit">Fit</button>
+        </div>
+        <div class="viewport-overlay viewport-png-overlay">
+          <button class="btn btn-sm" id="btn-png" title="Save this page as PNG">Save PNG</button>
+        </div>
+        <canvas id="canvas"></canvas>
+      </div>
+
+      <div id="compare-viewport" class="compare-viewport hidden">
+        <div class="compare-panel" id="panel-a">
+          <div class="panel-header">
+            <span class="panel-label label-a">Session A</span>
+            <span class="panel-stats" id="stats-a"></span>
+            <button class="btn btn-sm panel-png" id="btn-png-a" title="Save Session A as PNG">PNG</button>
+          </div>
+          <div class="panel-canvas-wrap">
+            <canvas id="canvas-a"></canvas>
+          </div>
+        </div>
+        <div class="compare-panel" id="panel-b">
+          <div class="panel-header">
+            <span class="panel-label label-b">Session B</span>
+            <span class="panel-stats" id="stats-b"></span>
+            <button class="btn btn-sm panel-png" id="btn-png-b" title="Save Session B as PNG">PNG</button>
+          </div>
+          <div class="panel-canvas-wrap">
+            <canvas id="canvas-b"></canvas>
+          </div>
+        </div>
+        <div style="text-align:center;margin-top:8px;">
+          <button class="btn btn-sm" id="btn-png-combined" title="Save both panels as one image">Save Combined PNG</button>
+        </div>
+      </div>
+
+      <div id="page-stats" class="card hidden"></div>
+
+      <details id="click-path-section" class="card hidden" open>
+        <summary>Click Path Analysis</summary>
+        <details class="click-path-sub" open>
+          <summary>Current Page</summary>
+          <div class="click-flow" id="click-path-page"></div>
+        </details>
+        <details class="click-path-sub">
+          <summary>Session Journey</summary>
+          <div class="click-flow" id="click-path-session"></div>
+        </details>
+      </details>
+
+      <details id="data-section" class="card">
+        <summary>Raw Event Data (<span id="event-count">0</span> events)</summary>
+        <div style="display:flex;justify-content:flex-end;padding:10px 0 4px;">
+          <button class="btn btn-sm" id="btn-csv">Export CSV</button>
+        </div>
+        <div id="data-wrap">
+          <table id="data-table">
+            <thead>
+              <tr>
+                <th>Type</th><th>Page</th><th>X</th><th>Y</th>
+                <th>Viewport X</th><th>Viewport Y</th><th>Time</th><th>Element</th>
+              </tr>
+            </thead>
+            <tbody id="data-body"></tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+  </main>
+
+  <script src="viewer.js"></script>
+</body>
+</html>
