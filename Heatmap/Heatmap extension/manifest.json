@@ -8,8 +8,7 @@
     "scripting",
     "tabs",
     "downloads",
-    "storage",
-    "debugger"
+    "storage"
   ],
   "host_permissions": [
     "<all_urls>"

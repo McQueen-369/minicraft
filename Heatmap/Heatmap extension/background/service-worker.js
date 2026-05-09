@@ -207,36 +207,53 @@ async function deleteSessionData(db, sessionId) {
 
 /* ── Screenshots ───────────────────────────────────── */
 
-// Captures the full scrollable page via CDP. Shows a brief "DevTools debugging"
-// banner while attached — acceptable for a self-capture tool.
+// Scrolls the page in strips via the content script and stitches them
+// into a single full-page PNG using OffscreenCanvas. No debugger required.
 async function captureFullPage(tabId) {
-  await chrome.debugger.attach({ tabId }, '1.3');
+  const info = await chrome.tabs.sendMessage(tabId, { type: 'CAPTURE_PREPARE' });
+  const { pageW, pageH, viewportH } = info;
+
+  const strips = [];
+  let targetY = 0;
+
   try {
-    const metrics = await chrome.debugger.sendCommand({ tabId }, 'Page.getLayoutMetrics');
-    const fullW = Math.ceil(metrics.cssContentSize.width);
-    const fullH = Math.ceil(metrics.cssContentSize.height);
-    const result = await chrome.debugger.sendCommand(
-      { tabId },
-      'Page.captureScreenshot',
-      {
-        format: 'png',
-        captureBeyondViewport: true,
-        clip: { x: 0, y: 0, width: fullW, height: fullH, scale: 1 },
-      }
-    );
-    return { dataUrl: 'data:image/png;base64,' + result.data, width: fullW, height: fullH };
+    while (targetY < pageH) {
+      const { scrollY } = await chrome.tabs.sendMessage(tabId, { type: 'CAPTURE_SCROLL', y: targetY });
+      const tab = await chrome.tabs.get(tabId);
+      const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
+      strips.push({ dataUrl, scrollY });
+      if (scrollY + viewportH >= pageH) break;
+      targetY += viewportH;
+    }
   } finally {
-    try { await chrome.debugger.detach({ tabId }); } catch (_) {}
+    try { await chrome.tabs.sendMessage(tabId, { type: 'CAPTURE_RESTORE' }); } catch (_) {}
   }
+
+  const canvas = new OffscreenCanvas(pageW, pageH);
+  const ctx = canvas.getContext('2d');
+
+  for (const strip of strips) {
+    const resp = await fetch(strip.dataUrl);
+    const blob = await resp.blob();
+    const bitmap = await createImageBitmap(blob);
+    try {
+      ctx.drawImage(bitmap, 0, strip.scrollY);
+    } finally {
+      bitmap.close();
+    }
+  }
+
+  return {
+    blob: await canvas.convertToBlob({ type: 'image/png' }),
+    width: pageW,
+    height: pageH,
+  };
 }
 
 async function captureScreenshot(tabId, sessionId) {
   try {
     const tab = await chrome.tabs.get(tabId);
-    if (!tab.active) return;
-    const { dataUrl, width, height } = await captureFullPage(tabId);
-    const resp = await fetch(dataUrl);
-    const blob = await resp.blob();
+    const { blob, width, height } = await captureFullPage(tabId);
     await dbPut('screenshots', {
       sessionId,
       page: tab.url,
@@ -246,7 +263,7 @@ async function captureScreenshot(tabId, sessionId) {
       ts: Date.now(),
     });
   } catch (_) {
-    // Screenshot failed (e.g. chrome:// page, another debugger attached); silently skip.
+    // Screenshot failed (tab not active, content script not ready, etc.); silently skip.
   }
 }
 

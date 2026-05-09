@@ -142,11 +142,41 @@ chrome.runtime.sendMessage({ type: 'GET_SESSION_ID' }).then(resp => {
 }).catch(() => {});
 
 // Listen for stop signal from background
+let _captureSavedScrollX = 0, _captureSavedScrollY = 0;
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'STOP_TRACKING') {
     stopTracking();
     sendResponse({ ok: true });
+    return false;
   }
+
+  if (msg.type === 'CAPTURE_PREPARE') {
+    _captureSavedScrollX = window.scrollX;
+    _captureSavedScrollY = window.scrollY;
+    window.scrollTo(0, 0);
+    sendResponse({
+      pageW: Math.max(document.body.scrollWidth || 0, document.documentElement.scrollWidth || 0, window.innerWidth),
+      pageH: Math.max(document.body.scrollHeight || 0, document.documentElement.scrollHeight || 0, window.innerHeight),
+      viewportW: window.innerWidth,
+      viewportH: window.innerHeight,
+    });
+    return false;
+  }
+
+  if (msg.type === 'CAPTURE_SCROLL') {
+    window.scrollTo(0, msg.y);
+    // Brief pause lets the browser paint before captureVisibleTab fires
+    setTimeout(() => sendResponse({ scrollY: window.scrollY }), 150);
+    return true;
+  }
+
+  if (msg.type === 'CAPTURE_RESTORE') {
+    window.scrollTo(_captureSavedScrollX, _captureSavedScrollY);
+    sendResponse({ ok: true });
+    return false;
+  }
+
   return false;
 });
 
