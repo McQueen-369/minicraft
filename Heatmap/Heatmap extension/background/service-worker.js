@@ -416,9 +416,14 @@ async function downloadZip(sessionId) {
   const blob = await assembleZip(sessionId);
   const dateStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const filename = `session-tracker-${dateStr}.zip`;
-  const url = URL.createObjectURL(blob);
-  await chrome.downloads.download({ url, filename, saveAs: false });
-  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  // URL.createObjectURL is not available in MV3 service workers; use FileReader instead
+  const dataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+  await chrome.downloads.download({ url: dataUrl, filename, saveAs: false });
 }
 
 /* ── Tab Navigation Listener ───────────────────────── */
