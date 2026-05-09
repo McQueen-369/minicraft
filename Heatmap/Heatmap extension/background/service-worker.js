@@ -434,7 +434,28 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
       files: ['content/tracker.js'],
     });
   } catch (_) {}
-  // Content script triggers its own initial CAPTURE_VIEWPORT on startTracking
+
+  // Direct SW-side capture: tab.url is frozen from the event so it stays correct
+  // even if the user navigates away before the async calls below complete.
+  if (tab.active) {
+    try {
+      const current = await chrome.tabs.get(tabId);
+      if (current.url === tab.url) {
+        const dataUrl = await chrome.tabs.captureVisibleTab(current.windowId, { format: 'png' });
+        const resp = await fetch(dataUrl);
+        const blob = await resp.blob();
+        await dbPut('screenshots', {
+          sessionId: state.sessionId,
+          page: tab.url,
+          scrollY: 0,
+          viewportW: current.width || 1280,
+          viewportH: current.height || 800,
+          blob,
+          ts: Date.now(),
+        });
+      }
+    } catch (_) {}
+  }
 });
 
 /* ── Message Handler ───────────────────────────────── */
@@ -487,13 +508,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         if (!state.isRecording) { sendResponse({ ok: true }); break; }
         try {
           const tab = await chrome.tabs.get(sender.tab.id);
-          if (tab.active) {
+          // Guard: skip if tab navigated away or is not visible
+          if (tab.active && tab.url === msg.page) {
             const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
             const resp = await fetch(dataUrl);
             const blob = await resp.blob();
             await dbPut('screenshots', {
               sessionId: state.sessionId,
-              page: tab.url,
+              page: msg.page,        // URL from content script, frozen at page load
               scrollY: msg.scrollY || 0,
               viewportW: msg.viewportW,
               viewportH: msg.viewportH,

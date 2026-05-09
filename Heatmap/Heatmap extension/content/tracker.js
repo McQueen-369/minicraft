@@ -44,6 +44,7 @@ function maybeCaptureViewport() {
   lastCaptureScrollY = currentY;
   chrome.runtime.sendMessage({
     type: 'CAPTURE_VIEWPORT',
+    page: pageUrl,
     scrollY: currentY,
     viewportW: window.innerWidth,
     viewportH: window.innerHeight,
