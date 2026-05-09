@@ -11,8 +11,10 @@ const CFG = {
 
 /* ── IndexedDB ─────────────────────────────────────── */
 
+let _dbPromise = null;
 function openDB() {
-  return new Promise((resolve, reject) => {
+  if (_dbPromise) return _dbPromise;
+  _dbPromise = new Promise((resolve, reject) => {
     const req = indexedDB.open(CFG.DB_NAME, CFG.DB_VERSION);
     req.onupgradeneeded = (e) => {
       const db = e.target.result;
@@ -35,6 +37,7 @@ function openDB() {
     req.onsuccess = (e) => resolve(e.target.result);
     req.onerror = (e) => reject(e.target.error);
   });
+  return _dbPromise;
 }
 
 async function dbPutAll(storeName, records) {
@@ -108,10 +111,12 @@ async function startSession(tabId) {
 
   await evictOldSessions();
 
-  await chrome.scripting.executeScript({
-    target: { tabId },
-    files: ['content/tracker.js'],
-  });
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['content/tracker.js'],
+    });
+  } catch (_) {}
 
   await chrome.action.setBadgeText({ text: '●' });
   await chrome.action.setBadgeBackgroundColor({ color: '#22c55e' });
@@ -121,38 +126,43 @@ async function startSession(tabId) {
   return sessionId;
 }
 
+let _stopInFlight = null;
 async function stopSession() {
-  const state = await getSessionState();
-  if (!state.isRecording || !state.sessionId) return;
+  if (_stopInFlight) return _stopInFlight;
+  _stopInFlight = (async () => {
+    const state = await getSessionState();
+    if (!state.isRecording || !state.sessionId) return;
 
-  const sessionId = state.sessionId;
+    const sessionId = state.sessionId;
 
-  const tabs = await chrome.tabs.query({});
-  for (const tab of tabs) {
-    try {
-      await chrome.tabs.sendMessage(tab.id, { type: 'STOP_TRACKING' });
-    } catch (_) {}
-  }
+    const tabs = await chrome.tabs.query({});
+    for (const tab of tabs) {
+      try {
+        await chrome.tabs.sendMessage(tab.id, { type: 'STOP_TRACKING' });
+      } catch (_) {}
+    }
 
-  const db = await openDB();
-  await new Promise((resolve, reject) => {
-    const tx = db.transaction('sessions', 'readwrite');
-    const store = tx.objectStore('sessions');
-    const req = store.get(sessionId);
-    req.onsuccess = (e) => {
-      const session = e.target.result;
-      if (session) {
-        session.endTime = Date.now();
-        session.status = 'complete';
-        store.put(session);
-      }
-      tx.oncomplete = resolve;
-    };
-    req.onerror = (e) => reject(e.target.error);
-  });
+    const db = await openDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('sessions', 'readwrite');
+      const store = tx.objectStore('sessions');
+      const req = store.get(sessionId);
+      req.onsuccess = (e) => {
+        const session = e.target.result;
+        if (session) {
+          session.endTime = Date.now();
+          session.status = 'complete';
+          store.put(session);
+        }
+        tx.oncomplete = resolve;
+      };
+      req.onerror = (e) => reject(e.target.error);
+    });
 
-  await setSessionState({ isRecording: false });
-  await chrome.action.setBadgeText({ text: '' });
+    await setSessionState({ isRecording: false });
+    await chrome.action.setBadgeText({ text: '' });
+  })();
+  try { return await _stopInFlight; } finally { _stopInFlight = null; }
 }
 
 async function evictOldSessions() {
@@ -211,7 +221,7 @@ async function captureScreenshot(tabId, sessionId) {
       ts: Date.now(),
     });
   } catch (err) {
-    console.warn('[SessionTracker] Screenshot failed:', err);
+    // Screenshot failed; silently continue.
   }
 }
 
@@ -328,6 +338,7 @@ async function assembleZip(sessionId) {
   ]);
 
   const session = allSessions.find(s => s.sessionId === sessionId);
+  if (!session) throw new Error(`Session ${sessionId} not found`);
   const clicks = allEvents.filter(e => e.type === 'click');
   const moves = allEvents.filter(e => e.type === 'mousemove');
   const scrolls = allEvents.filter(e => e.type === 'scroll');
@@ -367,29 +378,33 @@ async function assembleZip(sessionId) {
     ssFolder.file(pageName + '.png', ss.blob);
 
     const imgBitmap = await createImageBitmap(ss.blob);
-    const pageClicks = clicks.filter(c => c.page === ss.page);
-    const pageMoves = moves.filter(m => m.page === ss.page);
+    try {
+      const pageClicks = clicks.filter(c => c.page === ss.page);
+      const pageMoves = moves.filter(m => m.page === ss.page);
 
-    if (pageClicks.length > 0) {
-      const pts = aggregatePoints(pageClicks);
-      const hm = renderHeatmap(ss.width, ss.height, pts, 30);
-      const comp = new OffscreenCanvas(ss.width, ss.height);
-      const ctx = comp.getContext('2d');
-      ctx.drawImage(imgBitmap, 0, 0);
-      ctx.drawImage(hm, 0, 0);
-      const blob = await comp.convertToBlob({ type: 'image/png' });
-      hmFolder.file('clicks_' + pageName + '.png', blob);
-    }
+      if (pageClicks.length > 0) {
+        const pts = aggregatePoints(pageClicks);
+        const hm = renderHeatmap(ss.width, ss.height, pts, 30);
+        const comp = new OffscreenCanvas(ss.width, ss.height);
+        const ctx = comp.getContext('2d');
+        ctx.drawImage(imgBitmap, 0, 0);
+        ctx.drawImage(hm, 0, 0);
+        const blob = await comp.convertToBlob({ type: 'image/png' });
+        hmFolder.file('clicks_' + pageName + '.png', blob);
+      }
 
-    if (pageMoves.length > 0) {
-      const mpts = aggregatePoints(pageMoves);
-      const mhm = renderHeatmap(ss.width, ss.height, mpts, 40);
-      const mcomp = new OffscreenCanvas(ss.width, ss.height);
-      const mctx = mcomp.getContext('2d');
-      mctx.drawImage(imgBitmap, 0, 0);
-      mctx.drawImage(mhm, 0, 0);
-      const mblob = await mcomp.convertToBlob({ type: 'image/png' });
-      hmFolder.file('movement_' + pageName + '.png', mblob);
+      if (pageMoves.length > 0) {
+        const mpts = aggregatePoints(pageMoves);
+        const mhm = renderHeatmap(ss.width, ss.height, mpts, 40);
+        const mcomp = new OffscreenCanvas(ss.width, ss.height);
+        const mctx = mcomp.getContext('2d');
+        mctx.drawImage(imgBitmap, 0, 0);
+        mctx.drawImage(mhm, 0, 0);
+        const mblob = await mcomp.convertToBlob({ type: 'image/png' });
+        hmFolder.file('movement_' + pageName + '.png', mblob);
+      }
+    } finally {
+      imgBitmap.close();
     }
   }
 
@@ -444,9 +459,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         break;
       }
       case 'DOWNLOAD_ZIP': {
-        const state = await getSessionState();
-        if (state.sessionId) {
-          await downloadZip(state.sessionId);
+        const sessions = await dbGetAll('sessions');
+        const completed = sessions
+          .filter(s => s.status === 'complete')
+          .sort((a, b) => b.endTime - a.endTime);
+        if (completed.length > 0) {
+          await downloadZip(completed[0].sessionId);
         }
         sendResponse({ ok: true });
         break;
@@ -515,6 +533,4 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   return true;
 });
 
-chrome.runtime.onInstalled.addListener(() => {
-  console.log('[SessionTracker] installed');
-});
+chrome.runtime.onInstalled.addListener(() => {});
