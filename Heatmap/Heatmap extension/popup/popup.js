@@ -22,18 +22,23 @@ function showState(state) {
 }
 
 async function loadState() {
-  const resp = await chrome.runtime.sendMessage({ type: 'GET_STATE' });
-  if (resp.isRecording) {
-    showState('recording');
-  } else if (resp.hasSession) {
-    showState('ready');
-  } else {
+  try {
+    const resp = await chrome.runtime.sendMessage({ type: 'GET_STATE' });
+    if (resp && resp.isRecording) {
+      showState('recording');
+    } else if (resp && resp.hasSession) {
+      showState('ready');
+    } else {
+      showState('idle');
+    }
+  } catch {
     showState('idle');
   }
 }
 
 document.getElementById('btn-start').addEventListener('click', async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab) return;
   await chrome.runtime.sendMessage({ type: 'START_SESSION', tabId: tab.id });
   showState('recording');
 });
@@ -45,6 +50,7 @@ document.getElementById('btn-stop').addEventListener('click', async () => {
 
 document.getElementById('btn-start-new').addEventListener('click', async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab) return;
   await chrome.runtime.sendMessage({ type: 'START_SESSION', tabId: tab.id });
   showState('recording');
 });
