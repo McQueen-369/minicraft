@@ -208,8 +208,9 @@ async function deleteSessionData(db, sessionId) {
 
 async function captureScreenshot(tabId, sessionId) {
   try {
-    const dataUrl = await chrome.tabs.captureVisibleTab(null, { format: 'png' });
     const tab = await chrome.tabs.get(tabId);
+    if (!tab.active) return;
+    const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
     const resp = await fetch(dataUrl);
     const blob = await resp.blob();
     await dbPut('screenshots', {
@@ -485,7 +486,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       case 'EVENTS': {
         const state = await getSessionState();
         if (!state.isRecording) break;
-        await dbPutAll('events', msg.events);
+        const events = msg.events.map(e => ({ ...e, sessionId: state.sessionId }));
+        await dbPutAll('events', events);
         sendResponse({ ok: true });
         break;
       }
@@ -532,5 +534,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   })();
   return true;
 });
+
+// Restore badge if a recording session was active when the SW was suspended
+(async () => {
+  const state = await getSessionState();
+  if (state.isRecording) {
+    chrome.action.setBadgeText({ text: '●' });
+    chrome.action.setBadgeBackgroundColor({ color: '#22c55e' });
+  }
+})();
 
 chrome.runtime.onInstalled.addListener(() => {});

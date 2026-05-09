@@ -1,5 +1,10 @@
 'use strict';
 
+if (window.__sessionTrackerInjected) {
+  // Already running — skip re-initialization to prevent duplicate listeners
+} else {
+window.__sessionTrackerInjected = true;
+
 const CFG = {
   MOUSE_SAMPLE_MS: 50,
   SCROLL_SAMPLE_MS: 200,
@@ -144,3 +149,5 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
   return false;
 });
+
+} // end injection guard
