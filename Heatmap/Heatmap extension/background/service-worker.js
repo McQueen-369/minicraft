@@ -120,10 +120,6 @@ async function startSession(tabId) {
   await chrome.action.setBadgeText({ text: '●' });
   await chrome.action.setBadgeBackgroundColor({ color: '#22c55e' });
 
-  // Capture without setTimeout — SW may be suspended before a timer fires,
-  // losing the screenshot. Chrome API awaits keep the SW alive.
-  await captureScreenshot(tabId, sessionId);
-
   return sessionId;
 }
 
@@ -206,66 +202,6 @@ async function deleteSessionData(db, sessionId) {
 }
 
 /* ── Screenshots ───────────────────────────────────── */
-
-// Scrolls the page in strips via the content script and stitches them
-// into a single full-page PNG using OffscreenCanvas. No debugger required.
-async function captureFullPage(tabId) {
-  const info = await chrome.tabs.sendMessage(tabId, { type: 'CAPTURE_PREPARE' });
-  const { pageW, pageH, viewportH } = info;
-
-  const strips = [];
-  let targetY = 0;
-
-  try {
-    while (targetY < pageH) {
-      const { scrollY } = await chrome.tabs.sendMessage(tabId, { type: 'CAPTURE_SCROLL', y: targetY });
-      const tab = await chrome.tabs.get(tabId);
-      const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
-      strips.push({ dataUrl, scrollY });
-      if (scrollY + viewportH >= pageH) break;
-      targetY += viewportH;
-    }
-  } finally {
-    try { await chrome.tabs.sendMessage(tabId, { type: 'CAPTURE_RESTORE' }); } catch (_) {}
-  }
-
-  const canvas = new OffscreenCanvas(pageW, pageH);
-  const ctx = canvas.getContext('2d');
-
-  for (const strip of strips) {
-    const resp = await fetch(strip.dataUrl);
-    const blob = await resp.blob();
-    const bitmap = await createImageBitmap(blob);
-    try {
-      ctx.drawImage(bitmap, 0, strip.scrollY);
-    } finally {
-      bitmap.close();
-    }
-  }
-
-  return {
-    blob: await canvas.convertToBlob({ type: 'image/png' }),
-    width: pageW,
-    height: pageH,
-  };
-}
-
-async function captureScreenshot(tabId, sessionId) {
-  try {
-    const tab = await chrome.tabs.get(tabId);
-    const { blob, width, height } = await captureFullPage(tabId);
-    await dbPut('screenshots', {
-      sessionId,
-      page: tab.url,
-      blob,
-      width,
-      height,
-      ts: Date.now(),
-    });
-  } catch (_) {
-    // Screenshot failed (tab not active, content script not ready, etc.); silently skip.
-  }
-}
 
 /* ── Heatmap Rendering (OffscreenCanvas) ───────────── */
 
@@ -414,39 +350,57 @@ async function assembleZip(sessionId) {
   const ssFolder = zip.folder('screenshots');
   const hmFolder = zip.folder('heatmaps');
 
+  // Group scroll-strip captures by page URL, then stitch into one image per page
+  const capturesByPage = {};
   for (const ss of allScreenshots) {
     if (!ss.blob) continue;
-    const pageName = safeName(ss.page);
-    ssFolder.file(pageName + '.png', ss.blob);
+    if (!capturesByPage[ss.page]) capturesByPage[ss.page] = [];
+    capturesByPage[ss.page].push(ss);
+  }
 
-    const imgBitmap = await createImageBitmap(ss.blob);
+  for (const [pageUrl, captures] of Object.entries(capturesByPage)) {
+    captures.sort((a, b) => (a.scrollY || 0) - (b.scrollY || 0));
+
+    const vw = captures[0].viewportW || 1280;
+    const vh = captures[0].viewportH || 800;
+    const totalH = Math.max(...captures.map(c => (c.scrollY || 0) + vh));
+    const pageName = safeName(pageUrl);
+
+    // Stitch strips into one full-page image
+    const stitchCanvas = new OffscreenCanvas(vw, totalH);
+    const stitchCtx = stitchCanvas.getContext('2d');
+    for (const cap of captures) {
+      const bm = await createImageBitmap(cap.blob);
+      try { stitchCtx.drawImage(bm, 0, cap.scrollY || 0); } finally { bm.close(); }
+    }
+    const stitchedBlob = await stitchCanvas.convertToBlob({ type: 'image/png' });
+    ssFolder.file(pageName + '.png', stitchedBlob);
+
+    // Render heatmaps on the stitched background
+    const stitchedBitmap = await createImageBitmap(stitchedBlob);
     try {
-      const pageClicks = clicks.filter(c => c.page === ss.page);
-      const pageMoves = moves.filter(m => m.page === ss.page);
+      const pageClicks = clicks.filter(c => c.page === pageUrl);
+      const pageMoves = moves.filter(m => m.page === pageUrl);
 
       if (pageClicks.length > 0) {
-        const pts = aggregatePoints(pageClicks);
-        const hm = renderHeatmap(ss.width, ss.height, pts, 30);
-        const comp = new OffscreenCanvas(ss.width, ss.height);
+        const hm = renderHeatmap(vw, totalH, aggregatePoints(pageClicks), 30);
+        const comp = new OffscreenCanvas(vw, totalH);
         const ctx = comp.getContext('2d');
-        ctx.drawImage(imgBitmap, 0, 0);
+        ctx.drawImage(stitchedBitmap, 0, 0);
         ctx.drawImage(hm, 0, 0);
-        const blob = await comp.convertToBlob({ type: 'image/png' });
-        hmFolder.file('clicks_' + pageName + '.png', blob);
+        hmFolder.file('clicks_' + pageName + '.png', await comp.convertToBlob({ type: 'image/png' }));
       }
 
       if (pageMoves.length > 0) {
-        const mpts = aggregatePoints(pageMoves);
-        const mhm = renderHeatmap(ss.width, ss.height, mpts, 40);
-        const mcomp = new OffscreenCanvas(ss.width, ss.height);
+        const mhm = renderHeatmap(vw, totalH, aggregatePoints(pageMoves), 40);
+        const mcomp = new OffscreenCanvas(vw, totalH);
         const mctx = mcomp.getContext('2d');
-        mctx.drawImage(imgBitmap, 0, 0);
+        mctx.drawImage(stitchedBitmap, 0, 0);
         mctx.drawImage(mhm, 0, 0);
-        const mblob = await mcomp.convertToBlob({ type: 'image/png' });
-        hmFolder.file('movement_' + pageName + '.png', mblob);
+        hmFolder.file('movement_' + pageName + '.png', await mcomp.convertToBlob({ type: 'image/png' }));
       }
     } finally {
-      imgBitmap.close();
+      stitchedBitmap.close();
     }
   }
 
@@ -480,8 +434,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
       files: ['content/tracker.js'],
     });
   } catch (_) {}
-
-  await captureScreenshot(tabId, state.sessionId);
+  // Content script triggers its own initial CAPTURE_VIEWPORT on startTracking
 });
 
 /* ── Message Handler ───────────────────────────────── */
@@ -527,6 +480,30 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             ? completedSessions.sort((a, b) => b.endTime - a.endTime)[0].sessionId
             : null,
         });
+        break;
+      }
+      case 'CAPTURE_VIEWPORT': {
+        const state = await getSessionState();
+        if (!state.isRecording) { sendResponse({ ok: true }); break; }
+        try {
+          const tab = await chrome.tabs.get(sender.tab.id);
+          if (tab.active) {
+            const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
+            const resp = await fetch(dataUrl);
+            const blob = await resp.blob();
+            await dbPut('screenshots', {
+              sessionId: state.sessionId,
+              page: tab.url,
+              scrollY: msg.scrollY || 0,
+              viewportW: msg.viewportW,
+              viewportH: msg.viewportH,
+              pageH: msg.pageH,
+              blob,
+              ts: Date.now(),
+            });
+          }
+        } catch (_) {}
+        sendResponse({ ok: true });
         break;
       }
       case 'EVENTS': {

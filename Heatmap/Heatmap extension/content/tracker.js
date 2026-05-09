@@ -9,6 +9,8 @@ const CFG = {
   MOUSE_SAMPLE_MS: 50,
   SCROLL_SAMPLE_MS: 200,
   FLUSH_INTERVAL_MS: 3000,
+  // Capture a new viewport strip when the user scrolls this fraction of a viewport height
+  CAPTURE_THRESHOLD: 0.7,
 };
 
 let sessionId = null;
@@ -17,6 +19,7 @@ let pageStart = Date.now();
 let tracking = false;
 let lastMouseTime = 0;
 let lastScrollTime = 0;
+let lastCaptureScrollY = -Infinity;
 let mouseBuffer = [];
 let clickBuffer = [];
 let scrollBuffer = [];
@@ -29,6 +32,23 @@ function scrollHeight() {
     document.body.offsetHeight || 0,
     document.documentElement.offsetHeight || 0
   );
+}
+
+// Send a capture request to the SW whenever the user scrolls far enough
+// from the last captured position. No auto-scrolling — captures happen
+// at exactly where the user is looking.
+function maybeCaptureViewport() {
+  if (!tracking) return;
+  const currentY = window.scrollY || 0;
+  if (Math.abs(currentY - lastCaptureScrollY) < window.innerHeight * CFG.CAPTURE_THRESHOLD) return;
+  lastCaptureScrollY = currentY;
+  chrome.runtime.sendMessage({
+    type: 'CAPTURE_VIEWPORT',
+    scrollY: currentY,
+    viewportW: window.innerWidth,
+    viewportH: window.innerHeight,
+    pageH: scrollHeight(),
+  }).catch(() => {});
 }
 
 function onMouseMove(e) {
@@ -82,6 +102,7 @@ function onScroll() {
     pageH: scrollHeight(),
     ts: now,
   });
+  maybeCaptureViewport();
 }
 
 function flush() {
@@ -101,6 +122,9 @@ function startTracking(sid) {
   document.addEventListener('click', onClick, true);
   window.addEventListener('scroll', onScroll, { passive: true });
   flushTimer = setInterval(flush, CFG.FLUSH_INTERVAL_MS);
+
+  // Capture the initial viewport (what the user sees when tracking starts)
+  maybeCaptureViewport();
 
   // Record page visit
   chrome.runtime.sendMessage({
@@ -142,41 +166,11 @@ chrome.runtime.sendMessage({ type: 'GET_SESSION_ID' }).then(resp => {
 }).catch(() => {});
 
 // Listen for stop signal from background
-let _captureSavedScrollX = 0, _captureSavedScrollY = 0;
-
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.type === 'STOP_TRACKING') {
     stopTracking();
     sendResponse({ ok: true });
-    return false;
   }
-
-  if (msg.type === 'CAPTURE_PREPARE') {
-    _captureSavedScrollX = window.scrollX;
-    _captureSavedScrollY = window.scrollY;
-    window.scrollTo(0, 0);
-    sendResponse({
-      pageW: Math.max(document.body.scrollWidth || 0, document.documentElement.scrollWidth || 0, window.innerWidth),
-      pageH: Math.max(document.body.scrollHeight || 0, document.documentElement.scrollHeight || 0, window.innerHeight),
-      viewportW: window.innerWidth,
-      viewportH: window.innerHeight,
-    });
-    return false;
-  }
-
-  if (msg.type === 'CAPTURE_SCROLL') {
-    window.scrollTo(0, msg.y);
-    // Brief pause lets the browser paint before captureVisibleTab fires
-    setTimeout(() => sendResponse({ scrollY: window.scrollY }), 150);
-    return true;
-  }
-
-  if (msg.type === 'CAPTURE_RESTORE') {
-    window.scrollTo(_captureSavedScrollX, _captureSavedScrollY);
-    sendResponse({ ok: true });
-    return false;
-  }
-
   return false;
 });
 
