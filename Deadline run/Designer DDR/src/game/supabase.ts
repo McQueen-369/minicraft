@@ -130,15 +130,27 @@ function mapRoom(row: RoomRow): Room {
   }
 }
 
-function mapScore(row: Record<string, unknown>): Score {
+interface ScoreRow {
+  id: string
+  song_id: string
+  player_name: string
+  score: number
+  perfect_count: number
+  good_count: number
+  miss_count: number
+  max_combo: number
+  created_at: string
+}
+
+function mapScore(row: ScoreRow): Score {
   return {
-    id: row.id as string,
-    songId: row.song_id as string,
-    playerName: row.player_name as string,
-    score: row.score as number,
-    perfectCount: row.perfect_count as number,
-    goodCount: row.good_count as number,
-    missCount: row.miss_count as number,
-    maxCombo: row.max_combo as number,
+    id: row.id,
+    songId: row.song_id,
+    playerName: row.player_name,
+    score: row.score,
+    perfectCount: row.perfect_count,
+    goodCount: row.good_count,
+    missCount: row.miss_count,
+    maxCombo: row.max_combo,
   }
 }
