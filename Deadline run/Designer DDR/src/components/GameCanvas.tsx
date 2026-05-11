@@ -15,9 +15,10 @@ interface Props {
   onGhostBroadcast?: (ghost: GhostState) => void
   ghostState?: GhostState | null
   onGameEnd: (state: GameState) => void
+  onHitReady?: (fn: (lane: number) => void) => void
 }
 
-export function GameCanvas({ beatMap, audioBuffer, isMultiplayer, startAtMs, onGhostBroadcast, ghostState, onGameEnd }: Props) {
+export function GameCanvas({ beatMap, audioBuffer, isMultiplayer, startAtMs, onGhostBroadcast, ghostState, onGameEnd, onHitReady }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [displayState, setDisplayState] = useState<GameState | null>(null)
   const endCalledRef = useRef(false)
@@ -36,6 +37,11 @@ export function GameCanvas({ beatMap, audioBuffer, isMultiplayer, startAtMs, onG
       }
     },
   })
+
+  // Deliver hit callback to parent (for mobile controls)
+  useEffect(() => {
+    onHitReady?.(hit)
+  }, [hit, onHitReady])
 
   // Keyboard controls — desktop arrow keys
   useEffect(() => {

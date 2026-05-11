@@ -14,10 +14,12 @@ import { subscribeGhostState, broadcastGhostState } from './game/supabase'
 import { BUNDLED_SONGS } from './game/constants'
 import type { BeatMap } from './game/types'
 
-const isMobile = () => window.innerWidth < 768 || ('ontouchstart' in window)
+const MOBILE_BREAKPOINT_PX = 768
+const isMobile = () => window.innerWidth < MOBILE_BREAKPOINT_PX || ('ontouchstart' in window)
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>('start')
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [playerName, setPlayerName] = useState('')
   const [isMultiplayer, setIsMultiplayer] = useState(false)
   const [room, setRoom] = useState<Room | null>(null)
@@ -34,63 +36,73 @@ export default function App() {
 
   const hitRef = useRef<((lane: number) => void) | null>(null)
 
-  async function handleSinglePlayer(name: string) {
+  function handleSinglePlayer(name: string) {
     setPlayerName(name)
     setIsMultiplayer(false)
     setScreen('songSelect')
   }
 
-  async function handleMultiplayer(name: string) {
+  function handleMultiplayer(name: string) {
     setPlayerName(name)
     setIsMultiplayer(true)
     setScreen('lobby')
   }
 
   async function handleSongSelect(id: string, uploadedBpm?: number, uploadedBuffer?: ArrayBuffer) {
-    await resumeAudio()
-    setSongId(id)
+    try {
+      await resumeAudio()
+      setSongId(id)
 
-    let bm: BeatMap
-    let ab: AudioBuffer
+      let bm: BeatMap
+      let ab: AudioBuffer
 
-    if (uploadedBuffer && uploadedBpm) {
-      ab = await loadAudioBufferFromArray(uploadedBuffer)
-      bm = createUploadedBeatMap(id.replace('upload-', ''), ab, uploadedBpm)
-    } else {
-      const [loadedBm, loadedAb] = await Promise.all([
-        loadBeatMap(id),
-        loadAudioBuffer(`/songs/${id}.mp3`),
-      ])
-      bm = loadedBm
-      ab = loadedAb
+      if (uploadedBuffer && uploadedBpm) {
+        ab = await loadAudioBufferFromArray(uploadedBuffer)
+        bm = createUploadedBeatMap(id.replace('upload-', ''), ab, uploadedBpm)
+      } else {
+        const [loadedBm, loadedAb] = await Promise.all([
+          loadBeatMap(id),
+          loadAudioBuffer(`/songs/${id}.mp3`),
+        ])
+        bm = loadedBm
+        ab = loadedAb
+      }
+
+      setBeatMap(bm)
+      setAudioBuffer(ab)
+      setLoadError(null)
+      setScreen('game')
+    } catch (err: unknown) {
+      setLoadError(err instanceof Error ? err.message : 'Failed to load song')
     }
-
-    setBeatMap(bm)
-    setAudioBuffer(ab)
-    setScreen('game')
   }
 
   async function handleLobbyStart(r: Room, role: PlayerRole, ch: RealtimeChannel) {
-    setRoom(r)
-    setPlayerRole(role)
-    setChannel(ch)
+    try {
+      setRoom(r)
+      setPlayerRole(role)
+      setChannel(ch)
 
-    subscribeGhostState(ch, (gs) => {
-      setGhostState(gs)
-      setOpponentScore(gs.score)
-    })
+      subscribeGhostState(ch, (gs) => {
+        setGhostState(gs)
+        setOpponentScore(gs.score)
+      })
 
-    const bundledSong = BUNDLED_SONGS.find(s => s.id === r.songId)
-    if (bundledSong) {
-      await resumeAudio()
-      setSongId(r.songId)
-      const [bm, ab] = await Promise.all([
-        loadBeatMap(r.songId),
-        loadAudioBuffer(`/songs/${r.songId}.mp3`),
-      ])
-      setBeatMap(bm)
-      setAudioBuffer(ab)
-      setScreen('game')
+      const bundledSong = BUNDLED_SONGS.find(s => s.id === r.songId)
+      if (bundledSong) {
+        await resumeAudio()
+        setSongId(r.songId)
+        const [bm, ab] = await Promise.all([
+          loadBeatMap(r.songId),
+          loadAudioBuffer(`/songs/${r.songId}.mp3`),
+        ])
+        setBeatMap(bm)
+        setAudioBuffer(ab)
+        setLoadError(null)
+        setScreen('game')
+      }
+    } catch (err: unknown) {
+      setLoadError(err instanceof Error ? err.message : 'Failed to load song')
     }
   }
 
@@ -107,6 +119,11 @@ export default function App() {
 
   return (
     <>
+      {loadError && (
+        <div style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', background: '#0a0a0a', color: '#f5f0e8', padding: '8px 16px', border: '1px solid #696255', zIndex: 999 }}>
+          {loadError}
+        </div>
+      )}
       {screen === 'start' && (
         <StartScreen onSinglePlayer={handleSinglePlayer} onMultiplayer={handleMultiplayer} />
       )}
@@ -126,6 +143,7 @@ export default function App() {
             onGhostBroadcast={isMultiplayer ? handleGhostBroadcast : undefined}
             ghostState={isMultiplayer ? ghostState : null}
             onGameEnd={handleGameEnd}
+            onHitReady={(fn) => { hitRef.current = fn }}
           />
           {isMobile() && (
             <MobileControls
