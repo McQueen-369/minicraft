@@ -16,3 +16,6 @@ dist-ssr/
 
 # Vite cache
 .vite/
+
+# Test coverage
+coverage/
