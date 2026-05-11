@@ -15,7 +15,7 @@ function generateRoomCode(): string {
 export async function createRoom(hostName: string, songId: string): Promise<Room> {
   const code = generateRoomCode()
   const { data, error } = await supabase
-    .from('rooms')
+    .from('dash_rooms')
     .insert({ code, host_name: hostName, song_id: songId })
     .select()
     .single()
@@ -25,7 +25,7 @@ export async function createRoom(hostName: string, songId: string): Promise<Room
 
 export async function joinRoom(code: string, guestName: string): Promise<Room> {
   const { data, error } = await supabase
-    .from('rooms')
+    .from('dash_rooms')
     .update({ guest_name: guestName })
     .eq('code', code.toUpperCase())
     .eq('status', 'waiting')
@@ -36,18 +36,18 @@ export async function joinRoom(code: string, guestName: string): Promise<Room> {
 }
 
 export async function updateRoomSong(roomId: string, songId: string): Promise<void> {
-  const { error } = await supabase.from('rooms').update({ song_id: songId }).eq('id', roomId)
+  const { error } = await supabase.from('dash_rooms').update({ song_id: songId }).eq('id', roomId)
   if (error) throw error
 }
 
 export async function setRoomStatus(roomId: string, status: Room['status']): Promise<void> {
-  const { error } = await supabase.from('rooms').update({ status }).eq('id', roomId)
+  const { error } = await supabase.from('dash_rooms').update({ status }).eq('id', roomId)
   if (error) throw error
 }
 
 export async function setRoomStartAt(roomId: string, startAt: number): Promise<void> {
   const { error } = await supabase
-    .from('rooms')
+    .from('dash_rooms')
     .update({ status: 'playing', start_at: startAt })
     .eq('id', roomId)
   if (error) throw error
@@ -61,7 +61,7 @@ export function subscribeToRoom(
     .channel(`room-${roomId}`)
     .on(
       'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` },
+      { event: 'UPDATE', schema: 'public', table: 'dash_rooms', filter: `id=eq.${roomId}` },
       (payload) => onUpdate(mapRoom(payload.new as RoomRow)),
     )
     .subscribe()
@@ -84,7 +84,7 @@ export function subscribeGhostState(
 }
 
 export async function saveScore(score: Score): Promise<void> {
-  const { error } = await supabase.from('scores').insert({
+  const { error } = await supabase.from('dash_scores').insert({
     song_id: score.songId,
     player_name: score.playerName,
     score: score.score,
@@ -98,7 +98,7 @@ export async function saveScore(score: Score): Promise<void> {
 
 export async function getLeaderboard(songId: string): Promise<Score[]> {
   const { data, error } = await supabase
-    .from('scores')
+    .from('dash_scores')
     .select('*')
     .eq('song_id', songId)
     .order('score', { ascending: false })

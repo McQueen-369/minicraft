@@ -1,4 +1,4 @@
-create table if not exists rooms (
+create table if not exists dash_rooms (
   id         uuid primary key default gen_random_uuid(),
   code       text unique not null,
   host_name  text not null,
@@ -9,7 +9,7 @@ create table if not exists rooms (
   created_at timestamptz default now()
 );
 
-create table if not exists scores (
+create table if not exists dash_scores (
   id            uuid primary key default gen_random_uuid(),
   song_id       text not null,
   player_name   text not null,
@@ -21,5 +21,15 @@ create table if not exists scores (
   created_at    timestamptz default now()
 );
 
--- Enable realtime on rooms table
-alter publication supabase_realtime add table rooms;
+alter table dash_rooms enable row level security;
+alter table dash_scores enable row level security;
+
+create policy "dash_rooms_select" on dash_rooms for select using (true);
+create policy "dash_rooms_insert" on dash_rooms for insert with check (true);
+create policy "dash_rooms_update" on dash_rooms for update using (true);
+
+create policy "dash_scores_select" on dash_scores for select using (true);
+create policy "dash_scores_insert" on dash_scores for insert with check (true);
+
+-- Enable realtime on dash_rooms
+alter publication supabase_realtime add table dash_rooms;
