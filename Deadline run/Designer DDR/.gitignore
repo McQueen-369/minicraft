@@ -19,3 +19,6 @@ dist-ssr/
 
 # Test coverage
 coverage/
+
+# Audio files (large binaries)
+*.mp3
