@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { getComboMultiplier, calcJudgment, calcPoints } from './scoring'
+import type { Judgment } from './types'
 
 describe('getComboMultiplier', () => {
   it('returns ×1 for combo 0', () => expect(getComboMultiplier(0)).toBe(1))
@@ -29,4 +30,27 @@ describe('calcPoints', () => {
     expect(calcPoints('GOOD', 100)).toBe(50)
   })
   it('MISS always = 0', () => expect(calcPoints('MISS', 0)).toBe(0))
+})
+
+describe('full scoring session simulation', () => {
+  it('tracks score through a mixed sequence', () => {
+    let score = 0
+    let combo = 0
+    const hits: Array<{ judgment: Judgment; expectedScore: number }> = [
+      { judgment: 'PERFECT', expectedScore: 100 },   // combo 0 → ×1
+      { judgment: 'PERFECT', expectedScore: 100 },   // combo 1 → ×1
+      { judgment: 'GOOD',    expectedScore: 50  },   // flat 50
+      { judgment: 'MISS',    expectedScore: 0   },   // combo resets
+      { judgment: 'PERFECT', expectedScore: 100 },   // combo 0 again → ×1
+    ]
+
+    for (const hit of hits) {
+      const pts = calcPoints(hit.judgment, combo)
+      expect(pts).toBe(hit.expectedScore)
+      score += pts
+      combo = hit.judgment === 'MISS' ? 0 : combo + 1
+    }
+    expect(score).toBe(350)
+    expect(combo).toBe(1)
+  })
 })
