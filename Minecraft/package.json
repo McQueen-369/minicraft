@@ -1,0 +1,24 @@
+{
+  "name": "minicraft",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.105.4",
+    "simplex-noise": "^4.0.3",
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.180.0",
+    "typescript": "~5.6.2",
+    "vite": "^6.0.5",
+    "vitest": "^2.1.9"
+  }
+}
