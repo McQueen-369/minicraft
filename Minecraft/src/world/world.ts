@@ -117,14 +117,18 @@ export class World {
   /**
    * Generate chunks around the player (one ring beyond render distance so
    * meshing always has neighbors) and unload far chunks with hysteresis.
+   * Generation is nearest-first and capped at maxGenerate per call to keep
+   * frames smooth; pass Infinity to force the whole ring (e.g. at spawn).
    */
-  updateLoadedChunks(px: number, pz: number): { unloaded: string[] } {
+  updateLoadedChunks(px: number, pz: number, maxGenerate = Infinity): { unloaded: string[] } {
     const pcx = worldToChunk(Math.floor(px))
     const pcz = worldToChunk(Math.floor(pz))
-    const genDist = RENDER_DISTANCE + 1
-    for (let dz = -genDist; dz <= genDist; dz++) {
-      for (let dx = -genDist; dx <= genDist; dx++) {
-        if (dx * dx + dz * dz <= genDist * genDist) this.ensureChunk(pcx + dx, pcz + dz)
+    let budget = maxGenerate
+    for (const [dx, dz] of genOffsets()) {
+      if (budget <= 0) break
+      if (!this.hasChunk(pcx + dx, pcz + dz)) {
+        this.ensureChunk(pcx + dx, pcz + dz)
+        budget--
       }
     }
     const unloaded: string[] = []
@@ -141,4 +145,21 @@ export class World {
     }
     return { unloaded }
   }
+}
+
+let cachedOffsets: [number, number][] | null = null
+
+/** Chunk offsets within the generation disk, sorted nearest-first. */
+function genOffsets(): [number, number][] {
+  if (cachedOffsets) return cachedOffsets
+  const genDist = RENDER_DISTANCE + 1
+  const out: [number, number][] = []
+  for (let dz = -genDist; dz <= genDist; dz++) {
+    for (let dx = -genDist; dx <= genDist; dx++) {
+      if (dx * dx + dz * dz <= genDist * genDist) out.push([dx, dz])
+    }
+  }
+  out.sort((a, b) => a[0] * a[0] + a[1] * a[1] - (b[0] * b[0] + b[1] * b[1]))
+  cachedOffsets = out
+  return out
 }
