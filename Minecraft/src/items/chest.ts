@@ -1,0 +1,23 @@
+import { CHEST_SLOTS } from '../constants'
+import { hash2D } from '../core/rng'
+import { ItemId, type ChestContents } from './items'
+
+/** Deterministic starter loot for a naturally generated chest. */
+export function chestLoot(seed: number, x: number, z: number): ChestContents {
+  const contents: ChestContents = new Array(CHEST_SLOTS).fill(null)
+  const r = (salt: number) => hash2D(seed ^ salt, x, z)
+  let slot = 0
+  const put = (itemId: number, count: number) => {
+    if (slot < CHEST_SLOTS) contents[slot++] = { itemId, count }
+  }
+  put(r(1) < 0.4 ? ItemId.StonePickaxe : ItemId.WoodPickaxe, 1)
+  if (r(2) < 0.6) put(ItemId.Axe, 1)
+  if (r(3) < 0.4) put(ItemId.Shears, 1)
+  put(ItemId.Wheat, 2 + Math.floor(r(4) * 4))
+  put(ItemId.Carrot, 2 + Math.floor(r(5) * 4))
+  put(ItemId.Seeds, 2 + Math.floor(r(6) * 4))
+  if (r(7) < 0.5) put(ItemId.Brick, 4 + Math.floor(r(8) * 12))
+  if (r(9) < 0.5) put(ItemId.Plank, 4 + Math.floor(r(10) * 12))
+  if (r(11) < 0.3) put(ItemId.Glass, 2 + Math.floor(r(12) * 6))
+  return contents
+}

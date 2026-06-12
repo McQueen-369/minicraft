@@ -1,15 +1,9 @@
 import { CHUNK_SIZE, RENDER_DISTANCE, UNLOAD_DISTANCE } from '../constants'
 import { BlockId } from '../core/blocks'
 import { blockKey, chunkKey, inWorldY, parseChunkKey, worldToChunk, worldToLocal } from '../core/coords'
+import type { ChestContents } from '../items/items'
 import { Chunk } from './chunk'
 import type { Terrain } from './terrain'
-
-export interface Slot {
-  itemId: number
-  count: number
-}
-
-export type ChestContents = (Slot | null)[]
 
 export class World {
   readonly chunks = new Map<string, Chunk>()
