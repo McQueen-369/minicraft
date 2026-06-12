@@ -23,6 +23,8 @@ export interface PhysicsInput {
   fly: boolean
   /** Desired vertical velocity while flying. */
   flyMoveY: number
+  /** In water: gravity is damped and jump paddles upward. */
+  swim?: boolean
 }
 
 export type SolidSampler = (x: number, y: number, z: number) => boolean
@@ -51,6 +53,10 @@ export function stepPhysics(
     p.vel.x = input.moveX
     p.vel.z = input.moveZ
     p.vel.y = input.flyMoveY
+  } else if (input.swim) {
+    p.vel.x = input.moveX
+    p.vel.z = input.moveZ
+    p.vel.y = input.jump ? 4 : Math.max(p.vel.y - GRAVITY * 0.25 * dt, -2.5)
   } else {
     p.vel.x = input.moveX
     p.vel.z = input.moveZ

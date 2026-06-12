@@ -46,6 +46,17 @@ describe('stepPhysics', () => {
     expect(p.pos.x).toBeGreaterThan(1.5)
   })
 
+  it('paddles upward when swimming and jumping', () => {
+    const p = state(15)
+    // Sink slowly without input...
+    for (let i = 0; i < 60; i++) stepPhysics(p, { ...idle, swim: true }, 1 / 60, floorAt(5))
+    expect(p.vel.y).toBeGreaterThanOrEqual(-2.5)
+    // ...and rise while holding jump.
+    const before = p.pos.y
+    for (let i = 0; i < 60; i++) stepPhysics(p, { ...idle, swim: true, jump: true }, 1 / 60, floorAt(5))
+    expect(p.pos.y).toBeGreaterThan(before)
+  })
+
   it('flies freely without gravity', () => {
     const p = state(20)
     stepPhysics(p, { ...idle, fly: true, flyMoveY: 5 }, 0.1, floorAt(10))

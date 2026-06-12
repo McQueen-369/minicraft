@@ -385,7 +385,11 @@ export class Game {
     this.mp?.update(
       dt,
       { x: pos.x, y: pos.y, z: pos.z, yaw: this.controls.yaw, pitch: this.controls.pitch },
-      () => s.entities.serialize().animals,
+      // Sync only animals near someone — the full set can grow unboundedly.
+      () =>
+        s.entities.serialize().animals.filter((a) =>
+          [...owners.values()].some((p) => (a.pos.x - p.x) ** 2 + (a.pos.z - p.z) ** 2 < 96 * 96),
+        ),
     )
 
     if (this.mode !== 'guest' && this.playing) {

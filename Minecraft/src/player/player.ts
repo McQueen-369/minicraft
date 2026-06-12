@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { FLY_SPEED, PLAYER_EYE, WALK_SPEED } from '../constants'
+import { FLY_SPEED, PLAYER_EYE, WALK_SPEED, WATER_LEVEL } from '../constants'
 import { isSolid } from '../core/blocks'
 import type { World } from '../world/world'
 import type { Controls } from './controls'
@@ -37,6 +37,7 @@ export class Player {
         jump: gameplay && controls.keys.has('Space'),
         fly: controls.fly,
         flyMoveY,
+        swim: !controls.fly && this.state.pos.y < WATER_LEVEL,
       },
       dt,
       (x, y, z) => isSolid(this.world.getBlock(x, y, z)),
