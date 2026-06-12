@@ -23,6 +23,7 @@ export const MAX_STACK = 64
 export const CHEST_SLOTS = 27
 
 export const AUTOSAVE_INTERVAL_MS = 10_000
+export const CLOUD_AUTOSAVE_INTERVAL_MS = 30_000
 export const SAVE_KEY = 'minicraft-world-v1'
 
 export const MESH_BUDGET_PER_FRAME = 2

@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { AUTOSAVE_INTERVAL_MS, SAVE_KEY, WATER_LEVEL } from './constants'
+import { AUTOSAVE_INTERVAL_MS, CLOUD_AUTOSAVE_INTERVAL_MS, SAVE_KEY, WATER_LEVEL } from './constants'
 import { blockKey, chunkKey, worldToChunk } from './core/coords'
 import { hashString } from './core/rng'
 import { EntityManager } from './entities/entityManager'
@@ -7,6 +7,8 @@ import { BlockInteraction } from './interact/blockInteraction'
 import { chestLoot } from './items/chest'
 import { Inventory } from './items/inventory'
 import type { ChestContents } from './items/items'
+import * as cloud from './net/cloud'
+import { isSessionExpired, loadStoredProfile, storeProfile, type Profile, type WorldMeta } from './net/cloud'
 import { connectChannel, Multiplayer } from './net/multiplayer'
 import { generateRoomCode, isValidRoomCode, type SnapshotMsg } from './net/protocol'
 import { supabaseConfigured } from './net/supabase'
@@ -52,6 +54,11 @@ export class Game {
   private session: Session | null = null
   private mp: Multiplayer | null = null
   private mode: Mode = 'single'
+  private profile: Profile | null = loadStoredProfile()
+  /** Set while the active world lives in the player's cloud profile. */
+  private cloudWorld: { id: string; name: string } | null = null
+  private cloudSaving = false
+  private pendingCloudData: SaveData | null = null
   private playing = false
   private worldReady = false
   private openChestKey: string | null = null
@@ -78,6 +85,25 @@ export class Game {
       onResume: () => this.resume(),
       onQuitToMenu: () => this.quitToMenu(),
       multiplayerAvailable: supabaseConfigured(),
+      profile: () => this.profile,
+      onSignIn: async (u, p) => {
+        this.profile = await cloud.signIn(u, p)
+        storeProfile(this.profile)
+      },
+      onSignUp: async (u, p) => {
+        this.profile = await cloud.signUp(u, p)
+        storeProfile(this.profile)
+      },
+      onSignOut: () => {
+        if (this.profile) void cloud.signOut(this.profile.token).catch(() => {})
+        this.profile = null
+        storeProfile(null)
+      },
+      listWorlds: () => this.guarded(() => cloud.listWorlds(this.profile!.token)),
+      onPlayCloud: (w) => this.guarded(() => this.startCloud(w, 'single')),
+      onHostCloud: (w) => this.guarded(() => this.startCloud(w, 'host')),
+      onCreateCloud: (name) => this.guarded(() => this.createCloudWorld(name)),
+      onDeleteCloud: (w) => this.guarded(() => cloud.deleteWorld(this.profile!.token, w.id)),
     })
 
     this.inventory.onChange = () => this.hud.refresh()
@@ -99,7 +125,14 @@ export class Game {
     })
     document.addEventListener('pointerlockchange', () => {
       if (!this.controls.isLocked && this.playing && !this.panels.isOpen && !this.menu.isOpen) {
-        this.menu.showPause(this.mp ? `Room ${this.mp.roomCode} stays open` : undefined)
+        this.menu.showPause(
+          [
+            this.cloudWorld ? `"${this.cloudWorld.name}" saves to ${this.profile?.username ?? 'your profile'}` : null,
+            this.mp ? `Room ${this.mp.roomCode} stays open` : null,
+          ]
+            .filter(Boolean)
+            .join(' · ') || undefined,
+        )
         this.updateInputState()
       }
     })
@@ -213,6 +246,7 @@ export class Game {
 
   private startSingle(fresh: boolean): void {
     this.mode = 'single'
+    this.cloudWorld = null
     const save = fresh ? null : this.store.load()
     if (fresh) this.store.clear()
     this.createSession(save?.seed ?? randomSeed(), save)
@@ -224,16 +258,71 @@ export class Game {
     const roomCode = generateRoomCode()
     const transport = await connectChannel(roomCode)
     this.mode = 'host'
+    this.cloudWorld = null
     this.createSession(save?.seed ?? randomSeed(), save)
     this.mp = new Multiplayer('host', roomCode, transport, this.session!.scene, this.playerId, name, this.hooks())
     this.beginPlay()
     this.hud.showToast(`Hosting room ${roomCode} — share the code!`)
   }
 
+  /** Play or host a world stored in the signed-in player's profile. */
+  private async startCloud(w: WorldMeta, as: 'single' | 'host'): Promise<void> {
+    const profile = this.profile
+    if (!profile) throw new Error('Sign in first')
+    const save = await cloud.loadWorld(profile.token, w.id)
+    if (as === 'host') {
+      const roomCode = generateRoomCode()
+      const transport = await connectChannel(roomCode)
+      this.mode = 'host'
+      this.cloudWorld = { id: w.id, name: w.name }
+      this.createSession(save.seed, save)
+      this.mp = new Multiplayer('host', roomCode, transport, this.session!.scene, this.playerId, profile.username, this.hooks())
+      this.beginPlay()
+      this.hud.showToast(`Hosting "${w.name}" in room ${roomCode} — the session saves to your profile`)
+    } else {
+      this.mode = 'single'
+      this.cloudWorld = { id: w.id, name: w.name }
+      this.createSession(save.seed, save)
+      this.beginPlay()
+    }
+  }
+
+  /** Generate a fresh world and persist it to the profile before playing. */
+  private async createCloudWorld(name: string): Promise<void> {
+    const profile = this.profile
+    if (!profile) throw new Error('Sign in first')
+    this.mode = 'single'
+    this.cloudWorld = null
+    this.createSession(randomSeed(), null)
+    try {
+      const id = await cloud.saveWorld(profile.token, null, name, this.buildSaveData())
+      this.cloudWorld = { id, name }
+    } catch (e) {
+      this.teardownSession()
+      throw e
+    }
+    this.beginPlay()
+  }
+
+  /** Clear the local profile if the server rejected our session token. */
+  private async guarded<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn()
+    } catch (e) {
+      if (isSessionExpired(e)) {
+        this.profile = null
+        storeProfile(null)
+        this.menu.refreshMain()
+      }
+      throw e
+    }
+  }
+
   private async startJoin(name: string, code: string): Promise<void> {
     if (!isValidRoomCode(code)) throw new Error('Room codes look like MC-1234')
     const transport = await connectChannel(code)
     this.mode = 'guest'
+    this.cloudWorld = null
     const mp = new Multiplayer('guest', code, transport, new THREE.Scene(), this.playerId, name, this.hooks())
     try {
       await mp.requestSnapshot(8000)
@@ -331,10 +420,20 @@ export class Game {
   }
 
   private quitToMenu(): void {
-    if (this.mode !== 'guest') this.save()
+    if (this.mode !== 'guest' && this.session) {
+      if (this.cloudWorld) {
+        // Kick off the final cloud write, then refresh the menu's world list.
+        void this.cloudSave(this.buildSaveData()).then((ok) => {
+          if (ok) this.menu.refreshMain()
+        })
+      } else {
+        this.save()
+      }
+    }
     this.mp?.dispose()
     this.mp = null
     this.playing = false
+    this.cloudWorld = null
     this.panels.close()
     this.teardownSession()
     this.menu.showMain()
@@ -394,7 +493,8 @@ export class Game {
 
     if (this.mode !== 'guest' && this.playing) {
       this.saveTimer += dt * 1000
-      if (this.saveTimer >= AUTOSAVE_INTERVAL_MS) {
+      // Cloud saves are network round-trips, so run them less often than local ones.
+      if (this.saveTimer >= (this.cloudWorld ? CLOUD_AUTOSAVE_INTERVAL_MS : AUTOSAVE_INTERVAL_MS)) {
         this.saveTimer = 0
         this.save()
       }
@@ -426,10 +526,43 @@ export class Game {
 
   // -------------------------------------------------------------- persistence
 
+  /** Persist the current world: to the cloud profile when playing a cloud world, else localStorage. */
   private save(): void {
-    const s = this.session
-    if (!s) return
-    const data: SaveData = {
+    if (!this.session) return
+    const data = this.buildSaveData()
+    if (this.cloudWorld) void this.cloudSave(data)
+    else if (!this.store.save(data)) this.hud.showToast('Warning: could not save (storage full?)')
+  }
+
+  private async cloudSave(data: SaveData): Promise<boolean> {
+    const profile = this.profile
+    const world = this.cloudWorld
+    if (!profile || !world) return false
+    if (this.cloudSaving) {
+      // A save is in flight; remember the newest data and write it afterwards.
+      this.pendingCloudData = data
+      return true
+    }
+    this.cloudSaving = true
+    try {
+      await cloud.saveWorld(profile.token, world.id, null, data)
+      return true
+    } catch (e) {
+      this.hud.showToast(
+        isSessionExpired(e) ? 'Cloud save failed: session expired — sign in again' : 'Cloud save failed — retrying soon',
+      )
+      return false
+    } finally {
+      this.cloudSaving = false
+      const pending = this.pendingCloudData
+      this.pendingCloudData = null
+      if (pending) void cloud.saveWorld(profile.token, world.id, null, pending).catch(() => {})
+    }
+  }
+
+  private buildSaveData(): SaveData {
+    const s = this.session!
+    return {
       version: 1,
       seed: s.seed,
       player: {
@@ -446,7 +579,6 @@ export class Game {
       animals: s.entities.serialize(),
       skyTime: s.sky.time,
     }
-    if (!this.store.save(data)) this.hud.showToast('Warning: could not save (storage full?)')
   }
 }
 
