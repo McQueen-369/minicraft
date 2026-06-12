@@ -1,0 +1,103 @@
+import type { SavedAnimal } from '../entities/entityManager'
+import { itemDef, type ChestContents, type Slot } from '../items/items'
+
+export interface SaveData {
+  version: 1
+  seed: number
+  player: { x: number; y: number; z: number; yaw: number; pitch: number; fly: boolean }
+  inventory: (Slot | null)[]
+  edits: Record<string, number>
+  chests: Record<string, ChestContents>
+  animals: { animals: SavedAnimal[]; spawnedChunks: string[] }
+  skyTime: number
+}
+
+export function serialize(data: SaveData): string {
+  return JSON.stringify(data)
+}
+
+/** Parse and validate a save; returns null for corrupt/incompatible data. */
+export function deserialize(json: string | null): SaveData | null {
+  if (!json) return null
+  try {
+    const data = JSON.parse(json) as SaveData
+    if (data.version !== 1) return null
+    if (typeof data.seed !== 'number' || typeof data.player?.x !== 'number') return null
+    return {
+      version: 1,
+      seed: data.seed,
+      player: {
+        x: data.player.x,
+        y: data.player.y,
+        z: data.player.z,
+        yaw: data.player.yaw ?? 0,
+        pitch: data.player.pitch ?? 0,
+        fly: data.player.fly ?? false,
+      },
+      inventory: sanitizeSlots(data.inventory ?? []),
+      edits: typeof data.edits === 'object' && data.edits !== null ? data.edits : {},
+      chests: sanitizeChests(data.chests ?? {}),
+      animals: {
+        animals: Array.isArray(data.animals?.animals) ? data.animals.animals : [],
+        spawnedChunks: Array.isArray(data.animals?.spawnedChunks) ? data.animals.spawnedChunks : [],
+      },
+      skyTime: typeof data.skyTime === 'number' ? data.skyTime : 0.25,
+    }
+  } catch {
+    return null
+  }
+}
+
+function sanitizeSlots(slots: (Slot | null)[]): (Slot | null)[] {
+  return slots.map((s) =>
+    s && typeof s.itemId === 'number' && typeof s.count === 'number' && s.count > 0 && itemDef(s.itemId)
+      ? { itemId: s.itemId, count: s.count }
+      : null,
+  )
+}
+
+function sanitizeChests(chests: Record<string, ChestContents>): Record<string, ChestContents> {
+  const out: Record<string, ChestContents> = {}
+  for (const [key, contents] of Object.entries(chests)) {
+    if (Array.isArray(contents)) out[key] = sanitizeSlots(contents)
+  }
+  return out
+}
+
+export interface StringStorage {
+  getItem(key: string): string | null
+  setItem(key: string, value: string): void
+  removeItem(key: string): void
+}
+
+export class SaveStore {
+  constructor(
+    private readonly storage: StringStorage,
+    private readonly key: string,
+  ) {}
+
+  load(): SaveData | null {
+    try {
+      return deserialize(this.storage.getItem(this.key))
+    } catch {
+      return null
+    }
+  }
+
+  save(data: SaveData): boolean {
+    try {
+      this.storage.setItem(this.key, serialize(data))
+      return true
+    } catch {
+      return false // quota exceeded or unavailable
+    }
+  }
+
+  clear(): void {
+    try {
+      this.storage.removeItem(this.key)
+    } catch {
+      // ignore
+    }
+  }
+}

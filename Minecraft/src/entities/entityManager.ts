@@ -38,12 +38,16 @@ export class EntityManager {
    * simulating — guests instead receive host state), and update models.
    */
   update(dt: number, viewerPos: Vec3, ownerPositions: Map<string, Vec3>, simulate: boolean): void {
-    for (const key of this.world.chunks.keys()) {
-      if (this.spawnedChunks.has(key)) continue
-      this.spawnedChunks.add(key)
-      const [cx, cz] = key.split(',').map(Number)
-      for (const animal of animalsForChunk(this.world.terrain, cx, cz)) {
-        this.animals.set(animal.id, animal)
+    // Wild spawning is authoritative: only the simulating side (host or
+    // singleplayer) consumes chunk spawn points; guests receive animals.
+    if (simulate) {
+      for (const key of this.world.chunks.keys()) {
+        if (this.spawnedChunks.has(key)) continue
+        this.spawnedChunks.add(key)
+        const [cx, cz] = key.split(',').map(Number)
+        for (const animal of animalsForChunk(this.world.terrain, cx, cz)) {
+          this.animals.set(animal.id, animal)
+        }
       }
     }
 
