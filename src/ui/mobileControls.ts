@@ -5,7 +5,7 @@ const STYLE = `
   position: absolute; inset: 0; pointer-events: none; z-index: 6; touch-action: none;
 }
 .mc-joystick-zone {
-  position: absolute; bottom: 80px; left: 16px;
+  position: absolute; bottom: 200px; left: 16px;
   width: 140px; height: 140px; pointer-events: all; touch-action: none;
 }
 .mc-joystick-base {
@@ -19,7 +19,7 @@ const STYLE = `
   top: 50%; left: 50%; transform: translate(-50%,-50%);
 }
 .mc-look-zone {
-  position: absolute; top: 0; bottom: 0; right: 0; left: 50%;
+  position: absolute; top: 0; bottom: 70px; right: 0; left: 50%;
   pointer-events: all; touch-action: none;
 }
 .mc-action-btns {
@@ -82,6 +82,8 @@ export class MobileControls {
   private joystickOrigin = { x: 0, y: 0 }
   private lookTouchId: number | null = null
   private lookLast = { x: 0, y: 0 }
+  private jumpHolds = 0
+  private joystickAutoJump = false
   onInventory: () => void = () => {}
   onMineStart: () => void = () => {}
   onMineStop: () => void = () => {}
@@ -127,9 +129,9 @@ export class MobileControls {
     const jumpBtn = document.createElement('div')
     jumpBtn.className = 'mc-jump-btn'
     jumpBtn.textContent = 'JUMP'
-    jumpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.controls.keys.add('Space') }, { passive: false })
-    jumpBtn.addEventListener('touchend', (e) => { e.preventDefault(); this.controls.keys.delete('Space') }, { passive: false })
-    jumpBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); this.controls.keys.delete('Space') }, { passive: false })
+    jumpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.addJump() }, { passive: false })
+    jumpBtn.addEventListener('touchend', (e) => { e.preventDefault(); this.removeJump() }, { passive: false })
+    jumpBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); this.removeJump() }, { passive: false })
     this.container.appendChild(jumpBtn)
 
     // Mine / break button (hold = hold left-click)
@@ -208,7 +210,21 @@ export class MobileControls {
       this.joystickTouchId = null
       this.knob.style.transform = 'translate(-50%,-50%)'
       this.controls.joystickDir = null
+      if (this.joystickAutoJump) {
+        this.joystickAutoJump = false
+        this.removeJump()
+      }
     }
+  }
+
+  private addJump(): void {
+    this.jumpHolds++
+    this.controls.keys.add('Space')
+  }
+
+  private removeJump(): void {
+    if (this.jumpHolds > 0) this.jumpHolds--
+    if (this.jumpHolds === 0) this.controls.keys.delete('Space')
   }
 
   private updateJoystick(cx: number, cy: number): void {
@@ -222,6 +238,10 @@ export class MobileControls {
 
     if (dist < 8) {
       this.controls.joystickDir = null
+      if (this.joystickAutoJump) {
+        this.joystickAutoJump = false
+        this.removeJump()
+      }
       return
     }
     // ny positive = screen-down = move forward; nx positive = screen-right = strafe right
@@ -233,6 +253,16 @@ export class MobileControls {
     const len = Math.hypot(wx, wz)
     if (len > 0) { wx /= len; wz /= len }
     this.controls.joystickDir = { x: wx, z: wz }
+
+    // Auto-jump when joystick is pushed strongly forward (upward) and held there
+    const isForwardJump = fwd > 0.8 && dist > 15
+    if (isForwardJump && !this.joystickAutoJump) {
+      this.joystickAutoJump = true
+      this.addJump()
+    } else if (!isForwardJump && this.joystickAutoJump) {
+      this.joystickAutoJump = false
+      this.removeJump()
+    }
   }
 
   private onLookStart(e: TouchEvent): void {
@@ -271,6 +301,8 @@ export class MobileControls {
     this.controls.joystickDir = null
     this.joystickTouchId = null
     this.lookTouchId = null
+    this.joystickAutoJump = false
+    this.jumpHolds = 0
     this.controls.keys.delete('Space')
     this.controls.keys.delete('ShiftLeft')
     this.onMineStop()

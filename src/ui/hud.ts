@@ -5,7 +5,7 @@ import { drawItemIcon } from './icons'
 
 const STYLE = `
 .mc-inv-btn {
-  position: absolute; top: 12px; right: 12px; z-index: 5;
+  position: absolute; top: 12px; right: 12px; z-index: 7;
   width: 52px; height: 52px; border-radius: 10px;
   background: rgba(20,20,20,0.65); border: 2px solid #888;
   color: #fff; font-size: 10px; font-weight: bold; text-align: center;
@@ -14,6 +14,33 @@ const STYLE = `
   -webkit-tap-highlight-color: transparent;
 }
 .mc-inv-btn:hover, .mc-inv-btn:active { border-color: #fff; background: rgba(60,60,60,0.7); }
+.mc-help-btn {
+  position: absolute; top: 12px; right: 72px; z-index: 7;
+  width: 52px; height: 52px; border-radius: 10px;
+  background: rgba(20,20,20,0.65); border: 2px solid #888;
+  color: #fff; font-size: 22px; font-weight: bold;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.mc-help-btn:hover, .mc-help-btn:active { border-color: #fff; background: rgba(60,60,60,0.7); }
+.mc-instructions {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.75); z-index: 20;
+  display: none; align-items: center; justify-content: center;
+}
+.mc-instructions-box {
+  background: #c6c6c6; border: 3px solid; border-color: #fff #555 #555 #fff;
+  padding: 16px; max-width: 480px; width: 90%; max-height: 80vh; overflow-y: auto;
+  color: #333; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.6;
+}
+.mc-instructions-box h3 { margin: 10px 0 4px; font-size: 14px; color: #000; border-bottom: 1px solid #999; padding-bottom: 2px; }
+.mc-instructions-box h3:first-child { margin-top: 0; }
+.mc-instructions-box p { margin: 3px 0; }
+.mc-instructions-close {
+  float: right; cursor: pointer; background: #888; border: none; border-radius: 4px;
+  font-size: 14px; font-weight: bold; color: #fff; padding: 2px 8px; margin-left: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
 .mc-crosshair {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   width: 18px; height: 18px; pointer-events: none; z-index: 5;
@@ -32,13 +59,15 @@ const STYLE = `
 .mc-mining > div { height: 100%; background: #fff; width: 0%; }
 .mc-hotbar {
   position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
-  display: flex; gap: 4px; z-index: 5;
+  display: flex; gap: 4px; z-index: 7;
 }
 .mc-slot {
   width: 48px; height: 48px; background: rgba(20,20,20,0.6);
   border: 2px solid #555; position: relative; image-rendering: pixelated;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
 .mc-slot.selected { border-color: #fff; }
+.mc-slot:active { background: rgba(60,60,60,0.8); }
 .mc-slot canvas { width: 100%; height: 100%; image-rendering: pixelated; }
 .mc-slot .count {
   position: absolute; right: 3px; bottom: 1px; color: #fff; font-size: 14px;
@@ -73,9 +102,12 @@ export class HUD {
   private readonly toast: HTMLDivElement
   private readonly dayTimer: HTMLDivElement
   private readonly playerList: HTMLDivElement
+  private readonly instructionsOverlay: HTMLDivElement
   private toastTimer = 0
   /** Called when the inventory quick-access button is clicked. */
   onInventory: () => void = () => {}
+  /** Called when a hotbar slot is tapped/clicked to select it. */
+  onSelectHotbar: (index: number) => void = () => {}
 
   constructor(
     root: HTMLElement,
@@ -110,6 +142,9 @@ export class HUD {
       slot.appendChild(count)
       hotbar.appendChild(slot)
       this.hotbarSlots.push(slot)
+      const idx = i
+      slot.addEventListener('touchstart', (e) => { e.preventDefault(); this.onSelectHotbar(idx) }, { passive: false })
+      slot.addEventListener('click', () => this.onSelectHotbar(idx))
     }
     root.appendChild(hotbar)
 
@@ -128,6 +163,47 @@ export class HUD {
     this.playerList = document.createElement('div')
     this.playerList.className = 'mc-players'
     root.appendChild(this.playerList)
+
+    const helpBtn = document.createElement('div')
+    helpBtn.className = 'mc-help-btn'
+    helpBtn.title = 'Help / Instructions'
+    helpBtn.textContent = '?'
+    helpBtn.addEventListener('click', () => this.showInstructions())
+    helpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.showInstructions() }, { passive: false })
+    root.appendChild(helpBtn)
+
+    const overlay = document.createElement('div')
+    overlay.className = 'mc-instructions'
+    const box = document.createElement('div')
+    box.className = 'mc-instructions-box'
+    box.innerHTML = `
+      <button class="mc-instructions-close">✕ Close</button>
+      <h3>Controls</h3>
+      <p>WASD / Arrows — Move</p>
+      <p>Space — Jump &nbsp; F — Toggle fly &nbsp; Shift (fly) — Down</p>
+      <p>E — Inventory &nbsp; 1–9 — Select hotbar &nbsp; Scroll — Cycle hotbar</p>
+      <p>Left-click (hold) — Mine &nbsp; Right-click — Place / Use / Open chest</p>
+      <h3>Mobile Controls</h3>
+      <p>Joystick — Move (push straight up to also jump)</p>
+      <p>Swipe right side — Look around</p>
+      <p>JUMP — Jump &nbsp; MINE (hold) — Mine &nbsp; USE — Place / Interact</p>
+      <p>FLY — Toggle fly &nbsp; DOWN (fly) — Descend &nbsp; BAG — Inventory</p>
+      <p>Tap hotbar slot or type 1–9 — Select item</p>
+      <h3>Tips</h3>
+      <p>Feed animals to tame them</p>
+      <p>Shift + right-click your animal — Capture it</p>
+      <p>Use a captured-animal item — Release the animal</p>
+    `
+    const closeBtn = box.querySelector('.mc-instructions-close')!
+    closeBtn.addEventListener('click', () => { overlay.style.display = 'none' })
+    closeBtn.addEventListener('touchstart', (e) => { e.preventDefault(); overlay.style.display = 'none' }, { passive: false })
+    overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) overlay.style.display = 'none' })
+    overlay.addEventListener('touchstart', (e) => {
+      if (e.target === overlay) { e.preventDefault(); overlay.style.display = 'none' }
+    }, { passive: false })
+    overlay.appendChild(box)
+    root.appendChild(overlay)
+    this.instructionsOverlay = overlay
 
     const invBtn = document.createElement('div')
     invBtn.className = 'mc-inv-btn'
@@ -196,6 +272,10 @@ export class HUD {
       this.toastTimer -= dt
       if (this.toastTimer <= 0) this.toast.style.opacity = '0'
     }
+  }
+
+  private showInstructions(): void {
+    this.instructionsOverlay.style.display = 'flex'
   }
 
   showToast(text: string): void {

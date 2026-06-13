@@ -122,6 +122,10 @@ export class Game {
       }
     }
     this.hud.onInventory = openInventory
+    this.hud.onSelectHotbar = (i) => {
+      if (!this.playing || this.menu.isOpen || this.panels.isOpen) return
+      this.inventory.selectHotbar(i)
+    }
 
     this.mobileControls = this.controls.isTouchDevice ? new MobileControls(root, this.controls) : null
     if (this.mobileControls) this.mobileControls.onInventory = openInventory
