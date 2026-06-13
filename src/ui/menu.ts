@@ -1,3 +1,4 @@
+import type { LocalWorldMeta } from '../persist/storage'
 import type { Profile, WorldMeta } from '../net/cloud'
 
 const STYLE = `
@@ -38,10 +39,11 @@ const STYLE = `
 `
 
 export interface MenuCallbacks {
-  hasSave: () => boolean
-  onContinue: () => void
-  onNewWorld: () => void
-  onHost: (name: string) => Promise<void>
+  listLocalSlots: () => (LocalWorldMeta | null)[]
+  onPlaySlot: (index: number) => void
+  onNewSlot: (index: number, name: string) => void
+  onDeleteSlot: (index: number) => void
+  onHostSlot: (index: number, playerName: string) => Promise<void>
   onJoin: (name: string, code: string) => Promise<void>
   onResume: () => void
   onQuitToMenu: () => void
@@ -118,10 +120,15 @@ export class Menu {
   // ------------------------------------------------------------- signed out
 
   private renderSignedOut(): void {
-    if (this.cb.hasSave()) {
-      this.button(this.box, 'Continue World', () => this.cb.onContinue())
+    const error = el('div', '', 'error')
+
+    const localSection = el('div', '', 'section')
+    localSection.appendChild(el('div', 'Local Worlds', 'section-title'))
+    const slots = this.cb.listLocalSlots()
+    for (let i = 0; i < slots.length; i++) {
+      localSection.appendChild(this.localSlotRow(slots[i], i, false, null, error))
     }
-    this.button(this.box, 'New World', () => this.cb.onNewWorld())
+    this.box.appendChild(localSection)
 
     if (!this.cb.multiplayerAvailable) {
       this.box.appendChild(el('div', 'Multiplayer unavailable: missing Supabase configuration (.env.local)', 'hint'))
@@ -133,7 +140,6 @@ export class Menu {
     const name = input('Your name (for multiplayer)', 16)
     name.value = localStorage.getItem('minicraft-name') ?? ''
     const code = input('Room code (e.g. MC-1234)', 8)
-    const error = el('div', '', 'error')
     const getName = () => {
       const n = name.value.trim() || 'Player'
       try {
@@ -144,7 +150,12 @@ export class Menu {
       return n
     }
     mpSection.appendChild(name)
-    this.asyncButton(mpSection, 'Host Online Game', error, () => this.cb.onHost(getName()))
+    // Re-render slots with Host buttons now that we have the name input
+    while (localSection.firstChild) localSection.removeChild(localSection.firstChild)
+    localSection.appendChild(el('div', 'Local Worlds', 'section-title'))
+    for (let i = 0; i < slots.length; i++) {
+      localSection.appendChild(this.localSlotRow(slots[i], i, true, name, error))
+    }
     mpSection.appendChild(code)
     this.asyncButton(mpSection, 'Join Game', error, () => this.cb.onJoin(getName(), code.value.trim().toUpperCase()))
     mpSection.appendChild(error)
@@ -168,6 +179,72 @@ export class Menu {
     })
     auth.appendChild(authError)
     this.box.appendChild(auth)
+  }
+
+  private localSlotRow(
+    slot: LocalWorldMeta | null,
+    index: number,
+    showHost: boolean,
+    hostNameInput: HTMLInputElement | null,
+    error: HTMLElement,
+  ): HTMLElement {
+    const row = el('div', '', 'world-row')
+    if (slot) {
+      const meta = el('div', '', 'meta')
+      meta.appendChild(el('div', slot.name, 'name'))
+      meta.appendChild(el('div', `saved ${new Date(slot.savedAt).toLocaleString()}`, 'when'))
+      row.appendChild(meta)
+      const playBtn = document.createElement('button')
+      playBtn.textContent = '▶ Play'
+      playBtn.addEventListener('click', () => this.cb.onPlaySlot(index))
+      row.appendChild(playBtn)
+      if (showHost && hostNameInput) {
+        const hostBtn = this.asyncButton(row, 'Host', error, () => {
+          const n = hostNameInput.value.trim() || 'Player'
+          try { localStorage.setItem('minicraft-name', n) } catch { /* ignore */ }
+          return this.cb.onHostSlot(index, n)
+        })
+        void hostBtn
+      }
+      const delBtn = document.createElement('button')
+      delBtn.textContent = '✕'
+      delBtn.className = 'danger'
+      delBtn.title = `Delete "${slot.name}"`
+      delBtn.addEventListener('click', () => {
+        if (!confirm(`Delete world "${slot.name}" forever?`)) return
+        this.cb.onDeleteSlot(index)
+        this.showMain()
+      })
+      row.appendChild(delBtn)
+    } else {
+      const emptyMeta = el('div', `Slot ${index + 1} — empty`, 'meta')
+      row.appendChild(emptyMeta)
+      const newBtn = document.createElement('button')
+      newBtn.textContent = '+ New World'
+      newBtn.addEventListener('click', () => this.showNewSlotForm(row, index))
+      row.appendChild(newBtn)
+    }
+    return row
+  }
+
+  private showNewSlotForm(row: HTMLElement, index: number): void {
+    while (row.firstChild) row.removeChild(row.firstChild)
+    const nameInput = document.createElement('input')
+    nameInput.placeholder = `World ${index + 1}`
+    nameInput.maxLength = 32
+    nameInput.style.flex = '1'
+    row.appendChild(nameInput)
+    const createBtn = document.createElement('button')
+    createBtn.textContent = 'Create'
+    createBtn.addEventListener('click', () => {
+      this.cb.onNewSlot(index, nameInput.value.trim() || `World ${index + 1}`)
+    })
+    row.appendChild(createBtn)
+    const cancelBtn = document.createElement('button')
+    cancelBtn.textContent = 'Cancel'
+    cancelBtn.addEventListener('click', () => this.showMain())
+    row.appendChild(cancelBtn)
+    nameInput.focus()
   }
 
   // -------------------------------------------------------------- signed in
@@ -200,10 +277,15 @@ export class Menu {
     })
     this.box.appendChild(worlds)
 
-    if (this.cb.hasSave()) {
+    const localSlots = this.cb.listLocalSlots()
+    if (localSlots.some(Boolean)) {
       const local = el('div', '', 'section')
-      local.appendChild(el('div', 'This device', 'section-title'))
-      this.button(local, 'Play Local (Offline) World', () => this.cb.onContinue())
+      local.appendChild(el('div', 'Local Worlds (this device)', 'section-title'))
+      const localError = el('div', '', 'error')
+      for (let i = 0; i < localSlots.length; i++) {
+        if (localSlots[i]) local.appendChild(this.localSlotRow(localSlots[i], i, false, null, localError))
+      }
+      local.appendChild(localError)
       this.box.appendChild(local)
     }
 

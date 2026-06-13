@@ -53,6 +53,11 @@ const STYLE = `
   color: #fff; font-size: 14px; text-shadow: 1px 1px 0 #000; z-index: 5;
   pointer-events: none; transition: opacity 0.5s; opacity: 0;
 }
+.mc-daytimer {
+  position: absolute; left: 50%; top: 12px; transform: translateX(-50%);
+  color: #fff; font-size: 14px; text-shadow: 1px 1px 0 #000; z-index: 5;
+  pointer-events: none; font-family: 'Courier New', monospace; letter-spacing: 1px;
+}
 `
 
 export class HUD {
@@ -61,6 +66,7 @@ export class HUD {
   private readonly miningFill: HTMLDivElement
   private readonly debug: HTMLDivElement
   private readonly toast: HTMLDivElement
+  private readonly dayTimer: HTMLDivElement
   private toastTimer = 0
   /** Called when the inventory quick-access button is clicked. */
   onInventory: () => void = () => {}
@@ -109,6 +115,10 @@ export class HUD {
     this.toast.className = 'mc-toast'
     root.appendChild(this.toast)
 
+    this.dayTimer = document.createElement('div')
+    this.dayTimer.className = 'mc-daytimer'
+    root.appendChild(this.dayTimer)
+
     const invBtn = document.createElement('div')
     invBtn.className = 'mc-inv-btn'
     invBtn.title = 'Inventory (E)'
@@ -153,13 +163,24 @@ export class HUD {
     }
   }
 
-  update(dt: number, debugText: string, miningProgress: number | null): void {
+  update(
+    dt: number,
+    debugText: string,
+    miningProgress: number | null,
+    phaseInfo?: { phase: 'day' | 'night'; remainingSecs: number },
+  ): void {
     this.debug.textContent = debugText
     if (miningProgress !== null) {
       this.miningBar.style.display = 'block'
       this.miningFill.style.width = `${Math.round(miningProgress * 100)}%`
     } else {
       this.miningBar.style.display = 'none'
+    }
+    if (phaseInfo) {
+      const mins = Math.floor(phaseInfo.remainingSecs / 60)
+      const secs = Math.floor(phaseInfo.remainingSecs % 60)
+      const icon = phaseInfo.phase === 'day' ? '☀' : '🌙'
+      this.dayTimer.textContent = `${icon} ${mins}:${secs.toString().padStart(2, '0')}`
     }
     if (this.toastTimer > 0) {
       this.toastTimer -= dt

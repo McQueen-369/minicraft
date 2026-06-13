@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { AUTOSAVE_INTERVAL_MS, CLOUD_AUTOSAVE_INTERVAL_MS, SAVE_KEY, WATER_LEVEL } from './constants'
+import { AUTOSAVE_INTERVAL_MS, CLOUD_AUTOSAVE_INTERVAL_MS, WATER_LEVEL } from './constants'
 import { blockKey, chunkKey, worldToChunk } from './core/coords'
 import { hashString } from './core/rng'
 import { EntityManager } from './entities/entityManager'
@@ -12,7 +12,7 @@ import { isSessionExpired, loadStoredProfile, storeProfile, type Profile, type W
 import { connectChannel, Multiplayer } from './net/multiplayer'
 import { generateRoomCode, isValidRoomCode, type SnapshotMsg } from './net/protocol'
 import { supabaseConfigured } from './net/supabase'
-import { SaveStore, type SaveData } from './persist/storage'
+import { MultiWorldStore, type SaveData } from './persist/storage'
 import { Controls } from './player/controls'
 import { Player } from './player/player'
 import { createAtlas, type Atlas } from './render/atlas'
@@ -49,13 +49,15 @@ export class Game {
   private readonly hud: HUD
   private readonly panels: Panels
   private readonly menu: Menu
-  private readonly store = new SaveStore(localStorage, SAVE_KEY)
+  private readonly worldStore = new MultiWorldStore(localStorage)
   private readonly playerId = crypto.randomUUID().slice(0, 8)
   private readonly mobileControls: MobileControls | null = null
 
   private session: Session | null = null
   private mp: Multiplayer | null = null
   private mode: Mode = 'single'
+  private activeSlotIndex: number | null = null
+  private activeSlotName: string | null = null
   private profile: Profile | null = loadStoredProfile()
   /** Set while the active world lives in the player's cloud profile. */
   private cloudWorld: { id: string; name: string } | null = null
@@ -79,10 +81,11 @@ export class Game {
     this.hud = new HUD(root, this.inventory, this.atlas.canvas)
     this.panels = new Panels(root, this.inventory, this.atlas.canvas)
     this.menu = new Menu(root, {
-      hasSave: () => this.store.load() !== null,
-      onContinue: () => this.startSingle(false),
-      onNewWorld: () => this.startSingle(true),
-      onHost: (name) => this.startHost(name),
+      listLocalSlots: () => this.worldStore.listSlots(),
+      onPlaySlot: (index) => this.startSlot(index),
+      onNewSlot: (index, name) => this.newSlot(index, name),
+      onDeleteSlot: (index) => this.worldStore.deleteSlot(index),
+      onHostSlot: (index, playerName) => this.startHostSlot(index, playerName),
       onJoin: (name, code) => this.startJoin(name, code),
       onResume: () => this.resume(),
       onQuitToMenu: () => this.quitToMenu(),
@@ -253,23 +256,38 @@ export class Game {
     this.session = null
   }
 
-  private startSingle(fresh: boolean): void {
+  private startSlot(index: number): void {
     this.mode = 'single'
     this.cloudWorld = null
-    const save = fresh ? null : this.store.load()
-    if (fresh) this.store.clear()
+    this.activeSlotIndex = index
+    const slots = this.worldStore.listSlots()
+    this.activeSlotName = slots[index]?.name ?? `World ${index + 1}`
+    const save = this.worldStore.loadSlot(index)
     this.createSession(save?.seed ?? randomSeed(), save)
     this.beginPlay()
   }
 
-  private async startHost(name: string): Promise<void> {
-    const save = this.store.load()
+  private newSlot(index: number, name: string): void {
+    this.mode = 'single'
+    this.cloudWorld = null
+    this.activeSlotIndex = index
+    this.activeSlotName = name
+    this.createSession(randomSeed(), null)
+    this.worldStore.saveSlot(index, name, this.buildSaveData())
+    this.beginPlay()
+  }
+
+  private async startHostSlot(index: number, playerName: string): Promise<void> {
+    const slots = this.worldStore.listSlots()
+    this.activeSlotIndex = index
+    this.activeSlotName = slots[index]?.name ?? `World ${index + 1}`
+    const save = this.worldStore.loadSlot(index)
     const roomCode = generateRoomCode()
     const transport = await connectChannel(roomCode)
     this.mode = 'host'
     this.cloudWorld = null
     this.createSession(save?.seed ?? randomSeed(), save)
-    this.mp = new Multiplayer('host', roomCode, transport, this.session!.scene, this.playerId, name, this.hooks())
+    this.mp = new Multiplayer('host', roomCode, transport, this.session!.scene, this.playerId, playerName, this.hooks())
     this.beginPlay()
     this.hud.showToast(`Hosting room ${roomCode} — share the code!`)
   }
@@ -519,6 +537,7 @@ export class Game {
         (this.controls.fly ? '  [flying]' : '') +
         (this.worldReady ? '' : '  generating world…'),
       s.interaction.miningProgress,
+      s.sky.phaseInfo,
     )
     this.renderer.render(s.scene, this.camera)
   }
@@ -541,8 +560,13 @@ export class Game {
   private save(): void {
     if (!this.session) return
     const data = this.buildSaveData()
-    if (this.cloudWorld) void this.cloudSave(data)
-    else if (!this.store.save(data)) this.hud.showToast('Warning: could not save (storage full?)')
+    if (this.cloudWorld) {
+      void this.cloudSave(data)
+    } else if (this.activeSlotIndex !== null && this.activeSlotName !== null) {
+      if (!this.worldStore.saveSlot(this.activeSlotIndex, this.activeSlotName, data)) {
+        this.hud.showToast('Warning: could not save (storage full?)')
+      }
+    }
   }
 
   private async cloudSave(data: SaveData): Promise<boolean> {

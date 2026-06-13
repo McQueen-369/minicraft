@@ -23,6 +23,13 @@ export class Sky {
     scene.fog = new THREE.Fog(DAY.getHex(), 60, 110)
   }
 
+  get phaseInfo(): { phase: 'day' | 'night'; remainingSecs: number } {
+    if (this.time < 0.5) {
+      return { phase: 'day', remainingSecs: (1 - this.time / 0.5) * DAY_DURATION }
+    }
+    return { phase: 'night', remainingSecs: (1 - (this.time - 0.5) / 0.5) * NIGHT_DURATION }
+  }
+
   update(dt: number, center: THREE.Vector3): void {
     const rate = this.time < 0.5 ? 0.5 / DAY_DURATION : 0.5 / NIGHT_DURATION
     this.time = (this.time + dt * rate) % 1

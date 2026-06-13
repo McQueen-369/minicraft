@@ -101,3 +101,86 @@ export class SaveStore {
     }
   }
 }
+
+export const MAX_LOCAL_SLOTS = 5
+
+export interface LocalWorldMeta {
+  name: string
+  savedAt: string
+}
+
+const SLOTS_INDEX_KEY = 'minicraft-slots-v1'
+const SLOT_KEY_PREFIX = 'minicraft-slot-v1-'
+const LEGACY_SAVE_KEY = 'minicraft-world-v1'
+
+export class MultiWorldStore {
+  constructor(private readonly storage: StringStorage) {}
+
+  /** Returns a 5-element array; null means the slot is empty. */
+  listSlots(): (LocalWorldMeta | null)[] {
+    this.ensureIndex()
+    try {
+      const raw = this.storage.getItem(SLOTS_INDEX_KEY)
+      const parsed: (LocalWorldMeta | null)[] = raw ? (JSON.parse(raw) as (LocalWorldMeta | null)[]) : []
+      const result: (LocalWorldMeta | null)[] = Array(MAX_LOCAL_SLOTS).fill(null)
+      for (let i = 0; i < MAX_LOCAL_SLOTS; i++) {
+        result[i] = parsed[i] ?? null
+      }
+      return result
+    } catch {
+      return Array(MAX_LOCAL_SLOTS).fill(null)
+    }
+  }
+
+  loadSlot(index: number): SaveData | null {
+    try {
+      return deserialize(this.storage.getItem(`${SLOT_KEY_PREFIX}${index}`))
+    } catch {
+      return null
+    }
+  }
+
+  saveSlot(index: number, name: string, data: SaveData): boolean {
+    try {
+      this.storage.setItem(`${SLOT_KEY_PREFIX}${index}`, serialize(data))
+      const slots = this.listSlots()
+      const updated = [...slots] as (LocalWorldMeta | null)[]
+      updated[index] = { name, savedAt: new Date().toISOString() }
+      this.storage.setItem(SLOTS_INDEX_KEY, JSON.stringify(updated))
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  deleteSlot(index: number): void {
+    try {
+      this.storage.removeItem(`${SLOT_KEY_PREFIX}${index}`)
+      const slots = this.listSlots()
+      const updated = [...slots] as (LocalWorldMeta | null)[]
+      updated[index] = null
+      this.storage.setItem(SLOTS_INDEX_KEY, JSON.stringify(updated))
+    } catch {
+      // ignore
+    }
+  }
+
+  private ensureIndex(): void {
+    if (this.storage.getItem(SLOTS_INDEX_KEY) !== null) return
+    const slots: (LocalWorldMeta | null)[] = Array(MAX_LOCAL_SLOTS).fill(null)
+    const legacy = this.storage.getItem(LEGACY_SAVE_KEY)
+    if (legacy) {
+      try {
+        this.storage.setItem(`${SLOT_KEY_PREFIX}0`, legacy)
+        slots[0] = { name: 'My World', savedAt: new Date().toISOString() }
+      } catch {
+        // ignore migration errors
+      }
+    }
+    try {
+      this.storage.setItem(SLOTS_INDEX_KEY, JSON.stringify(slots))
+    } catch {
+      // ignore
+    }
+  }
+}
