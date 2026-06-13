@@ -4,9 +4,10 @@ import { blockKey, chunkKey, worldToChunk } from './core/coords'
 import { hashString } from './core/rng'
 import { EntityManager } from './entities/entityManager'
 import { BlockInteraction } from './interact/blockInteraction'
+import { BlockId, blockDef } from './core/blocks'
 import { chestLoot } from './items/chest'
 import { Inventory } from './items/inventory'
-import type { ChestContents } from './items/items'
+import type { ChestContents, Slot } from './items/items'
 import * as cloud from './net/cloud'
 import { isSessionExpired, loadStoredProfile, storeProfile, type Profile, type WorldMeta } from './net/cloud'
 import { connectChannel, Multiplayer } from './net/multiplayer'
@@ -19,6 +20,7 @@ import { createAtlas, type Atlas } from './render/atlas'
 import { ChunkRenderer } from './render/chunkRenderer'
 import { Sky } from './render/sky'
 import { HUD } from './ui/hud'
+import { animalInfo, itemInfo } from './ui/info'
 import { Menu } from './ui/menu'
 import { MobileControls } from './ui/mobileControls'
 import { Panels } from './ui/panels'
@@ -66,6 +68,7 @@ export class Game {
   private playing = false
   private worldReady = false
   private openChestKey: string | null = null
+  private nameplateKey: string | null = null
   private saveTimer = 0
   private lastTime = performance.now()
   private fps = 0
@@ -122,6 +125,9 @@ export class Game {
       }
     }
     this.hud.onInventory = openInventory
+    this.hud.onInfoClose = () => {
+      if (this.playing && !this.menu.isOpen && !this.panels.isOpen) this.controls.requestLock()
+    }
     this.hud.onSelectHotbar = (i) => {
       if (!this.playing || this.menu.isOpen || this.panels.isOpen) return
       this.inventory.selectHotbar(i)
@@ -148,7 +154,7 @@ export class Game {
       this.camera.updateProjectionMatrix()
     })
     document.addEventListener('pointerlockchange', () => {
-      if (!this.controls.isLocked && this.playing && !this.panels.isOpen && !this.menu.isOpen) {
+      if (!this.controls.isLocked && this.playing && !this.panels.isOpen && !this.menu.isOpen && !this.hud.isInfoOpen) {
         this.menu.showPause(
           [
             this.cloudWorld ? `"${this.cloudWorld.name}" saves to ${this.profile?.username ?? 'your profile'}` : null,
@@ -163,6 +169,11 @@ export class Game {
     document.addEventListener('keydown', (e) => {
       if (!this.playing) return
       if (e.code === 'KeyE' && !this.menu.isOpen) openInventory()
+      if (e.code === 'KeyI' && !this.menu.isOpen && !this.panels.isOpen) {
+        // Release the pointer so the info card is clickable on desktop; the
+        // pointerlockchange guard above keeps the pause menu from appearing.
+        if (this.hud.openTargetInfo()) this.controls.releaseLock()
+      }
       if (this.controls.gameplayInput && e.code.startsWith('Digit')) {
         const n = Number(e.code.slice(5))
         if (n >= 1 && n <= 9) this.inventory.selectHotbar(n - 1)
@@ -231,6 +242,10 @@ export class Game {
     }
 
     interaction.onOpenChest = (x, y, z) => {
+      if (world.isTreasureChest(x, y, z)) {
+        this.openTreasureBox(x, y, z)
+        return
+      }
       this.openChestKey = blockKey(x, y, z)
       this.controls.releaseLock()
       this.panels.openChest(world.getChestContents(x, y, z))
@@ -493,6 +508,26 @@ export class Game {
     this.controls.gameplayInput = !this.panels.isOpen && !this.menu.isOpen
   }
 
+  /**
+   * Open a natural treasure box: sweep its loot into the bag, show a summary of
+   * what was found, and consume the box (it is never kept as a chest item).
+   */
+  private openTreasureBox(x: number, y: number, z: number): void {
+    const s = this.session
+    if (!s) return
+    const obtained: Slot[] = []
+    for (const slot of s.world.getChestContents(x, y, z)) {
+      if (!slot) continue
+      this.inventory.add(slot.itemId, slot.count)
+      obtained.push({ itemId: slot.itemId, count: slot.count })
+    }
+    s.world.setBlock(x, y, z, BlockId.Air)
+    this.mp?.sendEdit(x, y, z, BlockId.Air)
+    this.controls.releaseLock()
+    this.panels.openSummary(obtained)
+    this.updateInputState()
+  }
+
   // ------------------------------------------------------------------- frame
 
   private frame(): void {
@@ -517,6 +552,7 @@ export class Game {
       s.interaction.update(dt)
     }
     s.player.applyCamera(this.camera, this.controls)
+    this.updateNameplate(s)
 
     const owners = new Map<string, { x: number; y: number; z: number }>()
     owners.set(this.playerId, pos)
@@ -562,6 +598,34 @@ export class Game {
       s.sky.phaseInfo,
     )
     this.renderer.render(s.scene, this.camera)
+  }
+
+  /** Reflect the crosshair target (animal or block) in the HUD nameplate. */
+  private updateNameplate(s: Session): void {
+    let key: string | null = null
+    let name: string | null = null
+    let info: ReturnType<typeof animalInfo> | null = null
+    if (this.playing && !this.panels.isOpen && !this.menu.isOpen) {
+      const animal = s.interaction.targetAnimal
+      const tb = s.interaction.targetBlock
+      if (animal) {
+        key = `a:${animal.kind}`
+        name = animal.kind.charAt(0).toUpperCase() + animal.kind.slice(1)
+        info = animalInfo(animal.kind)
+      } else if (tb) {
+        const id = s.world.getBlock(tb.x, tb.y, tb.z)
+        const def = blockDef(id)
+        if (def) {
+          key = `b:${id}`
+          name = def.name
+          info = itemInfo(id)
+        }
+      }
+    }
+    // Only touch the DOM when the target actually changes.
+    if (key === this.nameplateKey) return
+    this.nameplateKey = key
+    this.hud.setTarget(name, info)
   }
 
   private isAreaReady(s: Session, px: number, pz: number): boolean {

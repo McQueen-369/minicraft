@@ -7,7 +7,7 @@ import { breakTime, captureItemFor, itemDef } from '../items/items'
 import type { Controls } from '../player/controls'
 import { boxOverlapsVoxel, type Vec3 } from '../player/physics'
 import type { Player } from '../player/player'
-import { ANIMAL_DIMS } from '../entities/animal'
+import { ANIMAL_DIMS, type Animal } from '../entities/animal'
 import type { World } from '../world/world'
 import { raycastVoxels, type RayHit } from './raycast'
 
@@ -27,6 +27,8 @@ export class BlockInteraction {
   /** null when not mining; progress in [0,1]. */
   miningProgress: number | null = null
   targetBlock: RayHit | null = null
+  /** Animal currently under the crosshair (takes priority over a block). */
+  targetAnimal: Animal | null = null
 
   onBlockEdit: (x: number, y: number, z: number, id: number) => void = () => {}
   onAnimalEvent: (ev: AnimalEvent) => void = () => {}
@@ -91,6 +93,7 @@ export class BlockInteraction {
       this.highlight.visible = false
       this.mining = null
       this.miningProgress = null
+      this.targetAnimal = null
       return
     }
     const dir = this.camera.getWorldDirection(new THREE.Vector3())
@@ -102,6 +105,7 @@ export class BlockInteraction {
     // An animal in front of the targeted block takes priority for clicks.
     const animalFirst = animalHit && (!hit || animalHit.distance < hit.distance)
     this.targetBlock = animalFirst ? null : hit
+    this.targetAnimal = animalFirst ? animalHit!.animal : null
 
     if (this.targetBlock && this.targetBlock.distance > 0) {
       this.highlight.visible = true
@@ -146,6 +150,12 @@ export class BlockInteraction {
     if (id === BlockId.Chest) {
       for (const slot of this.world.getChestContents(x, y, z)) {
         if (slot) this.inventory.add(slot.itemId, slot.count)
+      }
+      if (this.world.isTreasureChest(x, y, z)) {
+        // A treasure box is consumed once emptied — it is never kept as a chest item.
+        this.world.setBlock(x, y, z, BlockId.Air)
+        this.onBlockEdit(x, y, z, BlockId.Air)
+        return
       }
     }
     this.inventory.add(def.drops, 1)

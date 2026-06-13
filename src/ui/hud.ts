@@ -2,6 +2,7 @@ import { HOTBAR_SIZE } from '../constants'
 import type { Inventory } from '../items/inventory'
 import { itemDef } from '../items/items'
 import { drawItemIcon } from './icons'
+import type { InfoContent } from './info'
 
 const STYLE = `
 .mc-inv-btn {
@@ -62,7 +63,7 @@ const STYLE = `
   display: flex; gap: 4px; z-index: 7;
 }
 .mc-slot {
-  width: 48px; height: 48px; background: rgba(20,20,20,0.6);
+  width: 52px; height: 52px; background: rgba(20,20,20,0.6);
   border: 2px solid #555; position: relative; image-rendering: pixelated;
   cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
@@ -73,6 +74,31 @@ const STYLE = `
   position: absolute; right: 3px; bottom: 1px; color: #fff; font-size: 14px;
   font-weight: bold; text-shadow: 1px 1px 0 #000; pointer-events: none;
 }
+.mc-bag-slot {
+  width: 52px; height: 52px; margin-left: 8px; border-radius: 8px;
+  background: rgba(20,20,20,0.7); border: 2px solid #888; color: #fff;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px; font-size: 9px; font-weight: bold; cursor: pointer; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.mc-bag-slot:hover, .mc-bag-slot:active { border-color: #fff; background: rgba(60,60,60,0.85); }
+.mc-bag-slot svg { width: 22px; height: 22px; }
+.mc-nameplate {
+  position: absolute; left: 50%; top: 40px; transform: translateX(-50%);
+  z-index: 6; display: none; align-items: center; gap: 8px;
+  background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 16px; padding: 4px 8px 4px 14px;
+  font-family: 'Courier New', monospace; color: #fff; pointer-events: none;
+}
+.mc-nameplate-name { font-size: 14px; font-weight: bold; text-shadow: 1px 1px 0 #000; }
+.mc-nameplate-info {
+  width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.6);
+  background: rgba(255,255,255,0.15); color: #fff; font-size: 14px; font-weight: bold;
+  font-style: italic; font-family: Georgia, 'Times New Roman', serif;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  pointer-events: auto; -webkit-tap-highlight-color: transparent;
+}
+.mc-nameplate-info:hover, .mc-nameplate-info:active { background: rgba(255,220,80,0.5); }
 .mc-debug {
   position: absolute; left: 8px; top: 8px; color: #fff; font-size: 12px;
   text-shadow: 1px 1px 0 #000; z-index: 5; white-space: pre; pointer-events: none;
@@ -103,11 +129,18 @@ export class HUD {
   private readonly dayTimer: HTMLDivElement
   private readonly playerList: HTMLDivElement
   private readonly instructionsOverlay: HTMLDivElement
+  private readonly nameplate: HTMLDivElement
+  private readonly nameplateName: HTMLSpanElement
+  private readonly infoOverlay: HTMLDivElement
+  private readonly infoBox: HTMLDivElement
+  private currentInfo: InfoContent | null = null
   private toastTimer = 0
   /** Called when the inventory quick-access button is clicked. */
   onInventory: () => void = () => {}
   /** Called when a hotbar slot is tapped/clicked to select it. */
   onSelectHotbar: (index: number) => void = () => {}
+  /** Called when the info card closes (so the game can re-lock the pointer). */
+  onInfoClose: () => void = () => {}
 
   constructor(
     root: HTMLElement,
@@ -146,6 +179,27 @@ export class HUD {
       slot.addEventListener('touchstart', (e) => { e.preventDefault(); this.onSelectHotbar(idx) }, { passive: false })
       slot.addEventListener('click', () => this.onSelectHotbar(idx))
     }
+    // 10th touch area next to the last hotbar slot: open the bag / inspect items.
+    const bagSlot = document.createElement('div')
+    bagSlot.className = 'mc-bag-slot'
+    bagSlot.title = 'Open bag (E)'
+    const bagSvgNS = 'http://www.w3.org/2000/svg'
+    const bagSvg = document.createElementNS(bagSvgNS, 'svg')
+    bagSvg.setAttribute('viewBox', '0 0 24 24')
+    bagSvg.setAttribute('fill', 'none')
+    bagSvg.setAttribute('stroke', 'currentColor')
+    bagSvg.setAttribute('stroke-width', '2')
+    const bagBody = document.createElementNS(bagSvgNS, 'path')
+    bagBody.setAttribute('d', 'M5 8h14l-1 12H6L5 8z')
+    const bagHandle = document.createElementNS(bagSvgNS, 'path')
+    bagHandle.setAttribute('d', 'M9 8a3 3 0 0 1 6 0')
+    bagSvg.append(bagBody, bagHandle)
+    const bagLabel = document.createElement('span')
+    bagLabel.textContent = 'BAG'
+    bagSlot.append(bagSvg, bagLabel)
+    bagSlot.addEventListener('click', () => this.onInventory())
+    bagSlot.addEventListener('touchstart', (e) => { e.preventDefault(); this.onInventory() }, { passive: false })
+    hotbar.appendChild(bagSlot)
     root.appendChild(hotbar)
 
     this.debug = document.createElement('div')
@@ -190,6 +244,9 @@ export class HUD {
       <p>FLY — Toggle fly &nbsp; DOWN (fly) — Descend &nbsp; BAG — Inventory</p>
       <p>Tap hotbar slot or type 1–9 — Select item</p>
       <h3>Tips</h3>
+      <p>Look at an animal or block — its name shows up top; tap the ⓘ (or press I) for how to tame/use it</p>
+      <p>Open a treasure box to auto-collect its loot — the box is used up, not kept</p>
+      <p>Open the BAG to browse items by category (Blocks, Tools, Food, Animals)</p>
       <p>Feed animals to tame them</p>
       <p>Shift + right-click your animal — Capture it</p>
       <p>Use a captured-animal item — Release the animal</p>
@@ -226,6 +283,33 @@ export class HUD {
     invBtn.addEventListener('click', () => this.onInventory())
     invBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.onInventory() }, { passive: false })
     root.appendChild(invBtn)
+
+    // Nameplate for the animal / block under the crosshair, with an info button.
+    this.nameplate = document.createElement('div')
+    this.nameplate.className = 'mc-nameplate'
+    this.nameplateName = document.createElement('span')
+    this.nameplateName.className = 'mc-nameplate-name'
+    const infoBtn = document.createElement('button')
+    infoBtn.className = 'mc-nameplate-info'
+    infoBtn.textContent = 'i'
+    infoBtn.title = 'How to tame / use this'
+    const openInfo = (e: Event) => { e.preventDefault(); e.stopPropagation(); this.openTargetInfo() }
+    infoBtn.addEventListener('click', openInfo)
+    infoBtn.addEventListener('touchstart', openInfo, { passive: false })
+    this.nameplate.append(this.nameplateName, infoBtn)
+    root.appendChild(this.nameplate)
+
+    const infoOverlay = document.createElement('div')
+    infoOverlay.className = 'mc-instructions'
+    this.infoBox = document.createElement('div')
+    this.infoBox.className = 'mc-instructions-box'
+    infoOverlay.addEventListener('mousedown', (e) => { if (e.target === infoOverlay) this.closeInfo() })
+    infoOverlay.addEventListener('touchstart', (e) => {
+      if (e.target === infoOverlay) { e.preventDefault(); this.closeInfo() }
+    }, { passive: false })
+    infoOverlay.appendChild(this.infoBox)
+    root.appendChild(infoOverlay)
+    this.infoOverlay = infoOverlay
 
     this.refresh()
   }
@@ -276,6 +360,46 @@ export class HUD {
 
   private showInstructions(): void {
     this.instructionsOverlay.style.display = 'flex'
+  }
+
+  /** Show (or hide, when null) the nameplate for the targeted animal / block. */
+  setTarget(name: string | null, info: InfoContent | null): void {
+    if (!name) {
+      // Keep the nameplate visible while its info card is open.
+      if (this.infoOverlay.style.display !== 'flex') {
+        this.nameplate.style.display = 'none'
+        this.currentInfo = null
+      }
+      return
+    }
+    this.currentInfo = info
+    this.nameplateName.textContent = name
+    this.nameplate.style.display = 'flex'
+  }
+
+  get isInfoOpen(): boolean {
+    return this.infoOverlay.style.display === 'flex'
+  }
+
+  private closeInfo(): void {
+    if (!this.isInfoOpen) return
+    this.infoOverlay.style.display = 'none'
+    this.onInfoClose()
+  }
+
+  /** Open the info card for whatever the nameplate currently describes. Returns whether it opened. */
+  openTargetInfo(): boolean {
+    const info = this.currentInfo
+    if (!info) return false
+    const lines = info.lines.map((l) => `<p>${l}</p>`).join('')
+    this.infoBox.innerHTML =
+      `<button class="mc-instructions-close">✕ Close</button><h3>${info.title}</h3>${lines}`
+    const closeBtn = this.infoBox.querySelector('.mc-instructions-close')!
+    const close = (e: Event) => { e.preventDefault(); this.closeInfo() }
+    closeBtn.addEventListener('click', close)
+    closeBtn.addEventListener('touchstart', close, { passive: false })
+    this.infoOverlay.style.display = 'flex'
+    return true
   }
 
   showToast(text: string): void {

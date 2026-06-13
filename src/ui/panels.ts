@@ -1,7 +1,17 @@
 import type { Inventory } from '../items/inventory'
 import { Inventory as Inv } from '../items/inventory'
-import { itemDef, type Slot } from '../items/items'
+import { itemDef, itemCategory, type ItemCategory, type Slot } from '../items/items'
 import { drawItemIcon } from './icons'
+
+type Category = 'all' | ItemCategory
+
+const CATEGORIES: { id: Category; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'blocks', label: 'Blocks' },
+  { id: 'tools', label: 'Tools' },
+  { id: 'food', label: 'Food' },
+  { id: 'animals', label: 'Animals' },
+]
 
 const STYLE = `
 .mc-panel-backdrop {
@@ -11,12 +21,22 @@ const STYLE = `
 .mc-panel {
   background: #c6c6c6; border: 3px solid; border-color: #fff #555 #555 #fff;
   padding: 12px; color: #333; font-family: 'Courier New', monospace;
-  max-height: 80vh; overflow-y: auto;
+  max-height: 85vh; max-width: 95vw; overflow: auto;
 }
 .mc-panel h3 { margin: 0 0 8px; font-size: 15px; }
-.mc-grid { display: grid; grid-template-columns: repeat(9, 44px); gap: 3px; margin-bottom: 10px; }
+.mc-panel-body { display: flex; gap: 12px; align-items: flex-start; }
+.mc-cats { display: flex; flex-direction: column; gap: 5px; flex: 0 0 auto; }
+.mc-cat-btn {
+  min-width: 72px; padding: 10px 8px; font-family: 'Courier New', monospace;
+  font-size: 13px; font-weight: bold; color: #333; cursor: pointer;
+  background: #8b8b8b; border: 2px solid; border-color: #fff #555 #555 #fff;
+  -webkit-tap-highlight-color: transparent; text-align: left;
+}
+.mc-cat-btn.active { background: #e7d9a0; border-color: #555 #fff #fff #555; }
+.mc-panel-main { flex: 1 1 auto; min-width: 0; }
+.mc-grid { display: grid; grid-template-columns: repeat(9, 50px); gap: 4px; margin-bottom: 10px; }
 .mc-pslot {
-  width: 44px; height: 44px; background: #8b8b8b; border: 2px solid;
+  width: 50px; height: 50px; background: #8b8b8b; border: 2px solid;
   border-color: #373737 #fff #fff #373737; position: relative; cursor: pointer;
 }
 .mc-pslot.picked { outline: 3px solid #ffd34d; }
@@ -24,6 +44,14 @@ const STYLE = `
 .mc-pslot .count {
   position: absolute; right: 2px; bottom: 0; color: #fff; font-size: 13px;
   font-weight: bold; text-shadow: 1px 1px 0 #000; pointer-events: none;
+}
+.mc-empty { font-size: 13px; color: #555; margin: 4px 0 10px; }
+.mc-summary-msg { font-size: 14px; margin: 0 0 10px; }
+.mc-summary-names { font-size: 13px; margin: 4px 0 12px; line-height: 1.7; }
+.mc-summary-close {
+  cursor: pointer; background: #8b8b8b; border: 2px solid; border-color: #fff #555 #555 #fff;
+  font-family: 'Courier New', monospace; font-size: 13px; font-weight: bold; color: #333;
+  padding: 8px 16px; -webkit-tap-highlight-color: transparent;
 }
 `
 
@@ -35,13 +63,16 @@ interface Picked {
 /**
  * Inventory / chest panel. Click a slot to pick it up, click another to
  * move/merge/swap. Operates directly on slot arrays so it works for both the
- * player inventory and chest contents.
+ * player inventory and chest contents. Also renders the read-only summary
+ * shown after opening a treasure box.
  */
 export class Panels {
   private readonly backdrop: HTMLDivElement
   private readonly panel: HTMLDivElement
   private picked: Picked | null = null
   private chestSlots: (Slot | null)[] | null = null
+  private summary: Slot[] | null = null
+  private category: Category = 'all'
   /** Notified after any change while a chest is open (multiplayer sync). */
   onChestChange: () => void = () => {}
   onClose: () => void = () => {}
@@ -72,13 +103,26 @@ export class Panels {
 
   openInventory(): void {
     this.chestSlots = null
+    this.summary = null
     this.picked = null
+    this.category = 'all'
     this.render()
     this.backdrop.style.display = 'flex'
   }
 
   openChest(contents: (Slot | null)[]): void {
     this.chestSlots = contents
+    this.summary = null
+    this.picked = null
+    this.category = 'all'
+    this.render()
+    this.backdrop.style.display = 'flex'
+  }
+
+  /** Show a read-only list of items collected from a treasure box. */
+  openSummary(items: Slot[]): void {
+    this.chestSlots = null
+    this.summary = items
     this.picked = null
     this.render()
     this.backdrop.style.display = 'flex'
@@ -88,20 +132,113 @@ export class Panels {
     if (!this.isOpen) return
     this.backdrop.style.display = 'none'
     this.chestSlots = null
+    this.summary = null
     this.picked = null
     this.onClose()
   }
 
   private render(): void {
     this.panel.innerHTML = ''
-    if (this.chestSlots) {
-      this.panel.appendChild(this.title('Chest'))
-      this.panel.appendChild(this.grid(this.chestSlots, 0, this.chestSlots.length))
+    if (this.summary) {
+      this.renderSummary()
+      return
     }
-    this.panel.appendChild(this.title(this.chestSlots ? 'Inventory' : 'Inventory (1-9 = hotbar)'))
+    const body = document.createElement('div')
+    body.className = 'mc-panel-body'
+    body.appendChild(this.categoryBar())
+    const main = document.createElement('div')
+    main.className = 'mc-panel-main'
+    if (this.category === 'all') this.renderAll(main)
+    else this.renderFiltered(main, this.category)
+    body.appendChild(main)
+    this.panel.appendChild(body)
+  }
+
+  private categoryBar(): HTMLElement {
+    const bar = document.createElement('div')
+    bar.className = 'mc-cats'
+    for (const cat of CATEGORIES) {
+      const btn = document.createElement('button')
+      btn.className = 'mc-cat-btn' + (cat.id === this.category ? ' active' : '')
+      btn.textContent = cat.label
+      btn.addEventListener('click', () => {
+        this.category = cat.id
+        this.render()
+      })
+      bar.appendChild(btn)
+    }
+    return bar
+  }
+
+  private renderAll(main: HTMLElement): void {
+    if (this.chestSlots) {
+      main.appendChild(this.title('Chest'))
+      main.appendChild(this.grid(this.chestSlots, 0, this.chestSlots.length))
+    }
+    main.appendChild(this.title(this.chestSlots ? 'Inventory' : 'Inventory (1-9 = hotbar)'))
     // Main inventory rows first, hotbar row last (like the classic layout).
-    this.panel.appendChild(this.grid(this.inventory.slots, 9, this.inventory.slots.length))
-    this.panel.appendChild(this.grid(this.inventory.slots, 0, 9))
+    main.appendChild(this.grid(this.inventory.slots, 9, this.inventory.slots.length))
+    main.appendChild(this.grid(this.inventory.slots, 0, 9))
+  }
+
+  private renderFiltered(main: HTMLElement, category: ItemCategory): void {
+    let any = false
+    if (this.chestSlots) {
+      const grid = this.filteredGrid(this.chestSlots, category)
+      if (grid.childElementCount > 0) {
+        main.appendChild(this.title('Chest'))
+        main.appendChild(grid)
+        any = true
+      }
+    }
+    const invGrid = this.filteredGrid(this.inventory.slots, category)
+    if (invGrid.childElementCount > 0) {
+      main.appendChild(this.title('Inventory'))
+      main.appendChild(invGrid)
+      any = true
+    }
+    if (!any) {
+      const msg = document.createElement('p')
+      msg.className = 'mc-empty'
+      msg.textContent = 'No items in this category yet.'
+      main.appendChild(msg)
+    }
+  }
+
+  private renderSummary(): void {
+    this.panel.appendChild(this.title('Treasure Box'))
+    const items = this.summary ?? []
+    if (items.length === 0) {
+      const msg = document.createElement('p')
+      msg.className = 'mc-summary-msg'
+      msg.textContent = 'The box was empty.'
+      this.panel.appendChild(msg)
+    } else {
+      const msg = document.createElement('p')
+      msg.className = 'mc-summary-msg'
+      msg.textContent = 'You found and collected:'
+      this.panel.appendChild(msg)
+
+      const grid = document.createElement('div')
+      grid.className = 'mc-grid'
+      const names = document.createElement('div')
+      names.className = 'mc-summary-names'
+      for (const item of items) {
+        grid.appendChild(this.iconCell(item))
+        const name = itemDef(item.itemId)?.name ?? 'Item'
+        const line = document.createElement('div')
+        line.textContent = `${item.count} × ${name}`
+        names.appendChild(line)
+      }
+      this.panel.appendChild(grid)
+      this.panel.appendChild(names)
+    }
+    const close = document.createElement('button')
+    close.className = 'mc-summary-close'
+    close.textContent = 'Close'
+    close.addEventListener('click', () => this.close())
+    close.addEventListener('touchstart', (e) => { e.preventDefault(); this.close() }, { passive: false })
+    this.panel.appendChild(close)
   }
 
   private title(text: string): HTMLElement {
@@ -113,27 +250,51 @@ export class Panels {
   private grid(slots: (Slot | null)[], start: number, end: number): HTMLElement {
     const grid = document.createElement('div')
     grid.className = 'mc-grid'
-    for (let i = start; i < end; i++) {
-      const el = document.createElement('div')
-      el.className = 'mc-pslot'
-      if (this.picked && this.picked.slots === slots && this.picked.index === i) el.classList.add('picked')
+    for (let i = start; i < end; i++) grid.appendChild(this.cell(slots, i))
+    return grid
+  }
+
+  private filteredGrid(slots: (Slot | null)[], category: ItemCategory): HTMLElement {
+    const grid = document.createElement('div')
+    grid.className = 'mc-grid'
+    for (let i = 0; i < slots.length; i++) {
       const slot = slots[i]
-      if (slot) {
-        const canvas = document.createElement('canvas')
-        canvas.width = 32
-        canvas.height = 32
-        drawItemIcon(canvas, slot.itemId, this.atlasCanvas)
-        el.appendChild(canvas)
-        const count = document.createElement('span')
-        count.className = 'count'
-        count.textContent = slot.count > 1 ? String(slot.count) : ''
-        el.appendChild(count)
-        el.title = itemDef(slot.itemId)?.name ?? ''
-      }
-      el.addEventListener('mousedown', () => this.clickSlot(slots, i))
-      grid.appendChild(el)
+      if (slot && itemCategory(slot.itemId) === category) grid.appendChild(this.cell(slots, i))
     }
     return grid
+  }
+
+  /** Interactive inventory/chest cell wired for pick/move. */
+  private cell(slots: (Slot | null)[], i: number): HTMLElement {
+    const el = document.createElement('div')
+    el.className = 'mc-pslot'
+    if (this.picked && this.picked.slots === slots && this.picked.index === i) el.classList.add('picked')
+    const slot = slots[i]
+    if (slot) this.fillCell(el, slot)
+    el.addEventListener('mousedown', () => this.clickSlot(slots, i))
+    return el
+  }
+
+  /** Read-only cell for the treasure summary. */
+  private iconCell(slot: Slot): HTMLElement {
+    const el = document.createElement('div')
+    el.className = 'mc-pslot'
+    el.style.cursor = 'default'
+    this.fillCell(el, slot)
+    return el
+  }
+
+  private fillCell(el: HTMLElement, slot: Slot): void {
+    const canvas = document.createElement('canvas')
+    canvas.width = 32
+    canvas.height = 32
+    drawItemIcon(canvas, slot.itemId, this.atlasCanvas)
+    el.appendChild(canvas)
+    const count = document.createElement('span')
+    count.className = 'count'
+    count.textContent = slot.count > 1 ? String(slot.count) : ''
+    el.appendChild(count)
+    el.title = itemDef(slot.itemId)?.name ?? ''
   }
 
   private clickSlot(slots: (Slot | null)[], index: number): void {

@@ -79,6 +79,32 @@ describe('World', () => {
     expect(w.getChestContents(x, y, z)).toEqual(loot)
   })
 
+  it('flags natural chests as treasure boxes and clears the flag when removed', () => {
+    const t = new Terrain(7)
+    let chest: { x: number; z: number } | null = null
+    outer: for (let cx = -10; cx <= 10; cx++) {
+      for (let cz = -10; cz <= 10; cz++) {
+        const found = t.naturalChestsIn(cx, cz)
+        if (found.length > 0) {
+          chest = found[0]
+          break outer
+        }
+      }
+    }
+    expect(chest).not.toBeNull()
+    const w = new World(new Terrain(7), { chestLoot: () => [{ itemId: 1, count: 3 }] })
+    const { x, z } = chest!
+    const y = t.heightAt(x, z) + 1
+    w.ensureChunk(Math.floor(x / CHUNK_SIZE), Math.floor(z / CHUNK_SIZE))
+    expect(w.isTreasureChest(x, y, z)).toBe(true)
+    // A player-placed chest elsewhere is not a treasure box.
+    w.setBlock(0, 50, 0, BlockId.Chest)
+    expect(w.isTreasureChest(0, 50, 0)).toBe(false)
+    // Consuming the treasure box clears its flag.
+    w.setBlock(x, y, z, BlockId.Air)
+    expect(w.isTreasureChest(x, y, z)).toBe(false)
+  })
+
   it('loads and unloads chunks around the player', () => {
     const w = makeWorld()
     w.updateLoadedChunks(0, 0)

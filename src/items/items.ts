@@ -81,6 +81,22 @@ export function itemDef(id: number): ItemDef | null {
   return ITEMS.get(id) ?? null
 }
 
+export type ItemCategory = 'blocks' | 'tools' | 'food' | 'animals'
+
+/** Group an item into a bag category (used by the inventory sidebar). */
+export function itemCategory(id: number): ItemCategory {
+  switch (itemDef(id)?.kind) {
+    case 'tool':
+      return 'tools'
+    case 'food':
+      return 'food'
+    case 'capture':
+      return 'animals'
+    default:
+      return 'blocks'
+  }
+}
+
 export function captureItemFor(kind: AnimalKind): ItemId {
   if (kind === 'pig') return ItemId.CapturedPig
   if (kind === 'chicken') return ItemId.CapturedChicken
