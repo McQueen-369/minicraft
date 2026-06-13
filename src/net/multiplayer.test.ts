@@ -34,6 +34,7 @@ function makeHooks(world: FakeWorld, snapshotSource?: () => Omit<SnapshotMsg, 't
       edits: {},
       chests: {},
       animals: { animals: [], spawnedChunks: [] },
+      furniture: [],
       spawn: { x: 0, y: 0, z: 0 },
     })),
     applySnapshot: (s) => {
@@ -43,6 +44,7 @@ function makeHooks(world: FakeWorld, snapshotSource?: () => Omit<SnapshotMsg, 't
     applyChest: (key, contents) => world.chests.set(key, contents),
     applyAnimals: () => {},
     applyAnimalEvent: () => {},
+    applyFurnitureEvent: () => {},
   }
 }
 
@@ -61,6 +63,7 @@ describe('Multiplayer', () => {
       edits: { '1,2,3': 9 },
       chests: {},
       animals: { animals: [], spawnedChunks: ['0,0'] },
+      furniture: [],
       spawn: { x: 0.5, y: 33, z: 0.5 },
     })))
     const guest = new Multiplayer('guest', 'MC-0001', guestT, new THREE.Scene(), 'guest1', 'Ann', makeHooks(guestWorld))

@@ -1,5 +1,6 @@
 import { MAX_STACK } from '../constants'
 import { BlockId, blockDef, type ToolType } from '../core/blocks'
+import type { FurnitureKind } from '../entities/furniture'
 
 export type AnimalKind = 'pig' | 'chicken' | 'sheep' | 'rabbit' | 'cat' | 'dog'
 
@@ -31,6 +32,12 @@ export const ItemId = {
   CapturedRabbit: 123,
   CapturedCat: 124,
   CapturedDog: 125,
+  Door: 130,
+  Window: 131,
+  Desk: 132,
+  Chair: 133,
+  Bed: 134,
+  Sofa: 135,
 } as const
 
 export type ItemId = (typeof ItemId)[keyof typeof ItemId]
@@ -44,13 +51,15 @@ export type ChestContents = (Slot | null)[]
 
 export interface ItemDef {
   name: string
-  kind: 'block' | 'tool' | 'food' | 'capture'
+  kind: 'block' | 'tool' | 'food' | 'capture' | 'furniture'
   block?: BlockId
   tool?: { type: ToolType; power: number }
   /** Which animal this food tames. */
   food?: AnimalKind
   /** Which animal a capture item releases. */
   animal?: AnimalKind
+  /** Which furniture piece this item places. */
+  furniture?: FurnitureKind
   maxStack: number
 }
 
@@ -76,12 +85,32 @@ ITEMS.set(ItemId.Bone, { name: 'Bone', kind: 'food', food: 'dog', maxStack: MAX_
 ITEMS.set(ItemId.CapturedRabbit, { name: 'Rabbit (captured)', kind: 'capture', animal: 'rabbit', maxStack: 1 })
 ITEMS.set(ItemId.CapturedCat, { name: 'Cat (captured)', kind: 'capture', animal: 'cat', maxStack: 1 })
 ITEMS.set(ItemId.CapturedDog, { name: 'Dog (captured)', kind: 'capture', animal: 'dog', maxStack: 1 })
+ITEMS.set(ItemId.Door, { name: 'Door', kind: 'furniture', furniture: 'door', maxStack: 16 })
+ITEMS.set(ItemId.Window, { name: 'Window', kind: 'furniture', furniture: 'window', maxStack: 16 })
+ITEMS.set(ItemId.Desk, { name: 'Desk', kind: 'furniture', furniture: 'desk', maxStack: 16 })
+ITEMS.set(ItemId.Chair, { name: 'Chair', kind: 'furniture', furniture: 'chair', maxStack: 16 })
+ITEMS.set(ItemId.Bed, { name: 'Bed', kind: 'furniture', furniture: 'bed', maxStack: 16 })
+ITEMS.set(ItemId.Sofa, { name: 'Sofa', kind: 'furniture', furniture: 'sofa', maxStack: 16 })
+
+const FURNITURE_ITEM: Record<FurnitureKind, number> = {
+  door: ItemId.Door,
+  window: ItemId.Window,
+  desk: ItemId.Desk,
+  chair: ItemId.Chair,
+  bed: ItemId.Bed,
+  sofa: ItemId.Sofa,
+}
+
+/** The hotbar item that places a given furniture piece. */
+export function furnitureItemFor(kind: FurnitureKind): number {
+  return FURNITURE_ITEM[kind]
+}
 
 export function itemDef(id: number): ItemDef | null {
   return ITEMS.get(id) ?? null
 }
 
-export type ItemCategory = 'blocks' | 'tools' | 'food' | 'animals'
+export type ItemCategory = 'blocks' | 'tools' | 'food' | 'animals' | 'furniture'
 
 /** Group an item into a bag category (used by the inventory sidebar). */
 export function itemCategory(id: number): ItemCategory {
@@ -92,6 +121,8 @@ export function itemCategory(id: number): ItemCategory {
       return 'food'
     case 'capture':
       return 'animals'
+    case 'furniture':
+      return 'furniture'
     default:
       return 'blocks'
   }

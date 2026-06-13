@@ -6,6 +6,7 @@ import {
   decodeMessage,
   encodeMessage,
   type AnimalEventMsg,
+  type FurnitureMsg,
   type GameMessage,
   type SnapshotMsg,
 } from './protocol'
@@ -28,6 +29,7 @@ export interface MultiplayerHooks {
   /** Guest: authoritative animal states from the host, with synced sky time. */
   applyAnimals(list: SavedAnimal[], skyTime?: number): void
   applyAnimalEvent(msg: AnimalEventMsg): void
+  applyFurnitureEvent(msg: FurnitureMsg): void
   /** Guest: called when the host disconnects. */
   onHostLeft?(): void
 }
@@ -96,6 +98,10 @@ export class Multiplayer {
 
   sendAnimalEvent(msg: Omit<AnimalEventMsg, 't'>): void {
     this.transport.send({ t: 'animalEvent', ...msg })
+  }
+
+  sendFurniture(msg: Omit<FurnitureMsg, 't'>): void {
+    this.transport.send({ t: 'furniture', ...msg })
   }
 
   /** Per-frame: throttled state broadcasts + remote avatar smoothing. */
@@ -169,6 +175,9 @@ export class Multiplayer {
         break
       case 'animalEvent':
         this.hooks.applyAnimalEvent(msg)
+        break
+      case 'furniture':
+        this.hooks.applyFurnitureEvent(msg)
         break
       case 'leave':
         this.removePeer(msg.id)

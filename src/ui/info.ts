@@ -66,6 +66,11 @@ export function itemInfo(itemId: number): InfoContent {
   } else if (def.kind === 'capture') {
     lines.push(`Use: select it and USE on open ground to release your ${def.animal}.`)
     lines.push(`Get: capture a tamed ${def.animal} with Shift + right-click (mobile: hold DOWN then USE).`)
+  } else if (def.kind === 'furniture') {
+    lines.push('Place: select it and USE (right-click) against a wall, floor or surface to set it down.')
+    if (def.furniture === 'door') lines.push('USE a placed door to swing it open or closed.')
+    lines.push('Pick up: MINE (hold left-click) the piece to collect it back into your bag.')
+    lines.push('Get: your starter house comes furnished, and furniture is found in treasure boxes.')
   }
   return { title: def.name, lines }
 }

@@ -6,7 +6,7 @@ import type { InfoContent } from './info'
 
 const STYLE = `
 .mc-inv-btn {
-  position: absolute; top: 12px; right: 12px; z-index: 7;
+  position: absolute; top: 140px; right: 12px; z-index: 7;
   width: 52px; height: 52px; border-radius: 10px;
   background: rgba(20,20,20,0.65); border: 2px solid #888;
   color: #fff; font-size: 10px; font-weight: bold; text-align: center;
@@ -16,7 +16,7 @@ const STYLE = `
 }
 .mc-inv-btn:hover, .mc-inv-btn:active { border-color: #fff; background: rgba(60,60,60,0.7); }
 .mc-help-btn {
-  position: absolute; top: 12px; right: 72px; z-index: 7;
+  position: absolute; top: 140px; right: 72px; z-index: 7;
   width: 52px; height: 52px; border-radius: 10px;
   background: rgba(20,20,20,0.65); border: 2px solid #888;
   color: #fff; font-size: 22px; font-weight: bold;
@@ -25,6 +25,17 @@ const STYLE = `
   -webkit-tap-highlight-color: transparent;
 }
 .mc-help-btn:hover, .mc-help-btn:active { border-color: #fff; background: rgba(60,60,60,0.7); }
+.mc-music-btn {
+  position: absolute; top: 140px; right: 132px; z-index: 7;
+  width: 52px; height: 52px; border-radius: 10px;
+  background: rgba(20,20,20,0.65); border: 2px solid #888;
+  color: #fff; font-size: 22px; font-weight: bold;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.mc-music-btn:hover, .mc-music-btn:active { border-color: #fff; background: rgba(60,60,60,0.7); }
+.mc-music-btn.muted { color: #888; }
 .mc-instructions {
   position: absolute; inset: 0; background: rgba(0,0,0,0.75); z-index: 20;
   display: none; align-items: center; justify-content: center;
@@ -114,7 +125,7 @@ const STYLE = `
   pointer-events: none; font-family: 'Courier New', monospace; letter-spacing: 1px;
 }
 .mc-players {
-  position: absolute; top: 72px; right: 12px; z-index: 5;
+  position: absolute; top: 200px; right: 12px; z-index: 5;
   color: #fff; font-size: 12px; text-shadow: 1px 1px 0 #000;
   pointer-events: none; text-align: right; line-height: 1.6; display: none;
 }
@@ -141,6 +152,8 @@ export class HUD {
   onSelectHotbar: (index: number) => void = () => {}
   /** Called when the info card closes (so the game can re-lock the pointer). */
   onInfoClose: () => void = () => {}
+  /** Called when the music button is toggled; returns the new muted state. */
+  onToggleMusic: () => boolean = () => false
 
   constructor(
     root: HTMLElement,
@@ -226,6 +239,19 @@ export class HUD {
     helpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.showInstructions() }, { passive: false })
     root.appendChild(helpBtn)
 
+    const musicBtn = document.createElement('div')
+    musicBtn.className = 'mc-music-btn'
+    musicBtn.title = 'Toggle music'
+    musicBtn.textContent = '♪'
+    const toggleMusic = () => {
+      const muted = this.onToggleMusic()
+      musicBtn.classList.toggle('muted', muted)
+      musicBtn.textContent = muted ? '♪̸' : '♪'
+    }
+    musicBtn.addEventListener('click', toggleMusic)
+    musicBtn.addEventListener('touchstart', (e) => { e.preventDefault(); toggleMusic() }, { passive: false })
+    root.appendChild(musicBtn)
+
     const overlay = document.createElement('div')
     overlay.className = 'mc-instructions'
     const box = document.createElement('div')
@@ -243,10 +269,17 @@ export class HUD {
       <p>JUMP — Jump &nbsp; MINE (hold) — Mine &nbsp; USE — Place / Interact</p>
       <p>FLY — Toggle fly &nbsp; DOWN (fly) — Descend &nbsp; BAG — Inventory</p>
       <p>Tap hotbar slot or type 1–9 — Select item</p>
+      <h3>Furniture & Home</h3>
+      <p>New worlds start with a furnished house (bedroom + living room)</p>
+      <p>Place furniture (doors, windows, desk, chairs, bed, sofa) with USE; MINE to pick it back up</p>
+      <p>USE a door to swing it open or closed</p>
+      <h3>Map & Music</h3>
+      <p>Mini-map sits top-right — tap it to open the full navigation map</p>
+      <p>♪ button toggles the background music</p>
       <h3>Tips</h3>
       <p>Look at an animal or block — its name shows up top; tap the ⓘ (or press I) for how to tame/use it</p>
       <p>Open a treasure box to auto-collect its loot — the box is used up, not kept</p>
-      <p>Open the BAG to browse items by category (Blocks, Tools, Food, Animals)</p>
+      <p>Open the BAG to browse items by category (Blocks, Tools, Food, Animals, Furniture)</p>
       <p>Feed animals to tame them</p>
       <p>Shift + right-click your animal — Capture it</p>
       <p>Use a captured-animal item — Release the animal</p>

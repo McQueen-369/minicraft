@@ -30,6 +30,7 @@ const SAVE: SaveData = {
   edits: { '1,2,3': 5 },
   chests: {},
   animals: { animals: [], spawnedChunks: [] },
+  furniture: [],
   skyTime: 0.3,
 }
 

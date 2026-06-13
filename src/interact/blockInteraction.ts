@@ -2,8 +2,10 @@ import * as THREE from 'three'
 import { REACH } from '../constants'
 import { BlockId, blockDef, isSolid } from '../core/blocks'
 import type { EntityManager } from '../entities/entityManager'
+import type { FurnitureManager } from '../entities/furnitureManager'
+import type { Furniture, SavedFurniture } from '../entities/furniture'
 import type { Inventory } from '../items/inventory'
-import { breakTime, captureItemFor, itemDef } from '../items/items'
+import { breakTime, captureItemFor, furnitureItemFor, itemDef } from '../items/items'
 import type { Controls } from '../player/controls'
 import { boxOverlapsVoxel, type Vec3 } from '../player/physics'
 import type { Player } from '../player/player'
@@ -19,6 +21,12 @@ export interface AnimalEvent {
   owner?: string | null
 }
 
+export interface FurnitureEvent {
+  type: 'place' | 'remove' | 'toggle'
+  item?: SavedFurniture
+  id?: string
+}
+
 /**
  * Mining, placing, chest opening, and animal interaction, driven by the
  * camera ray. Multiplayer assigns onBlockEdit/onAnimalEvent to broadcast.
@@ -29,9 +37,12 @@ export class BlockInteraction {
   targetBlock: RayHit | null = null
   /** Animal currently under the crosshair (takes priority over a block). */
   targetAnimal: Animal | null = null
+  /** Furniture currently under the crosshair. */
+  targetFurniture: Furniture | null = null
 
   onBlockEdit: (x: number, y: number, z: number, id: number) => void = () => {}
   onAnimalEvent: (ev: AnimalEvent) => void = () => {}
+  onFurnitureEvent: (ev: FurnitureEvent) => void = () => {}
   onOpenChest: (x: number, y: number, z: number) => void = () => {}
 
   private leftDown = false
@@ -45,6 +56,7 @@ export class BlockInteraction {
     private readonly world: World,
     private readonly inventory: Inventory,
     private readonly entities: EntityManager,
+    private readonly furniture: FurnitureManager,
     private readonly player: Player,
     private readonly controls: Controls,
     private readonly camera: THREE.PerspectiveCamera,
@@ -60,7 +72,7 @@ export class BlockInteraction {
 
     this.onMouseDown = (e) => {
       if (!this.active) return
-      if (e.button === 0) this.leftDown = true
+      if (e.button === 0 && !this.tryPickupFurniture()) this.leftDown = true
       if (e.button === 2) this.rightClick()
     }
     this.onMouseUp = (e) => {
@@ -82,8 +94,8 @@ export class BlockInteraction {
     return (this.controls.isLocked || this.controls.isTouchDevice) && this.controls.gameplayInput
   }
 
-  /** Called by mobile MINE button: hold to mine the targeted block. */
-  startMining(): void { this.leftDown = true }
+  /** Called by mobile MINE button: pick up targeted furniture, else hold to mine. */
+  startMining(): void { if (!this.tryPickupFurniture()) this.leftDown = true }
   stopMining(): void { this.leftDown = false }
   /** Called by mobile USE button: place block / open chest / feed or toggle animal. */
   triggerRightClick(): void { if (this.active) this.rightClick() }
@@ -94,6 +106,7 @@ export class BlockInteraction {
       this.mining = null
       this.miningProgress = null
       this.targetAnimal = null
+      this.targetFurniture = null
       return
     }
     const dir = this.camera.getWorldDirection(new THREE.Vector3())
@@ -102,10 +115,16 @@ export class BlockInteraction {
       isSolid(this.world.getBlock(x, y, z)),
     )
     const animalHit = this.entities.raycastAnimal(eye, dir, REACH)
-    // An animal in front of the targeted block takes priority for clicks.
-    const animalFirst = animalHit && (!hit || animalHit.distance < hit.distance)
-    this.targetBlock = animalFirst ? null : hit
+    const furnitureHit = this.furniture.raycast(eye, dir, REACH)
+    // Pick the nearest of block / animal / furniture for clicks and highlight.
+    const blockDist = hit ? hit.distance : Infinity
+    const animalDist = animalHit ? animalHit.distance : Infinity
+    const furnDist = furnitureHit ? furnitureHit.distance : Infinity
+    const animalFirst = animalDist < blockDist && animalDist <= furnDist
+    const furnFirst = furnDist < blockDist && furnDist < animalDist
+    this.targetBlock = animalFirst || furnFirst ? null : hit
     this.targetAnimal = animalFirst ? animalHit!.animal : null
+    this.targetFurniture = furnFirst ? furnitureHit!.furniture : null
 
     if (this.targetBlock && this.targetBlock.distance > 0) {
       this.highlight.visible = true
@@ -164,6 +183,15 @@ export class BlockInteraction {
   }
 
   private rightClick(): void {
+    // Furniture under the crosshair: a door swings; other pieces are picked up with MINE.
+    if (this.targetFurniture) {
+      const f = this.targetFurniture
+      if (f.kind === 'door') {
+        this.furniture.toggleDoor(f.id)
+        this.onFurnitureEvent({ type: 'toggle', id: f.id })
+      }
+      return
+    }
     const dir = this.camera.getWorldDirection(new THREE.Vector3())
     const eye = this.player.eyePosition
     const hit = raycastVoxels(eye.x, eye.y, eye.z, dir.x, dir.y, dir.z, REACH, (x, y, z) =>
@@ -199,6 +227,15 @@ export class BlockInteraction {
       return
     }
 
+    if (def.kind === 'furniture' && def.furniture) {
+      if (isSolid(this.world.getBlock(px, py, pz)) || this.furniture.occupied(px, py, pz)) return
+      const yaw = snapYaw(this.controls.yaw)
+      const placed = this.furniture.place(def.furniture, px, py, pz, yaw)
+      this.inventory.removeFrom(this.inventory.selected)
+      this.onFurnitureEvent({ type: 'place', item: { ...placed } })
+      return
+    }
+
     if (def.kind !== 'block' || def.block === undefined) return
     if (hit.distance === 0) return // standing inside the targeted voxel
     if (isSolid(this.world.getBlock(px, py, pz))) return
@@ -209,6 +246,17 @@ export class BlockInteraction {
     this.inventory.removeFrom(this.inventory.selected)
     this.world.setBlock(px, py, pz, def.block)
     this.onBlockEdit(px, py, pz, def.block)
+  }
+
+  /** If furniture is under the crosshair, pick it back into the bag. */
+  private tryPickupFurniture(): boolean {
+    const f = this.targetFurniture
+    if (!f) return false
+    this.furniture.remove(f.id)
+    this.inventory.add(furnitureItemFor(f.kind), 1)
+    this.onFurnitureEvent({ type: 'remove', id: f.id })
+    this.targetFurniture = null
+    return true
   }
 
   private interactAnimal(animalId: string): void {
@@ -241,4 +289,10 @@ export class BlockInteraction {
     this.entities.toggleStay(animalId)
     this.onAnimalEvent({ type: 'toggleStay', animalId })
   }
+}
+
+/** Snap a yaw to the nearest quarter turn so furniture lines up with walls. */
+function snapYaw(yaw: number): number {
+  const q = Math.PI / 2
+  return Math.round(yaw / q) * q
 }

@@ -11,6 +11,7 @@ const CATEGORIES: { id: Category; label: string }[] = [
   { id: 'tools', label: 'Tools' },
   { id: 'food', label: 'Food' },
   { id: 'animals', label: 'Animals' },
+  { id: 'furniture', label: 'Furniture' },
 ]
 
 const STYLE = `

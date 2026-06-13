@@ -14,6 +14,7 @@ function sample(): SaveData {
       animals: [{ id: 'wild-0,0,0', kind: 'pig', pos: { x: 3, y: 31, z: 3 }, yaw: 1, mode: 'follow', owner: 'me' }],
       spawnedChunks: ['0,0', '0,1'],
     },
+    furniture: [{ id: 'f-1', kind: 'bed', x: 2, y: 31, z: 4, yaw: 0, open: false }],
     skyTime: 0.4,
   }
 }

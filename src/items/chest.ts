@@ -19,5 +19,10 @@ export function chestLoot(seed: number, x: number, z: number): ChestContents {
   if (r(7) < 0.5) put(ItemId.Brick, 4 + Math.floor(r(8) * 12))
   if (r(9) < 0.5) put(ItemId.Plank, 4 + Math.floor(r(10) * 12))
   if (r(11) < 0.3) put(ItemId.Glass, 2 + Math.floor(r(12) * 6))
+  // A chance of a furniture piece to decorate your home.
+  if (r(13) < 0.5) {
+    const furniture = [ItemId.Chair, ItemId.Desk, ItemId.Bed, ItemId.Sofa, ItemId.Window, ItemId.Door]
+    put(furniture[Math.floor(r(14) * furniture.length) % furniture.length], 1)
+  }
   return contents
 }

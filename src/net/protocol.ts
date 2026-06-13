@@ -1,4 +1,5 @@
 import type { SavedAnimal } from '../entities/entityManager'
+import type { SavedFurniture } from '../entities/furniture'
 import type { ChestContents, Slot } from '../items/items'
 
 export const PROTOCOL_VERSION = 1
@@ -31,6 +32,7 @@ export interface SnapshotMsg {
   edits: Record<string, number>
   chests: Record<string, ChestContents>
   animals: { animals: SavedAnimal[]; spawnedChunks: string[] }
+  furniture: SavedFurniture[]
   spawn: { x: number; y: number; z: number }
 }
 
@@ -64,6 +66,13 @@ export interface AnimalEventMsg {
   owner?: string | null
 }
 
+export interface FurnitureMsg {
+  t: 'furniture'
+  ev: 'place' | 'remove' | 'toggle'
+  item?: SavedFurniture
+  id?: string
+}
+
 export interface LeaveMsg {
   t: 'leave'
   id: string
@@ -77,6 +86,7 @@ export type GameMessage =
   | ChestMsg
   | AnimalsMsg
   | AnimalEventMsg
+  | FurnitureMsg
   | LeaveMsg
 
 interface Envelope {
@@ -110,6 +120,8 @@ export function decodeMessage(payload: unknown): GameMessage | null {
       return Array.isArray(m.list) ? m : null
     case 'animalEvent':
       return typeof m.animalId === 'string' ? m : null
+    case 'furniture':
+      return m.ev === 'place' || m.ev === 'remove' || m.ev === 'toggle' ? m : null
     case 'leave':
       return typeof m.id === 'string' ? m : null
     default:
