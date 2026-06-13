@@ -1,14 +1,18 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { LocalWorldMeta } from '../persist/storage'
 import type { Profile, WorldMeta } from '../net/cloud'
 import { Menu, type MenuCallbacks } from './menu'
 
+const EMPTY_SLOTS: (LocalWorldMeta | null)[] = Array(5).fill(null)
+
 function makeCallbacks(over: Partial<MenuCallbacks> = {}): MenuCallbacks {
   return {
-    hasSave: () => false,
-    onContinue: vi.fn(),
-    onNewWorld: vi.fn(),
-    onHost: vi.fn(async () => {}),
+    listLocalSlots: () => EMPTY_SLOTS,
+    onPlaySlot: vi.fn(),
+    onNewSlot: vi.fn(),
+    onDeleteSlot: vi.fn(),
+    onHostSlot: vi.fn(async () => {}),
     onJoin: vi.fn(async () => {}),
     onResume: vi.fn(),
     onQuitToMenu: vi.fn(),
@@ -38,15 +42,37 @@ beforeEach(() => {
 })
 
 describe('Menu signed out', () => {
-  it('shows local play, multiplayer, and profile auth controls', () => {
+  it('shows local slots, multiplayer, and profile auth controls', () => {
     new Menu(document.body, makeCallbacks())
     const b = buttons(document.body)
-    expect(b.has('New World')).toBe(true)
-    expect(b.has('Continue World')).toBe(false)
-    expect(b.has('Host Online Game')).toBe(true)
+    expect(b.has('+ New World')).toBe(true) // 5 empty slots each have this button
+    expect(b.has('▶ Play')).toBe(false) // no filled slots
     expect(b.has('Join Game')).toBe(true)
     expect(b.has('Sign In')).toBe(true)
     expect(b.has('Create Profile')).toBe(true)
+  })
+
+  it('shows Play and delete for a filled slot', () => {
+    const slots: (LocalWorldMeta | null)[] = [
+      { name: 'My World', savedAt: '2026-01-01T00:00:00Z' },
+      ...Array(4).fill(null),
+    ]
+    new Menu(document.body, makeCallbacks({ listLocalSlots: () => slots }))
+    const b = buttons(document.body)
+    expect(b.has('▶ Play')).toBe(true)
+    expect(b.has('✕')).toBe(true)
+    expect(b.has('+ New World')).toBe(true) // remaining 4 empty slots
+  })
+
+  it('calls onPlaySlot with the correct index', () => {
+    const slots: (LocalWorldMeta | null)[] = [
+      { name: 'My World', savedAt: '2026-01-01T00:00:00Z' },
+      ...Array(4).fill(null),
+    ]
+    const cb = makeCallbacks({ listLocalSlots: () => slots })
+    new Menu(document.body, cb)
+    buttons(document.body).get('▶ Play')!.click()
+    expect(cb.onPlaySlot).toHaveBeenCalledWith(0)
   })
 
   it('signs up with the entered credentials and re-renders', async () => {
@@ -86,7 +112,7 @@ describe('Menu signed out', () => {
   it('hides online sections when Supabase is not configured', () => {
     new Menu(document.body, makeCallbacks({ multiplayerAvailable: false }))
     const b = buttons(document.body)
-    expect(b.has('Host Online Game')).toBe(false)
+    expect(b.has('Join Game')).toBe(false)
     expect(b.has('Sign In')).toBe(false)
     expect(document.body.textContent).toContain('Multiplayer unavailable')
   })

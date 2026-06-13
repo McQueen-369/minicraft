@@ -6,11 +6,11 @@ import { ItemId, breakTime, type Slot } from './items'
 describe('Inventory', () => {
   it('stacks items up to the max stack size', () => {
     const inv = new Inventory()
+    expect(inv.add(ItemId.Dirt, 180)).toBe(0)
     expect(inv.add(ItemId.Dirt, 60)).toBe(0)
-    expect(inv.add(ItemId.Dirt, 10)).toBe(0)
     expect(inv.slots[0]).toEqual({ itemId: ItemId.Dirt, count: MAX_STACK })
-    expect(inv.slots[1]).toEqual({ itemId: ItemId.Dirt, count: 6 })
-    expect(inv.countOf(ItemId.Dirt)).toBe(70)
+    expect(inv.slots[1]).toEqual({ itemId: ItemId.Dirt, count: 40 })
+    expect(inv.countOf(ItemId.Dirt)).toBe(240)
   })
 
   it('does not stack tools', () => {
