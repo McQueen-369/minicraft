@@ -1,5 +1,6 @@
 import type { LocalWorldMeta } from '../persist/storage'
 import type { Profile, WorldMeta } from '../net/cloud'
+import { generateRoomCode } from '../net/protocol'
 
 const STYLE = `
 .mc-menu {
@@ -40,6 +41,11 @@ const STYLE = `
   background: rgba(40,90,60,0.2); border: 1px solid #4a7; border-radius: 3px;
   padding: 8px 10px; color: #9c9; font-size: 13px; margin-bottom: 4px;
 }
+.mc-room-code {
+  font-size: 36px; letter-spacing: 8px; color: #aff; font-weight: bold;
+  text-align: center; padding: 16px; margin: 12px 0;
+  background: rgba(0,50,20,0.4); border: 2px solid #4a7; border-radius: 4px;
+}
 `
 
 export interface MenuCallbacks {
@@ -47,7 +53,7 @@ export interface MenuCallbacks {
   onPlaySlot: (index: number) => void
   onNewSlot: (index: number, name: string) => void
   onDeleteSlot: (index: number) => void
-  onHostSlot: (index: number, playerName: string) => Promise<void>
+  onHostSlot: (index: number, playerName: string, roomCode: string) => Promise<void>
   onJoin: (name: string, code: string) => Promise<void>
   onResume: () => void
   onQuitToMenu: () => void
@@ -59,7 +65,7 @@ export interface MenuCallbacks {
   onSignOut: () => void
   listWorlds: () => Promise<WorldMeta[]>
   onPlayCloud: (world: WorldMeta) => Promise<void>
-  onHostCloud: (world: WorldMeta) => Promise<void>
+  onHostCloud: (world: WorldMeta, roomCode: string) => Promise<void>
   onCreateCloud: (name: string) => Promise<void>
   onDeleteCloud: (world: WorldMeta) => Promise<void>
 }
@@ -163,7 +169,7 @@ export class Menu {
     auth.appendChild(authError)
     this.box.appendChild(auth)
 
-    // 2. Local worlds — existing slots prompt to create a profile before playing
+    // 2. Local worlds — only filled slots + a single "Create New World" CTA
     const name = input('Your name (for multiplayer)', 16)
     name.value = localStorage.getItem('minicraft-name') ?? ''
     const getName = () => {
@@ -175,22 +181,60 @@ export class Menu {
     const localSection = el('div', '', 'section')
     localSection.appendChild(el('div', 'Local Worlds', 'section-title'))
     for (let i = 0; i < slots.length; i++) {
-      localSection.appendChild(
-        this.localSlotRow(
-          slots[i], i, true, name, error,
-          slots[i] ? (idx, worldName) => this.showPlayPrompt(idx, worldName) : undefined,
-        ),
-      )
+      if (slots[i]) {
+        localSection.appendChild(
+          this.localSlotRow(slots[i], i, true, name, error,
+            (idx, worldName) => this.showPlayPrompt(idx, worldName),
+          ),
+        )
+      }
+    }
+    const firstEmpty = slots.findIndex((s) => !s)
+    if (firstEmpty !== -1) {
+      const createRow = el('div', '', 'world-row')
+      const newBtn = document.createElement('button')
+      newBtn.textContent = '+ Create New World'
+      newBtn.style.width = '100%'
+      newBtn.addEventListener('click', () => {
+        newBtn.style.display = 'none'
+        const nameInput = document.createElement('input')
+        nameInput.placeholder = `World ${firstEmpty + 1}`
+        nameInput.maxLength = 32
+        nameInput.style.cssText = 'flex:1; margin:0 4px;'
+        const createBtn = document.createElement('button')
+        createBtn.textContent = 'Create'
+        createBtn.addEventListener('click', () => {
+          this.cb.onNewSlot(firstEmpty, nameInput.value.trim() || `World ${firstEmpty + 1}`)
+        })
+        const cancelBtn = document.createElement('button')
+        cancelBtn.textContent = 'Cancel'
+        cancelBtn.addEventListener('click', () => this.showMain())
+        createRow.appendChild(nameInput)
+        createRow.appendChild(createBtn)
+        createRow.appendChild(cancelBtn)
+        nameInput.focus()
+      })
+      createRow.appendChild(newBtn)
+      localSection.appendChild(createRow)
     }
     this.box.appendChild(localSection)
 
-    // 3. Join a friend
+    // 3. Join a Friend — progressive disclosure
     const mpSection = el('div', '', 'section')
-    mpSection.appendChild(el('div', 'Play online (no profile)', 'section-title'))
     mpSection.appendChild(name)
-    const code = input('Room code (e.g. MC-1234)', 8)
-    mpSection.appendChild(code)
-    this.asyncButton(mpSection, 'Join Game', error, () => this.cb.onJoin(getName(), code.value.trim().toUpperCase()))
+    const joinForm = el('div', '', '')
+    joinForm.style.display = 'none'
+    const codeInput = input('Room code (e.g. MC-1234)', 8)
+    joinForm.appendChild(codeInput)
+    this.asyncButton(joinForm, 'Join Game', error, () =>
+      this.cb.onJoin(getName(), codeInput.value.trim().toUpperCase()),
+    )
+    const joinBtn = this.button(mpSection, 'Join a Friend', () => {
+      joinBtn.style.display = 'none'
+      joinForm.style.display = ''
+      codeInput.focus()
+    })
+    mpSection.appendChild(joinForm)
     mpSection.appendChild(error)
     this.box.appendChild(mpSection)
   }
@@ -243,12 +287,15 @@ export class Menu {
       })
       row.appendChild(playBtn)
       if (showHost && hostNameInput) {
-        const hostBtn = this.asyncButton(row, 'Host', error, () => {
+        const hostBtn = document.createElement('button')
+        hostBtn.textContent = 'Host'
+        hostBtn.addEventListener('click', () => {
           const n = hostNameInput.value.trim() || 'Player'
           try { localStorage.setItem('minicraft-name', n) } catch { /* ignore */ }
-          return this.cb.onHostSlot(index, n)
+          const roomCode = generateRoomCode()
+          this.showHostScreen(`Hosting "${slot.name}"`, roomCode, () => this.cb.onHostSlot(index, n, roomCode))
         })
-        void hostBtn
+        row.appendChild(hostBtn)
       }
       const delBtn = document.createElement('button')
       delBtn.textContent = '✕'
@@ -289,6 +336,20 @@ export class Menu {
     cancelBtn.addEventListener('click', () => this.showMain())
     row.appendChild(cancelBtn)
     nameInput.focus()
+  }
+
+  private showHostScreen(subtitle: string, roomCode: string, onStart: () => Promise<void>): void {
+    this.box.innerHTML = ''
+    this.box.appendChild(el('h1', 'MINICRAFT'))
+    this.box.appendChild(el('div', subtitle, 'sub'))
+    const codeSection = el('div', '', 'section')
+    codeSection.appendChild(el('div', 'Share this code with friends:', 'section-title'))
+    codeSection.appendChild(el('div', roomCode, 'mc-room-code'))
+    this.box.appendChild(codeSection)
+    const hostError = el('div', '', 'error')
+    this.asyncButton(this.box, '▶ Start Hosting', hostError, onStart)
+    this.button(this.box, '← Back to Menu', () => this.showMain())
+    this.box.appendChild(hostError)
   }
 
   // -------------------------------------------------------------- signed in
@@ -334,12 +395,19 @@ export class Menu {
     }
 
     const join = el('div', '', 'section')
-    join.appendChild(el('div', 'Join a friend', 'section-title'))
+    const joinForm = el('div', '', '')
+    joinForm.style.display = 'none'
     const code = input('Room code (e.g. MC-1234)', 8)
-    join.appendChild(code)
-    this.asyncButton(join, 'Join Game', error, () =>
+    joinForm.appendChild(code)
+    this.asyncButton(joinForm, 'Join Game', error, () =>
       this.cb.onJoin(profile.username, code.value.trim().toUpperCase()),
     )
+    const joinBtn = this.button(join, 'Join a Friend', () => {
+      joinBtn.style.display = 'none'
+      joinForm.style.display = ''
+      code.focus()
+    })
+    join.appendChild(joinForm)
     this.box.appendChild(join)
     this.box.appendChild(error)
 
@@ -370,7 +438,10 @@ export class Menu {
     meta.appendChild(el('div', `saved ${new Date(w.updatedAt).toLocaleString()}`, 'when'))
     row.appendChild(meta)
     this.asyncButton(row, 'Play', error, () => this.cb.onPlayCloud(w))
-    this.asyncButton(row, 'Host', error, () => this.cb.onHostCloud(w))
+    this.button(row, 'Host', () => {
+      const roomCode = generateRoomCode()
+      this.showHostScreen(`Hosting "${w.name}"`, roomCode, () => this.cb.onHostCloud(w, roomCode))
+    })
     const del = this.asyncButton(row, '✕', error, async () => {
       if (!confirm(`Delete world "${w.name}" forever?`)) return
       await this.cb.onDeleteCloud(w)

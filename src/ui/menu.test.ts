@@ -45,9 +45,9 @@ describe('Menu signed out', () => {
   it('shows local slots, multiplayer, and profile auth controls', () => {
     new Menu(document.body, makeCallbacks())
     const b = buttons(document.body)
-    expect(b.has('+ New World')).toBe(true) // 5 empty slots each have this button
+    expect(b.has('+ Create New World')).toBe(true) // single CTA for empty slots
     expect(b.has('▶ Play')).toBe(false) // no filled slots
-    expect(b.has('Join Game')).toBe(true)
+    expect(b.has('Join a Friend')).toBe(true) // progressive disclosure
     expect(b.has('Sign In')).toBe(true)
     expect(b.has('Create Profile')).toBe(true)
   })
@@ -61,7 +61,7 @@ describe('Menu signed out', () => {
     const b = buttons(document.body)
     expect(b.has('▶ Play')).toBe(true)
     expect(b.has('✕')).toBe(true)
-    expect(b.has('+ New World')).toBe(true) // remaining 4 empty slots
+    expect(b.has('+ Create New World')).toBe(true) // single CTA for remaining empty slots
   })
 
   it('shows profile prompt when Play is clicked, then calls onPlaySlot after skipping', () => {
@@ -155,16 +155,30 @@ describe('Menu signed in', () => {
     expect([...rows[0].querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Play', 'Host', '✕'])
   })
 
-  it('plays and hosts the chosen world', async () => {
+  it('plays the chosen world', async () => {
     const cb = signedIn()
     new Menu(document.body, cb)
     await flush()
-    const rows = document.querySelectorAll('.world-row')
-    rows[0].querySelectorAll('button')[0].click()
-    rows[1].querySelectorAll('button')[1].click()
+    document.querySelectorAll('.world-row')[0].querySelectorAll('button')[0].click()
     await flush()
     expect(cb.onPlayCloud).toHaveBeenCalledWith(expect.objectContaining({ id: 'w1' }))
-    expect(cb.onHostCloud).toHaveBeenCalledWith(expect.objectContaining({ id: 'w2' }))
+  })
+
+  it('hosts via room code screen then calls onHostCloud with code', async () => {
+    const cb = signedIn()
+    new Menu(document.body, cb)
+    await flush()
+    // Click Host on Sea Base — navigates to host screen
+    document.querySelectorAll('.world-row')[1].querySelectorAll('button')[1].click()
+    expect(document.body.textContent).toContain('Share this code with friends')
+    expect(document.body.textContent).toMatch(/MC-\d{4}/)
+    // Click Start Hosting
+    buttons(document.body).get('▶ Start Hosting')!.click()
+    await flush()
+    expect(cb.onHostCloud).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'w2' }),
+      expect.stringMatching(/^MC-\d{4}$/),
+    )
   })
 
   it('creates a world with the typed name', async () => {
@@ -193,10 +207,12 @@ describe('Menu signed in', () => {
     confirmSpy.mockRestore()
   })
 
-  it('joins with the profile username instead of a name input', async () => {
+  it('joins with the profile username after expanding Join a Friend', async () => {
     const cb = signedIn()
     new Menu(document.body, cb)
     await flush()
+    // Expand the join form
+    buttons(document.body).get('Join a Friend')!.click()
     const code = [...document.querySelectorAll('input')].find((i) => i.placeholder.startsWith('Room code'))!
     code.value = 'mc-1234'
     buttons(document.body).get('Join Game')!.click()
