@@ -463,6 +463,8 @@ export class Game {
   }
 
   private quitToMenu(): void {
+    const showProfileCta =
+      !this.profile && this.activeSlotIndex !== null && !this.cloudWorld && this.mode !== 'guest' && supabaseConfigured()
     if (this.mode !== 'guest' && this.session) {
       if (this.cloudWorld) {
         // Kick off the final cloud write, then refresh the menu's world list.
@@ -479,7 +481,7 @@ export class Game {
     this.cloudWorld = null
     this.panels.close()
     this.teardownSession()
-    this.menu.showMain()
+    this.menu.showMain(showProfileCta)
     this.updateInputState()
     this.mobileControls?.hide()
   }
