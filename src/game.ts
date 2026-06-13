@@ -6,6 +6,7 @@ import { EntityManager } from './entities/entityManager'
 import { BlockInteraction } from './interact/blockInteraction'
 import { chestLoot } from './items/chest'
 import { Inventory } from './items/inventory'
+import { ItemId } from './items/items'
 import type { ChestContents } from './items/items'
 import * as cloud from './net/cloud'
 import { isSessionExpired, loadStoredProfile, storeProfile, type Profile, type WorldMeta } from './net/cloud'
@@ -22,7 +23,9 @@ import { HUD } from './ui/hud'
 import { Menu } from './ui/menu'
 import { MobileControls } from './ui/mobileControls'
 import { Panels } from './ui/panels'
+import { WeatherUI } from './ui/weather'
 import { Terrain } from './world/terrain'
+import { buildStarterHouse } from './world/starter'
 import { World } from './world/world'
 
 type Mode = 'single' | 'host' | 'guest'
@@ -52,6 +55,7 @@ export class Game {
   private readonly worldStore = new MultiWorldStore(localStorage)
   private readonly playerId = crypto.randomUUID().slice(0, 8)
   private readonly mobileControls: MobileControls | null = null
+  private readonly weatherUI: WeatherUI
 
   private session: Session | null = null
   private mp: Multiplayer | null = null
@@ -129,6 +133,7 @@ export class Game {
 
     this.mobileControls = this.controls.isTouchDevice ? new MobileControls(root, this.controls) : null
     if (this.mobileControls) this.mobileControls.onInventory = openInventory
+    this.weatherUI = new WeatherUI(root)
 
     this.inventory.onChange = () => this.hud.refresh()
     this.panels.onClose = () => {
@@ -213,6 +218,10 @@ export class Game {
       this.controls.fly = false
     }
     this.inventory.load(save?.inventory ?? [])
+    if (!save) {
+      buildStarterHouse(world, spawn.x, spawn.z)
+      this.inventory.add(ItemId.WoodPickaxe, 1)
+    }
 
     const interaction = new BlockInteraction(
       world,
@@ -457,6 +466,7 @@ export class Game {
     this.updateInputState()
     this.controls.requestLock()
     this.mobileControls?.show()
+    this.weatherUI.show()
   }
 
   private resume(): void {
@@ -487,6 +497,7 @@ export class Game {
     this.menu.showMain(showProfileCta)
     this.updateInputState()
     this.mobileControls?.hide()
+    this.weatherUI.hide()
   }
 
   private updateInputState(): void {
@@ -527,6 +538,7 @@ export class Game {
     }
     s.entities.update(dt, pos, owners, this.mode !== 'guest')
     s.sky.update(dt, this.camera.position)
+    this.weatherUI.update(s.sky.weather)
     s.water.position.x = pos.x
     s.water.position.z = pos.z
 

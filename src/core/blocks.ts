@@ -10,6 +10,11 @@ export const BlockId = {
   Brick: 8,
   Glass: 9,
   Chest: 10,
+  Bed: 11,
+  Light: 12,
+  Door: 13,
+  Desk: 14,
+  Chair: 15,
 } as const
 
 export type BlockId = (typeof BlockId)[keyof typeof BlockId]
@@ -30,6 +35,11 @@ export const Tile = {
   ChestSide: 11,
   ChestFront: 12,
   ChestTop: 13,
+  Bed: 14,
+  Light: 15,
+  Door: 16,
+  Desk: 17,
+  Chair: 18,
 } as const
 
 export type ToolType = 'pickaxe' | 'axe' | 'shears'
@@ -45,6 +55,8 @@ export interface BlockDef {
   tool: ToolType | null
   /** BlockId of what is collected when broken (defaults to self). */
   drops: BlockId
+  /** Rendered with alpha blending (semi-transparent). */
+  transparent?: boolean
 }
 
 const def = (
@@ -52,7 +64,7 @@ const def = (
   tiles: { top: number; side: number; bottom: number },
   hardness: number,
   tool: ToolType | null,
-  opts: Partial<Pick<BlockDef, 'opaque' | 'solid' | 'drops'>> & { id: BlockId },
+  opts: Partial<Pick<BlockDef, 'opaque' | 'solid' | 'drops' | 'transparent'>> & { id: BlockId },
 ): BlockDef => ({
   name,
   opaque: opts.opaque ?? true,
@@ -61,6 +73,7 @@ const def = (
   hardness,
   tool,
   drops: opts.drops ?? opts.id,
+  transparent: opts.transparent,
 })
 
 const uniform = (t: number) => ({ top: t, side: t, bottom: t })
@@ -80,10 +93,19 @@ export const BLOCKS: Record<BlockId, BlockDef | null> = {
   [BlockId.Leaves]: def('Leaves', uniform(Tile.Leaves), 0.4, 'shears', { id: BlockId.Leaves, opaque: false }),
   [BlockId.Plank]: def('Plank', uniform(Tile.Plank), 3, 'axe', { id: BlockId.Plank }),
   [BlockId.Brick]: def('Brick', uniform(Tile.Brick), 5, 'pickaxe', { id: BlockId.Brick }),
-  [BlockId.Glass]: def('Glass', uniform(Tile.Glass), 0.4, null, { id: BlockId.Glass, opaque: false }),
+  [BlockId.Glass]: def('Glass', uniform(Tile.Glass), 0.4, null, {
+    id: BlockId.Glass,
+    opaque: false,
+    transparent: true,
+  }),
   [BlockId.Chest]: def('Chest', { top: Tile.ChestTop, side: Tile.ChestFront, bottom: Tile.ChestTop }, 3, 'axe', {
     id: BlockId.Chest,
   }),
+  [BlockId.Bed]: def('Bed', uniform(Tile.Bed), 1, null, { id: BlockId.Bed }),
+  [BlockId.Light]: def('Light', uniform(Tile.Light), 0.5, null, { id: BlockId.Light }),
+  [BlockId.Door]: def('Door', uniform(Tile.Door), 3, 'axe', { id: BlockId.Door }),
+  [BlockId.Desk]: def('Desk', uniform(Tile.Desk), 3, 'axe', { id: BlockId.Desk }),
+  [BlockId.Chair]: def('Chair', uniform(Tile.Chair), 3, 'axe', { id: BlockId.Chair }),
 }
 
 export function isOpaque(id: number): boolean {
@@ -96,4 +118,8 @@ export function isSolid(id: number): boolean {
 
 export function blockDef(id: number): BlockDef | null {
   return BLOCKS[id as BlockId] ?? null
+}
+
+export function isTransparent(id: number): boolean {
+  return BLOCKS[id as BlockId]?.transparent ?? false
 }

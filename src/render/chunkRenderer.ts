@@ -7,7 +7,9 @@ import { meshChunk } from './mesher'
 
 export class ChunkRenderer {
   private readonly meshes = new Map<string, THREE.Mesh>()
+  private readonly tMeshes = new Map<string, THREE.Mesh>()
   private readonly material: THREE.MeshLambertMaterial
+  private readonly tMaterial: THREE.MeshLambertMaterial
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -15,6 +17,12 @@ export class ChunkRenderer {
     atlas: Atlas,
   ) {
     this.material = new THREE.MeshLambertMaterial({ map: atlas.texture })
+    this.tMaterial = new THREE.MeshLambertMaterial({
+      map: atlas.texture,
+      transparent: true,
+      opacity: 0.45,
+      depthWrite: false,
+    })
   }
 
   get chunkCount(): number {
@@ -24,7 +32,7 @@ export class ChunkRenderer {
   /** Stream chunk generation/meshing around the player. Call once per frame. */
   update(px: number, pz: number, generateBudget = MESH_BUDGET_PER_FRAME, meshBudget = MESH_BUDGET_PER_FRAME): number {
     const { unloaded } = this.world.updateLoadedChunks(px, pz, generateBudget)
-    for (const key of unloaded) this.removeMesh(key)
+    for (const key of unloaded) this.removeMeshes(key)
 
     const pcx = worldToChunk(Math.floor(px))
     const pcz = worldToChunk(Math.floor(pz))
@@ -72,26 +80,40 @@ export class ChunkRenderer {
   private buildMesh(key: string): void {
     const { cx, cz } = parseChunkKey(key)
     const data = meshChunk(cx, cz, (x, y, z) => this.world.getBlock(x, y, z))
-    this.removeMesh(key)
-    if (data.faceCount === 0) return
-    const geometry = new THREE.BufferGeometry()
-    geometry.setAttribute('position', new THREE.BufferAttribute(data.positions, 3))
-    geometry.setAttribute('normal', new THREE.BufferAttribute(data.normals, 3))
-    geometry.setAttribute('uv', new THREE.BufferAttribute(data.uvs, 2))
-    geometry.setIndex(new THREE.BufferAttribute(data.indices, 1))
-    geometry.computeBoundingSphere()
-    const mesh = new THREE.Mesh(geometry, this.material)
-    mesh.matrixAutoUpdate = false
-    this.meshes.set(key, mesh)
-    this.scene.add(mesh)
+    this.removeMeshes(key)
+
+    if (data.faceCount > 0) {
+      const geo = new THREE.BufferGeometry()
+      geo.setAttribute('position', new THREE.BufferAttribute(data.positions, 3))
+      geo.setAttribute('normal', new THREE.BufferAttribute(data.normals, 3))
+      geo.setAttribute('uv', new THREE.BufferAttribute(data.uvs, 2))
+      geo.setIndex(new THREE.BufferAttribute(data.indices, 1))
+      geo.computeBoundingSphere()
+      const mesh = new THREE.Mesh(geo, this.material)
+      mesh.matrixAutoUpdate = false
+      this.meshes.set(key, mesh)
+      this.scene.add(mesh)
+    }
+
+    if (data.tFaceCount > 0) {
+      const tGeo = new THREE.BufferGeometry()
+      tGeo.setAttribute('position', new THREE.BufferAttribute(data.tPositions, 3))
+      tGeo.setAttribute('normal', new THREE.BufferAttribute(data.tNormals, 3))
+      tGeo.setAttribute('uv', new THREE.BufferAttribute(data.tUvs, 2))
+      tGeo.setIndex(new THREE.BufferAttribute(data.tIndices, 1))
+      tGeo.computeBoundingSphere()
+      const tMesh = new THREE.Mesh(tGeo, this.tMaterial)
+      tMesh.matrixAutoUpdate = false
+      this.tMeshes.set(key, tMesh)
+      this.scene.add(tMesh)
+    }
   }
 
-  private removeMesh(key: string): void {
+  private removeMeshes(key: string): void {
     const mesh = this.meshes.get(key)
-    if (!mesh) return
-    this.scene.remove(mesh)
-    mesh.geometry.dispose()
-    this.meshes.delete(key)
+    if (mesh) { this.scene.remove(mesh); mesh.geometry.dispose(); this.meshes.delete(key) }
+    const tMesh = this.tMeshes.get(key)
+    if (tMesh) { this.scene.remove(tMesh); tMesh.geometry.dispose(); this.tMeshes.delete(key) }
   }
 }
 

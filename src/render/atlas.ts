@@ -3,11 +3,14 @@ import { Tile } from '../core/blocks'
 import { mulberry32 } from '../core/rng'
 
 export const TILE_PX = 16
-export const ATLAS_TILES = 4 // 4x4 grid
-export const ATLAS_PX = TILE_PX * ATLAS_TILES
+export const ATLAS_TILES = 4  // columns (kept for icon backward-compat)
+export const ATLAS_ROWS = 5   // rows (expanded for new blocks)
+export const ATLAS_PX = TILE_PX * ATLAS_TILES   // width  = 64
+export const ATLAS_PX_H = TILE_PX * ATLAS_ROWS  // height = 80
 
-/** Half-texel inset keeps neighboring tiles from bleeding at quad edges. */
-export const UV_EPSILON = 0.5 / ATLAS_PX
+/** Half-texel inset to prevent neighboring tile bleed. */
+const UV_EPS_U = 0.5 / ATLAS_PX
+const UV_EPS_V = 0.5 / ATLAS_PX_H
 
 export interface Atlas {
   texture: THREE.Texture
@@ -99,13 +102,16 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
       break
     }
     case Tile.Glass: {
-      ctx.fillStyle = '#cfeff4'
+      ctx.fillStyle = '#b8e8f0'
       ctx.fillRect(x0, y0, TILE_PX, TILE_PX)
-      ctx.fillStyle = '#ffffff'
-      ctx.fillRect(x0 + 2, y0 + 2, 2, 6)
-      ctx.fillRect(x0 + 5, y0 + 2, 1, 3)
-      ctx.strokeStyle = '#9fc9d4'
-      ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE_PX - 1, TILE_PX - 1)
+      ctx.fillStyle = 'rgba(255,255,255,0.7)'
+      ctx.fillRect(x0 + 2, y0 + 2, 3, 5)
+      ctx.fillRect(x0 + 7, y0 + 2, 2, 3)
+      ctx.fillStyle = '#6ab8cc'
+      ctx.fillRect(x0, y0, TILE_PX, 2)           // top border
+      ctx.fillRect(x0, y0 + TILE_PX - 2, TILE_PX, 2) // bottom border
+      ctx.fillRect(x0, y0, 2, TILE_PX)           // left border
+      ctx.fillRect(x0 + TILE_PX - 2, y0, 2, TILE_PX) // right border
       break
     }
     case Tile.ChestSide:
@@ -129,6 +135,79 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
       ctx.strokeStyle = '#5e4318'
       ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE_PX - 1, TILE_PX - 1)
       break
+    case Tile.Bed: {
+      // Mattress: warm red/white stripes with wood border
+      ctx.fillStyle = '#c0392b'
+      ctx.fillRect(x0, y0, TILE_PX, TILE_PX)
+      ctx.fillStyle = '#e8d5d0'
+      for (let i = 2; i < TILE_PX; i += 4) ctx.fillRect(x0 + i, y0, 2, TILE_PX)
+      ctx.fillStyle = '#8b6914'
+      ctx.fillRect(x0, y0, TILE_PX, 2)
+      ctx.fillRect(x0, y0 + TILE_PX - 2, TILE_PX, 2)
+      ctx.fillRect(x0, y0, 2, TILE_PX)
+      ctx.fillRect(x0 + TILE_PX - 2, y0, 2, TILE_PX)
+      // Pillow
+      ctx.fillStyle = '#f5f0ee'
+      ctx.fillRect(x0 + 3, y0 + 3, 10, 5)
+      break
+    }
+    case Tile.Light: {
+      // Lantern: dark outer frame, glowing amber center
+      ctx.fillStyle = '#3a2a10'
+      ctx.fillRect(x0, y0, TILE_PX, TILE_PX)
+      ctx.fillStyle = '#f5a623'
+      ctx.fillRect(x0 + 3, y0 + 3, 10, 10)
+      ctx.fillStyle = '#ffd700'
+      ctx.fillRect(x0 + 5, y0 + 5, 6, 6)
+      ctx.fillStyle = '#fff8e0'
+      ctx.fillRect(x0 + 7, y0 + 7, 2, 2)
+      // Frame bars
+      ctx.fillStyle = '#3a2a10'
+      ctx.fillRect(x0 + 7, y0 + 3, 2, 10)
+      ctx.fillRect(x0 + 3, y0 + 7, 10, 2)
+      break
+    }
+    case Tile.Door: {
+      // Wooden door: dark wood with panels and handle
+      speckle(ctx, x0, y0, '#7b4f2e', ['#6b4226', '#8b5c36'], 0.2, 14)
+      ctx.fillStyle = '#5c3518'
+      ctx.fillRect(x0, y0, 2, TILE_PX)
+      ctx.fillRect(x0 + TILE_PX - 2, y0, 2, TILE_PX)
+      ctx.fillRect(x0, y0, TILE_PX, 2)
+      ctx.fillRect(x0, y0 + TILE_PX - 2, TILE_PX, 2)
+      ctx.fillRect(x0 + 2, y0 + 7, TILE_PX - 4, 2) // middle bar
+      // Handle
+      ctx.fillStyle = '#c0a050'
+      ctx.fillRect(x0 + 11, y0 + 4, 2, 3)
+      ctx.fillRect(x0 + 11, y0 + 10, 2, 3)
+      break
+    }
+    case Tile.Desk: {
+      // Flat desk: light wood surface with dark edge and drawer line
+      speckle(ctx, x0, y0, '#c09a5a', ['#b08848', '#d0ac6c'], 0.2, 15)
+      ctx.fillStyle = '#7b5c30'
+      ctx.fillRect(x0, y0, TILE_PX, 2)
+      ctx.fillRect(x0, y0, 2, TILE_PX)
+      ctx.fillRect(x0 + TILE_PX - 2, y0, 2, TILE_PX)
+      ctx.fillRect(x0, y0 + TILE_PX - 2, TILE_PX, 2)
+      // Drawer line
+      ctx.fillRect(x0 + 2, y0 + 9, TILE_PX - 4, 1)
+      ctx.fillStyle = '#c0a050'
+      ctx.fillRect(x0 + 7, y0 + 10, 2, 2) // drawer handle
+      break
+    }
+    case Tile.Chair: {
+      // Chair: brown seat with visible back-rest lines
+      speckle(ctx, x0, y0, '#8b5e3c', ['#7b5030', '#9b6e4c'], 0.25, 16)
+      ctx.fillStyle = '#5c3518'
+      ctx.fillRect(x0, y0, TILE_PX, 2)           // top of back
+      ctx.fillRect(x0, y0 + 2, 2, 6)             // back left post
+      ctx.fillRect(x0 + TILE_PX - 2, y0 + 2, 2, 6) // back right post
+      ctx.fillRect(x0, y0 + 8, TILE_PX, 2)       // seat top
+      ctx.fillRect(x0, y0 + TILE_PX - 2, TILE_PX, 2) // seat bottom
+      for (let i = 3; i < TILE_PX - 2; i += 3) ctx.fillRect(x0 + i, y0 + 2, 1, 6) // back slats
+      break
+    }
     default:
       ctx.fillStyle = '#ff00ff'
       ctx.fillRect(x0, y0, TILE_PX, TILE_PX)
@@ -138,9 +217,9 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
 export function createAtlas(): Atlas {
   const canvas = document.createElement('canvas')
   canvas.width = ATLAS_PX
-  canvas.height = ATLAS_PX
+  canvas.height = ATLAS_PX_H
   const ctx = canvas.getContext('2d')!
-  for (let tile = 0; tile < ATLAS_TILES * ATLAS_TILES; tile++) {
+  for (let tile = 0; tile < ATLAS_TILES * ATLAS_ROWS; tile++) {
     drawTile(ctx, tile, (tile % ATLAS_TILES) * TILE_PX, Math.floor(tile / ATLAS_TILES) * TILE_PX)
   }
   const texture = new THREE.CanvasTexture(canvas)
@@ -154,10 +233,10 @@ export function createAtlas(): Atlas {
 export function uvRect(tile: number): [number, number, number, number] {
   const tx = tile % ATLAS_TILES
   const ty = Math.floor(tile / ATLAS_TILES)
-  const u0 = tx / ATLAS_TILES + UV_EPSILON
-  const u1 = (tx + 1) / ATLAS_TILES - UV_EPSILON
-  // Canvas y grows downward; Three.js v grows upward.
-  const v1 = 1 - ty / ATLAS_TILES - UV_EPSILON
-  const v0 = 1 - (ty + 1) / ATLAS_TILES + UV_EPSILON
+  const u0 = tx / ATLAS_TILES + UV_EPS_U
+  const u1 = (tx + 1) / ATLAS_TILES - UV_EPS_U
+  // Canvas y grows downward; Three.js v grows upward. Use ATLAS_ROWS for V.
+  const v1 = 1 - ty / ATLAS_ROWS - UV_EPS_V
+  const v0 = 1 - (ty + 1) / ATLAS_ROWS + UV_EPS_V
   return [u0, v0, u1, v1]
 }
