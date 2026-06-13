@@ -142,7 +142,7 @@ export class Menu {
       localSection.appendChild(el('div', 'Local Worlds', 'section-title'))
       const slots = this.cb.listLocalSlots()
       for (let i = 0; i < slots.length; i++) {
-        localSection.appendChild(this.localSlotRow(slots[i], i, false, null, error))
+        localSection.appendChild(this.localSlotRow(slots[i], i, false, null))
       }
       this.box.appendChild(localSection)
       this.box.appendChild(el('div', 'Multiplayer unavailable: missing Supabase configuration (.env.local)', 'hint'))
@@ -183,7 +183,7 @@ export class Menu {
     for (let i = 0; i < slots.length; i++) {
       if (slots[i]) {
         localSection.appendChild(
-          this.localSlotRow(slots[i], i, true, name, error,
+          this.localSlotRow(slots[i], i, true, name,
             (idx, worldName) => this.showPlayPrompt(idx, worldName),
           ),
         )
@@ -270,7 +270,6 @@ export class Menu {
     index: number,
     showHost: boolean,
     hostNameInput: HTMLInputElement | null,
-    error: HTMLElement,
     onBeforePlay?: (index: number, worldName: string) => void,
   ): HTMLElement {
     const row = el('div', '', 'world-row')
@@ -388,7 +387,7 @@ export class Menu {
       local.appendChild(el('div', 'Local Worlds (this device)', 'section-title'))
       const localError = el('div', '', 'error')
       for (let i = 0; i < localSlots.length; i++) {
-        if (localSlots[i]) local.appendChild(this.localSlotRow(localSlots[i], i, false, null, localError))
+        if (localSlots[i]) local.appendChild(this.localSlotRow(localSlots[i], i, false, null))
       }
       local.appendChild(localError)
       this.box.appendChild(local)
