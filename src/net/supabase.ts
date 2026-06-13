@@ -1,16 +1,21 @@
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js'
 
+// Public keys for the shared Supabase project — safe to ship to browsers.
+// Override with VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY env vars to use your own project.
+const SUPABASE_URL =
+  (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? 'https://ijvedupnybsvvnjfioar.supabase.co'
+const SUPABASE_ANON_KEY =
+  (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) ??
+  'sb_publishable_J8dJZulZMdHzXfIHBvSIwg_efHGRe7G'
+
 let client: SupabaseClient | null = null
 
 export function supabaseConfigured(): boolean {
-  return Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY)
+  return true
 }
 
 export function getSupabase(): SupabaseClient {
-  if (!client) {
-    if (!supabaseConfigured()) throw new Error('Supabase is not configured (.env.local)')
-    client = createClient(import.meta.env.VITE_SUPABASE_URL as string, import.meta.env.VITE_SUPABASE_ANON_KEY as string)
-  }
+  if (!client) client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   return client
 }
 
