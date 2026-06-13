@@ -26,6 +26,7 @@ export class Sky {
   time = 0.25
 
   weather: WeatherType = 'clear'
+  daylight = 0
   private weatherTimer = CLEAR_MIN + Math.random() * (CLEAR_MAX - CLEAR_MIN)
 
   constructor(private readonly scene: THREE.Scene) {
@@ -51,7 +52,8 @@ export class Sky {
     this.sun.target.position.copy(center)
     this.sun.target.updateMatrixWorld()
 
-    const daylight = THREE.MathUtils.clamp(elevation * 3 + 0.3, 0, 1)
+    this.daylight = THREE.MathUtils.clamp(elevation * 3 + 0.3, 0, 1)
+    const daylight = this.daylight
     const sunsetness = THREE.MathUtils.clamp(1 - Math.abs(elevation) * 4, 0, 1) * daylight
     this.sun.intensity = 0.2 + daylight * 1.1
     this.ambient.intensity = 0.25 + daylight * 0.45

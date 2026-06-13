@@ -18,7 +18,9 @@ import { Controls } from './player/controls'
 import { Player } from './player/player'
 import { createAtlas, type Atlas } from './render/atlas'
 import { ChunkRenderer } from './render/chunkRenderer'
+import { NatureManager } from './render/nature'
 import { Sky } from './render/sky'
+import { SkyObjects } from './render/skyObjects'
 import { HUD } from './ui/hud'
 import { Menu } from './ui/menu'
 import { MobileControls } from './ui/mobileControls'
@@ -38,6 +40,8 @@ interface Session {
   entities: EntityManager
   interaction: BlockInteraction
   sky: Sky
+  skyObjects: SkyObjects
+  nature: NatureManager
   water: THREE.Mesh
   seed: number
   spawn: { x: number; z: number }
@@ -249,6 +253,9 @@ export class Game {
     interaction.onAnimalEvent = (ev) =>
       this.mp?.sendAnimalEvent({ ev: ev.type, animalId: ev.animalId ?? '', kind: ev.kind, pos: ev.pos, owner: ev.owner })
 
+    const skyObjects = new SkyObjects(scene)
+    const nature = new NatureManager(scene, (x, z) => world.terrain.heightAt(x, z))
+
     const water = new THREE.Mesh(
       new THREE.PlaneGeometry(640, 640),
       new THREE.MeshLambertMaterial({ color: 0x2e6fae, transparent: true, opacity: 0.6, side: THREE.DoubleSide }),
@@ -257,7 +264,7 @@ export class Game {
     water.position.y = WATER_LEVEL + 0.35
     scene.add(water)
 
-    this.session = { world, scene, player, chunkRenderer, entities, interaction, sky, water, seed, spawn }
+    this.session = { world, scene, player, chunkRenderer, entities, interaction, sky, skyObjects, nature, water, seed, spawn }
     this.worldReady = false
     this.saveTimer = 0
   }
@@ -265,6 +272,8 @@ export class Game {
   private teardownSession(): void {
     if (!this.session) return
     this.session.interaction.dispose()
+    this.session.skyObjects.dispose()
+    this.session.nature.dispose()
     this.session.scene.traverse((obj) => {
       if (obj instanceof THREE.Mesh || obj instanceof THREE.LineSegments) {
         obj.geometry.dispose()
@@ -538,6 +547,8 @@ export class Game {
     }
     s.entities.update(dt, pos, owners, this.mode !== 'guest')
     s.sky.update(dt, this.camera.position)
+    s.skyObjects.update(s.sky.time, this.camera.position, s.sky.daylight, s.sky.weather, dt)
+    s.nature.update(dt, this.camera.position, s.sky.daylight)
     this.weatherUI.update(s.sky.weather)
     s.water.position.x = pos.x
     s.water.position.z = pos.z
