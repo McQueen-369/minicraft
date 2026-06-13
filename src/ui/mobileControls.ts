@@ -45,6 +45,16 @@ const STYLE = `
   -webkit-tap-highlight-color: transparent; pointer-events: all;
 }
 .mc-jump-btn:active { background: rgba(100,200,100,0.55); }
+.mc-mine-btn {
+  position: absolute; bottom: 80px; right: 172px;
+  width: 70px; height: 70px; border-radius: 50%;
+  background: rgba(220,100,80,0.3); border: 2px solid rgba(220,100,80,0.6);
+  color: #fff; font-size: 12px; font-weight: bold;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; user-select: none;
+  -webkit-tap-highlight-color: transparent; pointer-events: all;
+}
+.mc-mine-btn:active { background: rgba(220,100,80,0.65); }
 `
 
 const BASE_RADIUS = 70
@@ -59,6 +69,9 @@ export class MobileControls {
   private lookTouchId: number | null = null
   private lookLast = { x: 0, y: 0 }
   onInventory: () => void = () => {}
+  onMineStart: () => void = () => {}
+  onMineStop: () => void = () => {}
+  onUse: () => void = () => {}
 
   constructor(
     root: HTMLElement,
@@ -107,9 +120,27 @@ export class MobileControls {
     }, { passive: false })
     this.container.appendChild(jumpBtn)
 
-    // Inventory button
+    // Mine / break button (hold = hold left-click)
+    const mineBtn = document.createElement('div')
+    mineBtn.className = 'mc-mine-btn'
+    mineBtn.textContent = 'MINE'
+    mineBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.onMineStart() }, { passive: false })
+    mineBtn.addEventListener('touchend', (e) => { e.preventDefault(); this.onMineStop() }, { passive: false })
+    mineBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); this.onMineStop() }, { passive: false })
+    this.container.appendChild(mineBtn)
+
+    // Action buttons column (right side)
     const actionBtns = document.createElement('div')
     actionBtns.className = 'mc-action-btns'
+
+    // Use / interact button (tap = right-click: place block / open chest / feed / toggle animal)
+    const useBtn = document.createElement('div')
+    useBtn.className = 'mc-btn'
+    useBtn.textContent = 'USE'
+    useBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.onUse() }, { passive: false })
+    actionBtns.appendChild(useBtn)
+
+    // Inventory button
     const invBtn = document.createElement('div')
     invBtn.className = 'mc-btn'
     invBtn.textContent = 'BAG'
@@ -207,5 +238,6 @@ export class MobileControls {
     this.controls.joystickDir = null
     this.joystickTouchId = null
     this.lookTouchId = null
+    this.onMineStop()
   }
 }

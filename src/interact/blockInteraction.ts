@@ -77,8 +77,14 @@ export class BlockInteraction {
   }
 
   private get active(): boolean {
-    return this.controls.isLocked && this.controls.gameplayInput
+    return (this.controls.isLocked || this.controls.isTouchDevice) && this.controls.gameplayInput
   }
+
+  /** Called by mobile MINE button: hold to mine the targeted block. */
+  startMining(): void { this.leftDown = true }
+  stopMining(): void { this.leftDown = false }
+  /** Called by mobile USE button: place block / open chest / feed or toggle animal. */
+  triggerRightClick(): void { if (this.active) this.rightClick() }
 
   update(dt: number): void {
     if (!this.active) {

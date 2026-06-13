@@ -220,6 +220,12 @@ export class Game {
       scene,
       this.playerId,
     )
+    if (this.mobileControls) {
+      this.mobileControls.onMineStart = () => interaction.startMining()
+      this.mobileControls.onMineStop = () => interaction.stopMining()
+      this.mobileControls.onUse = () => interaction.triggerRightClick()
+    }
+
     interaction.onOpenChest = (x, y, z) => {
       this.openChestKey = blockKey(x, y, z)
       this.controls.releaseLock()
