@@ -1,7 +1,7 @@
 import { MAX_STACK } from '../constants'
 import { BlockId, blockDef, type ToolType } from '../core/blocks'
 
-export type AnimalKind = 'pig' | 'chicken' | 'sheep'
+export type AnimalKind = 'pig' | 'chicken' | 'sheep' | 'rabbit' | 'cat' | 'dog'
 
 export const ItemId = {
   // Items 1..99 are placeable blocks and share BlockId values.
@@ -25,6 +25,12 @@ export const ItemId = {
   CapturedPig: 120,
   CapturedChicken: 121,
   CapturedSheep: 122,
+  Apple: 113,
+  Fish: 114,
+  Bone: 115,
+  CapturedRabbit: 123,
+  CapturedCat: 124,
+  CapturedDog: 125,
 } as const
 
 export type ItemId = (typeof ItemId)[keyof typeof ItemId]
@@ -64,13 +70,24 @@ ITEMS.set(ItemId.Seeds, { name: 'Seeds', kind: 'food', food: 'chicken', maxStack
 ITEMS.set(ItemId.CapturedPig, { name: 'Pig (captured)', kind: 'capture', animal: 'pig', maxStack: 1 })
 ITEMS.set(ItemId.CapturedChicken, { name: 'Chicken (captured)', kind: 'capture', animal: 'chicken', maxStack: 1 })
 ITEMS.set(ItemId.CapturedSheep, { name: 'Sheep (captured)', kind: 'capture', animal: 'sheep', maxStack: 1 })
+ITEMS.set(ItemId.Apple, { name: 'Apple', kind: 'food', food: 'rabbit', maxStack: MAX_STACK })
+ITEMS.set(ItemId.Fish, { name: 'Fish', kind: 'food', food: 'cat', maxStack: MAX_STACK })
+ITEMS.set(ItemId.Bone, { name: 'Bone', kind: 'food', food: 'dog', maxStack: MAX_STACK })
+ITEMS.set(ItemId.CapturedRabbit, { name: 'Rabbit (captured)', kind: 'capture', animal: 'rabbit', maxStack: 1 })
+ITEMS.set(ItemId.CapturedCat, { name: 'Cat (captured)', kind: 'capture', animal: 'cat', maxStack: 1 })
+ITEMS.set(ItemId.CapturedDog, { name: 'Dog (captured)', kind: 'capture', animal: 'dog', maxStack: 1 })
 
 export function itemDef(id: number): ItemDef | null {
   return ITEMS.get(id) ?? null
 }
 
 export function captureItemFor(kind: AnimalKind): ItemId {
-  return kind === 'pig' ? ItemId.CapturedPig : kind === 'chicken' ? ItemId.CapturedChicken : ItemId.CapturedSheep
+  if (kind === 'pig') return ItemId.CapturedPig
+  if (kind === 'chicken') return ItemId.CapturedChicken
+  if (kind === 'rabbit') return ItemId.CapturedRabbit
+  if (kind === 'cat') return ItemId.CapturedCat
+  if (kind === 'dog') return ItemId.CapturedDog
+  return ItemId.CapturedSheep
 }
 
 /** Seconds of holding the mouse to break a block with the held item. */

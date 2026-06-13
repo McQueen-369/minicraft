@@ -25,16 +25,22 @@ export const ANIMAL_DIMS: Record<AnimalKind, BoxDims> = {
   pig: { width: 0.9, height: 0.9 },
   sheep: { width: 0.9, height: 1.1 },
   chicken: { width: 0.5, height: 0.7 },
+  rabbit: { width: 0.4, height: 0.4 },
+  cat: { width: 0.4, height: 0.55 },
+  dog: { width: 0.65, height: 0.75 },
 }
 
 export const ANIMAL_SPEED: Record<AnimalKind, number> = {
   pig: 1.6,
   sheep: 1.4,
   chicken: 1.9,
+  rabbit: 2.6,
+  cat: 2.1,
+  dog: 1.9,
 }
 
 const SPAWN_SEED = 0xa21
-const KINDS: AnimalKind[] = ['pig', 'chicken', 'sheep']
+const KINDS: AnimalKind[] = ['pig', 'chicken', 'sheep', 'rabbit', 'cat', 'dog']
 
 /**
  * Deterministic wild animals for a chunk (so every client agrees on initial

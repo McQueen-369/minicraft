@@ -15,11 +15,9 @@ export const PLAYER_HEIGHT = 1.8
 export const PLAYER_EYE = 1.62
 
 export const REACH = 6
-export const DAY_LENGTH_SECONDS = 240
-
 export const HOTBAR_SIZE = 9
-export const INVENTORY_SIZE = 36
-export const MAX_STACK = 64
+export const INVENTORY_SIZE = 200
+export const MAX_STACK = 200
 export const CHEST_SLOTS = 27
 
 export const AUTOSAVE_INTERVAL_MS = 10_000

@@ -11,6 +11,7 @@ const STYLE = `
 .mc-panel {
   background: #c6c6c6; border: 3px solid; border-color: #fff #555 #555 #fff;
   padding: 12px; color: #333; font-family: 'Courier New', monospace;
+  max-height: 80vh; overflow-y: auto;
 }
 .mc-panel h3 { margin: 0 0 8px; font-size: 15px; }
 .mc-grid { display: grid; grid-template-columns: repeat(9, 44px); gap: 3px; margin-bottom: 10px; }

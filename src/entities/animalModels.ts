@@ -75,9 +75,87 @@ function buildChicken(): AnimalModel {
   return { group, legs }
 }
 
+function buildRabbit(): AnimalModel {
+  const group = new THREE.Group()
+  const body = box(0.28, 0.22, 0.38, 0xd4b896)
+  body.position.y = 0.28
+  const head = box(0.22, 0.2, 0.22, 0xd4b896)
+  head.position.set(0, 0.44, 0.16)
+  const earL = box(0.06, 0.28, 0.05, 0xd4b896)
+  earL.position.set(-0.07, 0.66, 0.16)
+  const earR = box(0.06, 0.28, 0.05, 0xd4b896)
+  earR.position.set(0.07, 0.66, 0.16)
+  const tail = box(0.1, 0.1, 0.1, 0xfaf0e6)
+  tail.position.set(0, 0.3, -0.2)
+  group.add(body, head, earL, earR, tail)
+  const legs = [
+    leg(0.1, 0.15, 0xd4b896, -0.08, 0.15, 0.17),
+    leg(0.1, 0.15, 0xd4b896, 0.08, 0.15, 0.17),
+    leg(0.1, 0.18, 0xd4b896, -0.08, -0.15, 0.17),
+    leg(0.1, 0.18, 0xd4b896, 0.08, -0.15, 0.17),
+  ]
+  group.add(...legs)
+  return { group, legs }
+}
+
+function buildCat(): AnimalModel {
+  const group = new THREE.Group()
+  const body = box(0.28, 0.26, 0.48, 0xf4a460)
+  body.position.y = 0.38
+  const head = box(0.26, 0.24, 0.26, 0xf4a460)
+  head.position.set(0, 0.58, 0.26)
+  const earL = box(0.08, 0.1, 0.04, 0xf4a460)
+  earL.position.set(-0.08, 0.76, 0.26)
+  const earR = box(0.08, 0.1, 0.04, 0xf4a460)
+  earR.position.set(0.08, 0.76, 0.26)
+  const tail1 = box(0.07, 0.22, 0.07, 0xe8935a)
+  tail1.position.set(0, 0.44, -0.28)
+  const tail2 = box(0.06, 0.16, 0.06, 0xe8935a)
+  tail2.position.set(0, 0.62, -0.26)
+  tail2.rotation.x = 0.5
+  group.add(body, head, earL, earR, tail1, tail2)
+  const legs = [
+    leg(0.09, 0.2, 0xf4a460, -0.09, 0.18, 0.25),
+    leg(0.09, 0.2, 0xf4a460, 0.09, 0.18, 0.25),
+    leg(0.09, 0.2, 0xf4a460, -0.09, -0.18, 0.25),
+    leg(0.09, 0.2, 0xf4a460, 0.09, -0.18, 0.25),
+  ]
+  group.add(...legs)
+  return { group, legs }
+}
+
+function buildDog(): AnimalModel {
+  const group = new THREE.Group()
+  const body = box(0.44, 0.4, 0.72, 0xa0522d)
+  body.position.y = 0.52
+  const head = box(0.38, 0.34, 0.38, 0xa0522d)
+  head.position.set(0, 0.7, 0.44)
+  const snout = box(0.2, 0.16, 0.18, 0x8b4513)
+  snout.position.set(0, 0.62, 0.6)
+  const earL = box(0.1, 0.2, 0.14, 0x8b4513)
+  earL.position.set(-0.2, 0.66, 0.42)
+  const earR = box(0.1, 0.2, 0.14, 0x8b4513)
+  earR.position.set(0.2, 0.66, 0.42)
+  const tail = box(0.09, 0.28, 0.09, 0xa0522d)
+  tail.position.set(0, 0.72, -0.4)
+  tail.rotation.x = -0.6
+  group.add(body, head, snout, earL, earR, tail)
+  const legs = [
+    leg(0.13, 0.32, 0xa0522d, -0.15, 0.28, 0.36),
+    leg(0.13, 0.32, 0xa0522d, 0.15, 0.28, 0.36),
+    leg(0.13, 0.32, 0xa0522d, -0.15, -0.28, 0.36),
+    leg(0.13, 0.32, 0xa0522d, 0.15, -0.28, 0.36),
+  ]
+  group.add(...legs)
+  return { group, legs }
+}
+
 export function buildAnimalModel(kind: AnimalKind): AnimalModel {
   if (kind === 'pig') return buildPig()
   if (kind === 'sheep') return buildSheep()
+  if (kind === 'rabbit') return buildRabbit()
+  if (kind === 'cat') return buildCat()
+  if (kind === 'dog') return buildDog()
   return buildChicken()
 }
 

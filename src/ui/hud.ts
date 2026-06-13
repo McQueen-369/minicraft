@@ -4,6 +4,16 @@ import { itemDef } from '../items/items'
 import { drawItemIcon } from './icons'
 
 const STYLE = `
+.mc-inv-btn {
+  position: absolute; top: 12px; right: 12px; z-index: 5;
+  width: 52px; height: 52px; border-radius: 10px;
+  background: rgba(20,20,20,0.65); border: 2px solid #888;
+  color: #fff; font-size: 10px; font-weight: bold; text-align: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  cursor: pointer; user-select: none; gap: 2px;
+  -webkit-tap-highlight-color: transparent;
+}
+.mc-inv-btn:hover, .mc-inv-btn:active { border-color: #fff; background: rgba(60,60,60,0.7); }
 .mc-crosshair {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   width: 18px; height: 18px; pointer-events: none; z-index: 5;
@@ -52,6 +62,8 @@ export class HUD {
   private readonly debug: HTMLDivElement
   private readonly toast: HTMLDivElement
   private toastTimer = 0
+  /** Called when the inventory quick-access button is clicked. */
+  onInventory: () => void = () => {}
 
   constructor(
     root: HTMLElement,
@@ -96,6 +108,28 @@ export class HUD {
     this.toast = document.createElement('div')
     this.toast.className = 'mc-toast'
     root.appendChild(this.toast)
+
+    const invBtn = document.createElement('div')
+    invBtn.className = 'mc-inv-btn'
+    invBtn.title = 'Inventory (E)'
+    const svgNS = 'http://www.w3.org/2000/svg'
+    const svg = document.createElementNS(svgNS, 'svg')
+    svg.setAttribute('viewBox', '0 0 24 24')
+    svg.setAttribute('fill', 'none')
+    svg.setAttribute('stroke', 'currentColor')
+    svg.setAttribute('stroke-width', '2')
+    const rect = document.createElementNS(svgNS, 'rect')
+    rect.setAttribute('x', '2'); rect.setAttribute('y', '3')
+    rect.setAttribute('width', '20'); rect.setAttribute('height', '14'); rect.setAttribute('rx', '2')
+    const p1 = document.createElementNS(svgNS, 'path'); p1.setAttribute('d', 'M8 21h8M12 17v4')
+    const p2 = document.createElementNS(svgNS, 'path'); p2.setAttribute('d', 'M6 7h4M6 11h12')
+    svg.append(rect, p1, p2)
+    const label = document.createElement('span')
+    label.textContent = 'BAG'
+    invBtn.append(svg, label)
+    invBtn.addEventListener('click', () => this.onInventory())
+    invBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.onInventory() }, { passive: false })
+    root.appendChild(invBtn)
 
     this.refresh()
   }

@@ -20,6 +20,7 @@ import { ChunkRenderer } from './render/chunkRenderer'
 import { Sky } from './render/sky'
 import { HUD } from './ui/hud'
 import { Menu } from './ui/menu'
+import { MobileControls } from './ui/mobileControls'
 import { Panels } from './ui/panels'
 import { Terrain } from './world/terrain'
 import { World } from './world/world'
@@ -50,6 +51,7 @@ export class Game {
   private readonly menu: Menu
   private readonly store = new SaveStore(localStorage, SAVE_KEY)
   private readonly playerId = crypto.randomUUID().slice(0, 8)
+  private readonly mobileControls: MobileControls | null = null
 
   private session: Session | null = null
   private mp: Multiplayer | null = null
@@ -106,6 +108,21 @@ export class Game {
       onDeleteCloud: (w) => this.guarded(() => cloud.deleteWorld(this.profile!.token, w.id)),
     })
 
+    const openInventory = () => {
+      if (!this.playing || this.menu.isOpen) return
+      if (this.panels.isOpen) {
+        this.panels.close()
+      } else {
+        this.controls.releaseLock()
+        this.panels.openInventory()
+        this.updateInputState()
+      }
+    }
+    this.hud.onInventory = openInventory
+
+    this.mobileControls = this.controls.isTouchDevice ? new MobileControls(root, this.controls) : null
+    if (this.mobileControls) this.mobileControls.onInventory = openInventory
+
     this.inventory.onChange = () => this.hud.refresh()
     this.panels.onClose = () => {
       this.openChestKey = null
@@ -138,15 +155,7 @@ export class Game {
     })
     document.addEventListener('keydown', (e) => {
       if (!this.playing) return
-      if (e.code === 'KeyE' && !this.menu.isOpen) {
-        if (this.panels.isOpen) {
-          this.panels.close()
-        } else {
-          this.controls.releaseLock()
-          this.panels.openInventory()
-          this.updateInputState()
-        }
-      }
+      if (e.code === 'KeyE' && !this.menu.isOpen) openInventory()
       if (this.controls.gameplayInput && e.code.startsWith('Digit')) {
         const n = Number(e.code.slice(5))
         if (n >= 1 && n <= 9) this.inventory.selectHotbar(n - 1)
@@ -411,6 +420,7 @@ export class Game {
     this.menu.hide()
     this.updateInputState()
     this.controls.requestLock()
+    this.mobileControls?.show()
   }
 
   private resume(): void {
@@ -438,6 +448,7 @@ export class Game {
     this.teardownSession()
     this.menu.showMain()
     this.updateInputState()
+    this.mobileControls?.hide()
   }
 
   private updateInputState(): void {
