@@ -45,9 +45,9 @@ describe('Menu signed out', () => {
   it('shows local slots, multiplayer, and profile auth controls', () => {
     new Menu(document.body, makeCallbacks())
     const b = buttons(document.body)
-    expect(b.has('+ Create New World')).toBe(true) // single CTA for empty slots
+    expect(b.has('Create New World')).toBe(true) // CTA button
+    expect(b.has('Join a Friend')).toBe(true) // CTA button
     expect(b.has('▶ Play')).toBe(false) // no filled slots
-    expect(b.has('Join a Friend')).toBe(true) // progressive disclosure
     expect(b.has('Sign In')).toBe(true)
     expect(b.has('Create Profile')).toBe(true)
   })
@@ -61,7 +61,8 @@ describe('Menu signed out', () => {
     const b = buttons(document.body)
     expect(b.has('▶ Play')).toBe(true)
     expect(b.has('✕')).toBe(true)
-    expect(b.has('+ Create New World')).toBe(true) // single CTA for remaining empty slots
+    expect(b.has('Create New World')).toBe(true) // action button
+    expect(b.has('Join a Friend')).toBe(true) // action button
   })
 
   it('shows profile prompt when Play is clicked, then calls onPlaySlot after skipping', () => {
