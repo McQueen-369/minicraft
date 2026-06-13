@@ -85,7 +85,7 @@ export class Game {
       onPlaySlot: (index) => this.startSlot(index),
       onNewSlot: (index, name) => this.newSlot(index, name),
       onDeleteSlot: (index) => this.worldStore.deleteSlot(index),
-      onHostSlot: (index, playerName) => this.startHostSlot(index, playerName),
+      onHostSlot: (index, playerName, roomCode) => this.startHostSlot(index, playerName, roomCode),
       onJoin: (name, code) => this.startJoin(name, code),
       onResume: () => this.resume(),
       onQuitToMenu: () => this.quitToMenu(),
@@ -106,7 +106,7 @@ export class Game {
       },
       listWorlds: () => this.guarded(() => cloud.listWorlds(this.profile!.token)),
       onPlayCloud: (w) => this.guarded(() => this.startCloud(w, 'single')),
-      onHostCloud: (w) => this.guarded(() => this.startCloud(w, 'host')),
+      onHostCloud: (w, roomCode) => this.guarded(() => this.startCloud(w, 'host', roomCode)),
       onCreateCloud: (name) => this.guarded(() => this.createCloudWorld(name)),
       onDeleteCloud: (w) => this.guarded(() => cloud.deleteWorld(this.profile!.token, w.id)),
     })
@@ -283,12 +283,11 @@ export class Game {
     this.beginPlay()
   }
 
-  private async startHostSlot(index: number, playerName: string): Promise<void> {
+  private async startHostSlot(index: number, playerName: string, roomCode: string): Promise<void> {
     const slots = this.worldStore.listSlots()
     this.activeSlotIndex = index
     this.activeSlotName = slots[index]?.name ?? `World ${index + 1}`
     const save = this.worldStore.loadSlot(index)
-    const roomCode = generateRoomCode()
     const transport = await connectChannel(roomCode)
     this.mode = 'host'
     this.cloudWorld = null
@@ -299,19 +298,19 @@ export class Game {
   }
 
   /** Play or host a world stored in the signed-in player's profile. */
-  private async startCloud(w: WorldMeta, as: 'single' | 'host'): Promise<void> {
+  private async startCloud(w: WorldMeta, as: 'single' | 'host', roomCode?: string): Promise<void> {
     const profile = this.profile
     if (!profile) throw new Error('Sign in first')
     const save = await cloud.loadWorld(profile.token, w.id)
     if (as === 'host') {
-      const roomCode = generateRoomCode()
-      const transport = await connectChannel(roomCode)
+      const code = roomCode ?? generateRoomCode()
+      const transport = await connectChannel(code)
       this.mode = 'host'
       this.cloudWorld = { id: w.id, name: w.name }
       this.createSession(save.seed, save)
-      this.mp = new Multiplayer('host', roomCode, transport, this.session!.scene, this.playerId, profile.username, this.hooks())
+      this.mp = new Multiplayer('host', code, transport, this.session!.scene, this.playerId, profile.username, this.hooks())
       this.beginPlay()
-      this.hud.showToast(`Hosting "${w.name}" in room ${roomCode} — the session saves to your profile`)
+      this.hud.showToast(`Hosting "${w.name}" in room ${code} — the session saves to your profile`)
     } else {
       this.mode = 'single'
       this.cloudWorld = { id: w.id, name: w.name }
