@@ -24,6 +24,8 @@ export interface SnapshotMsg {
   t: 'snapshot'
   /** Player id this snapshot answers (others ignore it). */
   to: string
+  /** Host's own player id, so guests can detect when the host disconnects. */
+  hostId: string
   seed: number
   skyTime: number
   edits: Record<string, number>
@@ -49,6 +51,8 @@ export interface ChestMsg {
 export interface AnimalsMsg {
   t: 'animals'
   list: SavedAnimal[]
+  /** Host's current sky clock, synced to all guests every animal tick. */
+  skyTime?: number
 }
 
 export interface AnimalEventMsg {

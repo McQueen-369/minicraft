@@ -20,14 +20,16 @@ export interface Transport {
 
 export interface MultiplayerHooks {
   /** Host: produce the world snapshot for a joining player. */
-  getSnapshot(forId: string): Omit<SnapshotMsg, 't' | 'to'>
+  getSnapshot(forId: string): Omit<SnapshotMsg, 't' | 'to' | 'hostId'>
   /** Guest: world snapshot arrived (happens once, before play starts). */
   applySnapshot(s: SnapshotMsg): void
   applyEdit(x: number, y: number, z: number, id: number): void
   applyChest(key: string, contents: ChestContents): void
-  /** Guest: authoritative animal states from the host. */
-  applyAnimals(list: SavedAnimal[]): void
+  /** Guest: authoritative animal states from the host, with synced sky time. */
+  applyAnimals(list: SavedAnimal[], skyTime?: number): void
   applyAnimalEvent(msg: AnimalEventMsg): void
+  /** Guest: called when the host disconnects. */
+  onHostLeft?(): void
 }
 
 const PEER_TIMEOUT = 12
@@ -45,6 +47,7 @@ export class Multiplayer {
   private playerSendIn = 0
   private animalSendIn = 0
   private snapshotWaiter: ((s: SnapshotMsg) => void) | null = null
+  private hostId: string | null = null
 
   constructor(
     readonly role: 'host' | 'guest',
@@ -96,7 +99,7 @@ export class Multiplayer {
   }
 
   /** Per-frame: throttled state broadcasts + remote avatar smoothing. */
-  update(dt: number, self: SelfState, animals: () => SavedAnimal[]): void {
+  update(dt: number, self: SelfState, animals: () => SavedAnimal[], skyTime?: number): void {
     this.playerSendIn -= dt
     if (this.playerSendIn <= 0) {
       this.playerSendIn = 1 / PLAYER_STATE_HZ
@@ -106,7 +109,7 @@ export class Multiplayer {
       this.animalSendIn -= dt
       if (this.animalSendIn <= 0) {
         this.animalSendIn = 1 / ANIMAL_STATE_HZ
-        this.transport.send({ t: 'animals', list: animals() })
+        this.transport.send({ t: 'animals', list: animals(), skyTime })
       }
     }
     const now = performance.now() / 1000
@@ -115,6 +118,8 @@ export class Multiplayer {
       if (now - avatar.lastSeen > PEER_TIMEOUT) this.removePeer(id)
     }
   }
+
+  get selfName(): string { return this.name }
 
   get peerNames(): string[] {
     return [...this.peers.values()].map((p) => p.name)
@@ -130,11 +135,12 @@ export class Multiplayer {
     switch (msg.t) {
       case 'hello':
         if (this.role === 'host') {
-          this.transport.send({ t: 'snapshot', to: msg.id, ...this.hooks.getSnapshot(msg.id) })
+          this.transport.send({ t: 'snapshot', to: msg.id, hostId: this.selfId, ...this.hooks.getSnapshot(msg.id) })
         }
         break
       case 'snapshot':
         if (this.role === 'guest' && msg.to === this.selfId && this.snapshotWaiter) {
+          this.hostId = msg.hostId
           this.hooks.applySnapshot(msg)
           this.snapshotWaiter(msg)
         }
@@ -159,7 +165,7 @@ export class Multiplayer {
         this.hooks.applyChest(msg.key, msg.contents)
         break
       case 'animals':
-        if (this.role === 'guest') this.hooks.applyAnimals(msg.list)
+        if (this.role === 'guest') this.hooks.applyAnimals(msg.list, msg.skyTime)
         break
       case 'animalEvent':
         this.hooks.applyAnimalEvent(msg)
@@ -172,10 +178,12 @@ export class Multiplayer {
 
   private removePeer(id: string): void {
     const avatar = this.peers.get(id)
-    if (!avatar) return
-    this.scene.remove(avatar.group)
-    disposeAvatar(avatar)
-    this.peers.delete(id)
+    if (avatar) {
+      this.scene.remove(avatar.group)
+      disposeAvatar(avatar)
+      this.peers.delete(id)
+    }
+    if (id === this.hostId) this.hooks.onHostLeft?.()
   }
 }
 

@@ -26,7 +26,7 @@ interface FakeWorld {
   snapshotApplied: SnapshotMsg | null
 }
 
-function makeHooks(world: FakeWorld, snapshotSource?: () => Omit<SnapshotMsg, 't' | 'to'>): MultiplayerHooks {
+function makeHooks(world: FakeWorld, snapshotSource?: () => Omit<SnapshotMsg, 't' | 'to' | 'hostId'>): MultiplayerHooks {
   return {
     getSnapshot: snapshotSource ?? (() => ({
       seed: 0,
@@ -95,5 +95,34 @@ describe('Multiplayer', () => {
     const guest = new Multiplayer('guest', 'MC-0004', guestT, new THREE.Scene(), 'g', 'Ann', makeHooks(fakeWorld()))
     guest.sendChest('4,30,4', [{ itemId: 2, count: 5 }])
     expect(hostWorld.chests.get('4,30,4')).toEqual([{ itemId: 2, count: 5 }])
+  })
+
+  it('host includes skyTime in animals broadcast; guest receives it', () => {
+    const [hostT, rawGuestT] = transportPair()
+    // Drop player-state messages on the guest side to avoid avatar creation (canvas) in node env.
+    const guestT: Transport = {
+      send: rawGuestT.send,
+      onMessage: (handler) => rawGuestT.onMessage((msg) => { if (msg.t !== 'player') handler(msg) }),
+      close: rawGuestT.close,
+    }
+    let receivedSkyTime: number | undefined
+    const guestHooks = makeHooks(fakeWorld())
+    guestHooks.applyAnimals = (_list, skyTime) => { receivedSkyTime = skyTime }
+    const host = new Multiplayer('host', 'MC-0005', hostT, new THREE.Scene(), 'h', 'Host', makeHooks(fakeWorld()))
+    new Multiplayer('guest', 'MC-0005', guestT, new THREE.Scene(), 'g', 'Ann', guestHooks)
+    host.update(0, { x: 0, y: 0, z: 0, yaw: 0, pitch: 0 }, () => [], 0.75)
+    expect(receivedSkyTime).toBe(0.75)
+  })
+
+  it('calls onHostLeft when the host disconnects', async () => {
+    const [hostT, guestT] = transportPair()
+    let hostLeftCalled = false
+    const guestHooks = makeHooks(fakeWorld())
+    guestHooks.onHostLeft = () => { hostLeftCalled = true }
+    const host = new Multiplayer('host', 'MC-0006', hostT, new THREE.Scene(), 'host1', 'Host', makeHooks(fakeWorld()))
+    const guest = new Multiplayer('guest', 'MC-0006', guestT, new THREE.Scene(), 'guest1', 'Ann', guestHooks)
+    await guest.requestSnapshot(1000)
+    host.dispose()
+    expect(hostLeftCalled).toBe(true)
   })
 })
