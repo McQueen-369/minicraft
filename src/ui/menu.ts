@@ -36,6 +36,10 @@ const STYLE = `
 .mc-menu-box .world-row button { width: auto; margin: 0; padding: 8px 10px; font-size: 13px; flex-shrink: 0; }
 .mc-menu-box .world-row button.danger:hover { background: #a33; }
 .mc-menu-box .empty { color: #888; font-size: 13px; margin: 10px 0; }
+.mc-menu-box .save-notice {
+  background: rgba(40,90,60,0.2); border: 1px solid #4a7; border-radius: 3px;
+  padding: 8px 10px; color: #9c9; font-size: 13px; margin-bottom: 4px;
+}
 `
 
 export interface MenuCallbacks {
@@ -96,7 +100,7 @@ export class Menu {
     if (this.mode === 'main') this.showMain()
   }
 
-  showMain(): void {
+  showMain(afterLocalQuit = false): void {
     this.mode = 'main'
     this.mainRenderSeq++
     this.el.style.display = 'flex'
@@ -105,6 +109,11 @@ export class Menu {
     this.box.appendChild(el('div', 'a tiny voxel world', 'sub'))
 
     const profile = this.cb.multiplayerAvailable ? this.cb.profile() : null
+    if (afterLocalQuit && !profile && this.cb.multiplayerAvailable) {
+      this.box.appendChild(
+        el('div', 'Your world is saved on this device only — create a profile below to access it from anywhere.', 'save-notice'),
+      )
+    }
     if (profile) this.renderSignedIn(profile)
     else this.renderSignedOut()
 
@@ -122,47 +131,21 @@ export class Menu {
   private renderSignedOut(): void {
     const error = el('div', '', 'error')
 
-    const localSection = el('div', '', 'section')
-    localSection.appendChild(el('div', 'Local Worlds', 'section-title'))
-    const slots = this.cb.listLocalSlots()
-    for (let i = 0; i < slots.length; i++) {
-      localSection.appendChild(this.localSlotRow(slots[i], i, false, null, error))
-    }
-    this.box.appendChild(localSection)
-
     if (!this.cb.multiplayerAvailable) {
+      const localSection = el('div', '', 'section')
+      localSection.appendChild(el('div', 'Local Worlds', 'section-title'))
+      const slots = this.cb.listLocalSlots()
+      for (let i = 0; i < slots.length; i++) {
+        localSection.appendChild(this.localSlotRow(slots[i], i, false, null, error))
+      }
+      this.box.appendChild(localSection)
       this.box.appendChild(el('div', 'Multiplayer unavailable: missing Supabase configuration (.env.local)', 'hint'))
       return
     }
 
-    const mpSection = el('div', '', 'section')
-    mpSection.appendChild(el('div', 'Play online (no profile)', 'section-title'))
-    const name = input('Your name (for multiplayer)', 16)
-    name.value = localStorage.getItem('minicraft-name') ?? ''
-    const code = input('Room code (e.g. MC-1234)', 8)
-    const getName = () => {
-      const n = name.value.trim() || 'Player'
-      try {
-        localStorage.setItem('minicraft-name', n)
-      } catch {
-        // ignore
-      }
-      return n
-    }
-    mpSection.appendChild(name)
-    // Re-render slots with Host buttons now that we have the name input
-    while (localSection.firstChild) localSection.removeChild(localSection.firstChild)
-    localSection.appendChild(el('div', 'Local Worlds', 'section-title'))
-    for (let i = 0; i < slots.length; i++) {
-      localSection.appendChild(this.localSlotRow(slots[i], i, true, name, error))
-    }
-    mpSection.appendChild(code)
-    this.asyncButton(mpSection, 'Join Game', error, () => this.cb.onJoin(getName(), code.value.trim().toUpperCase()))
-    mpSection.appendChild(error)
-    this.box.appendChild(mpSection)
-
+    // 1. Profile auth — top of page so players can sign up before creating a world
     const auth = el('div', '', 'section')
-    auth.appendChild(el('div', 'Profile — save worlds to the cloud and play them anywhere', 'section-title'))
+    auth.appendChild(el('div', 'Create Profile / Sign In', 'section-title'))
     const username = input('Username (3-16 letters/numbers)', 16)
     const password = input('Password', 64)
     password.type = 'password'
@@ -179,6 +162,63 @@ export class Menu {
     })
     auth.appendChild(authError)
     this.box.appendChild(auth)
+
+    // 2. Local worlds — existing slots prompt to create a profile before playing
+    const name = input('Your name (for multiplayer)', 16)
+    name.value = localStorage.getItem('minicraft-name') ?? ''
+    const getName = () => {
+      const n = name.value.trim() || 'Player'
+      try { localStorage.setItem('minicraft-name', n) } catch { /* ignore */ }
+      return n
+    }
+    const slots = this.cb.listLocalSlots()
+    const localSection = el('div', '', 'section')
+    localSection.appendChild(el('div', 'Local Worlds', 'section-title'))
+    for (let i = 0; i < slots.length; i++) {
+      localSection.appendChild(
+        this.localSlotRow(
+          slots[i], i, true, name, error,
+          slots[i] ? (idx, worldName) => this.showPlayPrompt(idx, worldName) : undefined,
+        ),
+      )
+    }
+    this.box.appendChild(localSection)
+
+    // 3. Join a friend
+    const mpSection = el('div', '', 'section')
+    mpSection.appendChild(el('div', 'Play online (no profile)', 'section-title'))
+    mpSection.appendChild(name)
+    const code = input('Room code (e.g. MC-1234)', 8)
+    mpSection.appendChild(code)
+    this.asyncButton(mpSection, 'Join Game', error, () => this.cb.onJoin(getName(), code.value.trim().toUpperCase()))
+    mpSection.appendChild(error)
+    this.box.appendChild(mpSection)
+  }
+
+  private showPlayPrompt(slotIndex: number, worldName: string): void {
+    this.box.innerHTML = ''
+    this.box.appendChild(el('h1', 'MINICRAFT'))
+    this.box.appendChild(el('div', `"${worldName}" is saved on this device only.`, 'sub'))
+
+    const section = el('div', '', 'section')
+    section.appendChild(el('div', 'Create a free profile to back up your worlds', 'section-title'))
+    const username = input('Username (3-16 letters/numbers)', 16)
+    const password = input('Password', 64)
+    password.type = 'password'
+    const authError = el('div', '', 'error')
+    section.appendChild(username)
+    section.appendChild(password)
+    this.asyncButton(section, 'Create Profile & Play', authError, async () => {
+      await this.cb.onSignUp(username.value.trim(), password.value)
+      this.cb.onPlaySlot(slotIndex)
+    })
+    section.appendChild(authError)
+    this.box.appendChild(section)
+
+    const skip = el('div', '', 'section')
+    this.button(skip, '▶ Play without profile', () => this.cb.onPlaySlot(slotIndex))
+    this.button(skip, '← Back to menu', () => this.showMain())
+    this.box.appendChild(skip)
   }
 
   private localSlotRow(
@@ -187,6 +227,7 @@ export class Menu {
     showHost: boolean,
     hostNameInput: HTMLInputElement | null,
     error: HTMLElement,
+    onBeforePlay?: (index: number, worldName: string) => void,
   ): HTMLElement {
     const row = el('div', '', 'world-row')
     if (slot) {
@@ -196,7 +237,10 @@ export class Menu {
       row.appendChild(meta)
       const playBtn = document.createElement('button')
       playBtn.textContent = '▶ Play'
-      playBtn.addEventListener('click', () => this.cb.onPlaySlot(index))
+      playBtn.addEventListener('click', () => {
+        if (onBeforePlay) onBeforePlay(index, slot.name)
+        else this.cb.onPlaySlot(index)
+      })
       row.appendChild(playBtn)
       if (showHost && hostNameInput) {
         const hostBtn = this.asyncButton(row, 'Host', error, () => {

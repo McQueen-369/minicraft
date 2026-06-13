@@ -64,12 +64,26 @@ describe('Menu signed out', () => {
     expect(b.has('+ New World')).toBe(true) // remaining 4 empty slots
   })
 
-  it('calls onPlaySlot with the correct index', () => {
+  it('shows profile prompt when Play is clicked, then calls onPlaySlot after skipping', () => {
     const slots: (LocalWorldMeta | null)[] = [
       { name: 'My World', savedAt: '2026-01-01T00:00:00Z' },
       ...Array(4).fill(null),
     ]
     const cb = makeCallbacks({ listLocalSlots: () => slots })
+    new Menu(document.body, cb)
+    buttons(document.body).get('▶ Play')!.click()
+    // Profile prompt is now shown
+    expect(document.body.textContent).toContain('"My World" is saved on this device only.')
+    buttons(document.body).get('▶ Play without profile')!.click()
+    expect(cb.onPlaySlot).toHaveBeenCalledWith(0)
+  })
+
+  it('calls onPlaySlot directly when multiplayerAvailable is false', () => {
+    const slots: (LocalWorldMeta | null)[] = [
+      { name: 'My World', savedAt: '2026-01-01T00:00:00Z' },
+      ...Array(4).fill(null),
+    ]
+    const cb = makeCallbacks({ listLocalSlots: () => slots, multiplayerAvailable: false })
     new Menu(document.body, cb)
     buttons(document.body).get('▶ Play')!.click()
     expect(cb.onPlaySlot).toHaveBeenCalledWith(0)

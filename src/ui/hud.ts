@@ -58,6 +58,11 @@ const STYLE = `
   color: #fff; font-size: 14px; text-shadow: 1px 1px 0 #000; z-index: 5;
   pointer-events: none; font-family: 'Courier New', monospace; letter-spacing: 1px;
 }
+.mc-players {
+  position: absolute; top: 72px; right: 12px; z-index: 5;
+  color: #fff; font-size: 12px; text-shadow: 1px 1px 0 #000;
+  pointer-events: none; text-align: right; line-height: 1.6; display: none;
+}
 `
 
 export class HUD {
@@ -67,6 +72,7 @@ export class HUD {
   private readonly debug: HTMLDivElement
   private readonly toast: HTMLDivElement
   private readonly dayTimer: HTMLDivElement
+  private readonly playerList: HTMLDivElement
   private toastTimer = 0
   /** Called when the inventory quick-access button is clicked. */
   onInventory: () => void = () => {}
@@ -118,6 +124,10 @@ export class HUD {
     this.dayTimer = document.createElement('div')
     this.dayTimer.className = 'mc-daytimer'
     root.appendChild(this.dayTimer)
+
+    this.playerList = document.createElement('div')
+    this.playerList.className = 'mc-players'
+    root.appendChild(this.playerList)
 
     const invBtn = document.createElement('div')
     invBtn.className = 'mc-inv-btn'
@@ -192,5 +202,14 @@ export class HUD {
     this.toast.textContent = text
     this.toast.style.opacity = '1'
     this.toastTimer = 3
+  }
+
+  setPlayerList(names: string[]): void {
+    if (names.length === 0) {
+      this.playerList.style.display = 'none'
+      return
+    }
+    this.playerList.style.display = ''
+    this.playerList.textContent = names.join('\n')
   }
 }

@@ -9,6 +9,7 @@ describe('protocol', () => {
       {
         t: 'snapshot',
         to: 'p2',
+        hostId: 'h1',
         seed: 99,
         skyTime: 0.3,
         edits: { '1,2,3': 0 },

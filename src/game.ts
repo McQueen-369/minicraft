@@ -404,7 +404,7 @@ export class Game {
       applyChest: (key: string, contents: ChestContents) => {
         this.session?.world.chests.set(key, contents)
       },
-      applyAnimals: (list: import('./entities/entityManager').SavedAnimal[]) => {
+      applyAnimals: (list: import('./entities/entityManager').SavedAnimal[], skyTime?: number) => {
         const entities = this.session?.entities
         if (!entities) return
         const seen = new Set<string>()
@@ -425,6 +425,15 @@ export class Game {
         for (const id of [...entities.animals.keys()]) {
           if (!seen.has(id)) entities.capture(id)
         }
+        if (skyTime !== undefined && this.session) this.session.sky.time = skyTime
+      },
+      onHostLeft: () => {
+        this.hud.showToast('Host left the room — continuing offline')
+        setTimeout(() => {
+          this.mp?.dispose()
+          this.mp = null
+          this.mode = 'single'
+        }, 0)
       },
       applyAnimalEvent: (msg: import('./net/protocol').AnimalEventMsg) => {
         const entities = this.session?.entities
@@ -454,6 +463,8 @@ export class Game {
   }
 
   private quitToMenu(): void {
+    const showProfileCta =
+      !this.profile && this.activeSlotIndex !== null && !this.cloudWorld && this.mode !== 'guest' && supabaseConfigured()
     if (this.mode !== 'guest' && this.session) {
       if (this.cloudWorld) {
         // Kick off the final cloud write, then refresh the menu's world list.
@@ -470,7 +481,7 @@ export class Game {
     this.cloudWorld = null
     this.panels.close()
     this.teardownSession()
-    this.menu.showMain()
+    this.menu.showMain(showProfileCta)
     this.updateInputState()
     this.mobileControls?.hide()
   }
@@ -524,7 +535,9 @@ export class Game {
         s.entities.serialize().animals.filter((a) =>
           [...owners.values()].some((p) => (a.pos.x - p.x) ** 2 + (a.pos.z - p.z) ** 2 < 96 * 96),
         ),
+      s.sky.time,
     )
+    this.hud.setPlayerList(this.mp ? [this.mp.selfName, ...this.mp.peerNames] : [])
 
     if (this.mode !== 'guest' && this.playing) {
       this.saveTimer += dt * 1000
