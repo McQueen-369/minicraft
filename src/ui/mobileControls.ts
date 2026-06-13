@@ -5,7 +5,7 @@ const STYLE = `
   position: absolute; inset: 0; pointer-events: none; z-index: 6; touch-action: none;
 }
 .mc-joystick-zone {
-  position: absolute; bottom: 80px; left: 16px;
+  position: absolute; bottom: 200px; left: 16px;
   width: 140px; height: 140px; pointer-events: all; touch-action: none;
 }
 .mc-joystick-base {
@@ -19,7 +19,7 @@ const STYLE = `
   top: 50%; left: 50%; transform: translate(-50%,-50%);
 }
 .mc-look-zone {
-  position: absolute; top: 0; bottom: 0; right: 0; left: 50%;
+  position: absolute; top: 0; bottom: 70px; right: 0; left: 50%;
   pointer-events: all; touch-action: none;
 }
 .mc-action-btns {
@@ -55,6 +55,19 @@ const STYLE = `
   -webkit-tap-highlight-color: transparent; pointer-events: all;
 }
 .mc-mine-btn:active { background: rgba(220,100,80,0.65); }
+.mc-down-btn {
+  position: absolute; bottom: 160px; right: 172px;
+  width: 60px; height: 60px; border-radius: 50%;
+  background: rgba(100,120,220,0.3); border: 2px solid rgba(100,120,220,0.6);
+  color: #fff; font-size: 12px; font-weight: bold;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; user-select: none;
+  -webkit-tap-highlight-color: transparent; pointer-events: all;
+}
+.mc-down-btn:active { background: rgba(100,120,220,0.65); }
+.mc-btn-active {
+  background: rgba(255,220,50,0.45) !important; border-color: rgba(255,220,50,0.9) !important;
+}
 `
 
 const BASE_RADIUS = 70
@@ -64,10 +77,13 @@ const MAX_DIST = BASE_RADIUS - KNOB_RADIUS
 export class MobileControls {
   private readonly container: HTMLDivElement
   private readonly knob: HTMLDivElement
+  private flyBtn: HTMLDivElement | null = null
   private joystickTouchId: number | null = null
   private joystickOrigin = { x: 0, y: 0 }
   private lookTouchId: number | null = null
   private lookLast = { x: 0, y: 0 }
+  private jumpHolds = 0
+  private joystickAutoJump = false
   onInventory: () => void = () => {}
   onMineStart: () => void = () => {}
   onMineStop: () => void = () => {}
@@ -109,15 +125,13 @@ export class MobileControls {
     lookZone.addEventListener('touchcancel', (e) => this.onLookEnd(e), { passive: false })
     this.container.appendChild(lookZone)
 
-    // Jump button
+    // Jump / fly-up button — held while finger is down so it also works as fly-up
     const jumpBtn = document.createElement('div')
     jumpBtn.className = 'mc-jump-btn'
     jumpBtn.textContent = 'JUMP'
-    jumpBtn.addEventListener('touchstart', (e) => {
-      e.preventDefault()
-      this.controls.keys.add('Space')
-      setTimeout(() => this.controls.keys.delete('Space'), 120)
-    }, { passive: false })
+    jumpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.addJump() }, { passive: false })
+    jumpBtn.addEventListener('touchend', (e) => { e.preventDefault(); this.removeJump() }, { passive: false })
+    jumpBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); this.removeJump() }, { passive: false })
     this.container.appendChild(jumpBtn)
 
     // Mine / break button (hold = hold left-click)
@@ -129,9 +143,30 @@ export class MobileControls {
     mineBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); this.onMineStop() }, { passive: false })
     this.container.appendChild(mineBtn)
 
-    // Action buttons column (right side)
+    // Fly-down button (hold = sink while flying)
+    const downBtn = document.createElement('div')
+    downBtn.className = 'mc-down-btn'
+    downBtn.textContent = 'DOWN'
+    downBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.controls.keys.add('ShiftLeft') }, { passive: false })
+    downBtn.addEventListener('touchend', (e) => { e.preventDefault(); this.controls.keys.delete('ShiftLeft') }, { passive: false })
+    downBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); this.controls.keys.delete('ShiftLeft') }, { passive: false })
+    this.container.appendChild(downBtn)
+
+    // Action buttons column (right side, stacked top → bottom = FLY, USE, BAG)
     const actionBtns = document.createElement('div')
     actionBtns.className = 'mc-action-btns'
+
+    // Fly toggle button
+    const flyBtn = document.createElement('div')
+    flyBtn.className = 'mc-btn'
+    flyBtn.textContent = 'FLY'
+    flyBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault()
+      this.controls.fly = !this.controls.fly
+      flyBtn.classList.toggle('mc-btn-active', this.controls.fly)
+    }, { passive: false })
+    this.flyBtn = flyBtn
+    actionBtns.appendChild(flyBtn)
 
     // Use / interact button (tap = right-click: place block / open chest / feed / toggle animal)
     const useBtn = document.createElement('div')
@@ -144,10 +179,7 @@ export class MobileControls {
     const invBtn = document.createElement('div')
     invBtn.className = 'mc-btn'
     invBtn.textContent = 'BAG'
-    invBtn.addEventListener('touchstart', (e) => {
-      e.preventDefault()
-      this.onInventory()
-    }, { passive: false })
+    invBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.onInventory() }, { passive: false })
     actionBtns.appendChild(invBtn)
     this.container.appendChild(actionBtns)
 
@@ -178,7 +210,21 @@ export class MobileControls {
       this.joystickTouchId = null
       this.knob.style.transform = 'translate(-50%,-50%)'
       this.controls.joystickDir = null
+      if (this.joystickAutoJump) {
+        this.joystickAutoJump = false
+        this.removeJump()
+      }
     }
+  }
+
+  private addJump(): void {
+    this.jumpHolds++
+    this.controls.keys.add('Space')
+  }
+
+  private removeJump(): void {
+    if (this.jumpHolds > 0) this.jumpHolds--
+    if (this.jumpHolds === 0) this.controls.keys.delete('Space')
   }
 
   private updateJoystick(cx: number, cy: number): void {
@@ -192,6 +238,10 @@ export class MobileControls {
 
     if (dist < 8) {
       this.controls.joystickDir = null
+      if (this.joystickAutoJump) {
+        this.joystickAutoJump = false
+        this.removeJump()
+      }
       return
     }
     // ny positive = screen-down = move forward; nx positive = screen-right = strafe right
@@ -203,6 +253,16 @@ export class MobileControls {
     const len = Math.hypot(wx, wz)
     if (len > 0) { wx /= len; wz /= len }
     this.controls.joystickDir = { x: wx, z: wz }
+
+    // Auto-jump when joystick is pushed strongly forward (upward) and held there
+    const isForwardJump = fwd > 0.8 && dist > 15
+    if (isForwardJump && !this.joystickAutoJump) {
+      this.joystickAutoJump = true
+      this.addJump()
+    } else if (!isForwardJump && this.joystickAutoJump) {
+      this.joystickAutoJump = false
+      this.removeJump()
+    }
   }
 
   private onLookStart(e: TouchEvent): void {
@@ -231,13 +291,20 @@ export class MobileControls {
     }
   }
 
-  show(): void { this.container.style.display = '' }
+  show(): void {
+    this.container.style.display = ''
+    this.flyBtn?.classList.toggle('mc-btn-active', this.controls.fly)
+  }
 
   hide(): void {
     this.container.style.display = 'none'
     this.controls.joystickDir = null
     this.joystickTouchId = null
     this.lookTouchId = null
+    this.joystickAutoJump = false
+    this.jumpHolds = 0
+    this.controls.keys.delete('Space')
+    this.controls.keys.delete('ShiftLeft')
     this.onMineStop()
   }
 }

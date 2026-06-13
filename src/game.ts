@@ -85,7 +85,7 @@ export class Game {
       onPlaySlot: (index) => this.startSlot(index),
       onNewSlot: (index, name) => this.newSlot(index, name),
       onDeleteSlot: (index) => this.worldStore.deleteSlot(index),
-      onHostSlot: (index, playerName) => this.startHostSlot(index, playerName),
+      onHostSlot: (index, playerName, roomCode) => this.startHostSlot(index, playerName, roomCode),
       onJoin: (name, code) => this.startJoin(name, code),
       onResume: () => this.resume(),
       onQuitToMenu: () => this.quitToMenu(),
@@ -106,7 +106,7 @@ export class Game {
       },
       listWorlds: () => this.guarded(() => cloud.listWorlds(this.profile!.token)),
       onPlayCloud: (w) => this.guarded(() => this.startCloud(w, 'single')),
-      onHostCloud: (w) => this.guarded(() => this.startCloud(w, 'host')),
+      onHostCloud: (w, roomCode) => this.guarded(() => this.startCloud(w, 'host', roomCode)),
       onCreateCloud: (name) => this.guarded(() => this.createCloudWorld(name)),
       onDeleteCloud: (w) => this.guarded(() => cloud.deleteWorld(this.profile!.token, w.id)),
     })
@@ -122,6 +122,10 @@ export class Game {
       }
     }
     this.hud.onInventory = openInventory
+    this.hud.onSelectHotbar = (i) => {
+      if (!this.playing || this.menu.isOpen || this.panels.isOpen) return
+      this.inventory.selectHotbar(i)
+    }
 
     this.mobileControls = this.controls.isTouchDevice ? new MobileControls(root, this.controls) : null
     if (this.mobileControls) this.mobileControls.onInventory = openInventory
@@ -283,12 +287,11 @@ export class Game {
     this.beginPlay()
   }
 
-  private async startHostSlot(index: number, playerName: string): Promise<void> {
+  private async startHostSlot(index: number, playerName: string, roomCode: string): Promise<void> {
     const slots = this.worldStore.listSlots()
     this.activeSlotIndex = index
     this.activeSlotName = slots[index]?.name ?? `World ${index + 1}`
     const save = this.worldStore.loadSlot(index)
-    const roomCode = generateRoomCode()
     const transport = await connectChannel(roomCode)
     this.mode = 'host'
     this.cloudWorld = null
@@ -299,19 +302,19 @@ export class Game {
   }
 
   /** Play or host a world stored in the signed-in player's profile. */
-  private async startCloud(w: WorldMeta, as: 'single' | 'host'): Promise<void> {
+  private async startCloud(w: WorldMeta, as: 'single' | 'host', roomCode?: string): Promise<void> {
     const profile = this.profile
     if (!profile) throw new Error('Sign in first')
     const save = await cloud.loadWorld(profile.token, w.id)
     if (as === 'host') {
-      const roomCode = generateRoomCode()
-      const transport = await connectChannel(roomCode)
+      const code = roomCode ?? generateRoomCode()
+      const transport = await connectChannel(code)
       this.mode = 'host'
       this.cloudWorld = { id: w.id, name: w.name }
       this.createSession(save.seed, save)
-      this.mp = new Multiplayer('host', roomCode, transport, this.session!.scene, this.playerId, profile.username, this.hooks())
+      this.mp = new Multiplayer('host', code, transport, this.session!.scene, this.playerId, profile.username, this.hooks())
       this.beginPlay()
-      this.hud.showToast(`Hosting "${w.name}" in room ${roomCode} — the session saves to your profile`)
+      this.hud.showToast(`Hosting "${w.name}" in room ${code} — the session saves to your profile`)
     } else {
       this.mode = 'single'
       this.cloudWorld = { id: w.id, name: w.name }
@@ -404,7 +407,7 @@ export class Game {
       applyChest: (key: string, contents: ChestContents) => {
         this.session?.world.chests.set(key, contents)
       },
-      applyAnimals: (list: import('./entities/entityManager').SavedAnimal[]) => {
+      applyAnimals: (list: import('./entities/entityManager').SavedAnimal[], skyTime?: number) => {
         const entities = this.session?.entities
         if (!entities) return
         const seen = new Set<string>()
@@ -425,6 +428,15 @@ export class Game {
         for (const id of [...entities.animals.keys()]) {
           if (!seen.has(id)) entities.capture(id)
         }
+        if (skyTime !== undefined && this.session) this.session.sky.time = skyTime
+      },
+      onHostLeft: () => {
+        this.hud.showToast('Host left the room — continuing offline')
+        setTimeout(() => {
+          this.mp?.dispose()
+          this.mp = null
+          this.mode = 'single'
+        }, 0)
       },
       applyAnimalEvent: (msg: import('./net/protocol').AnimalEventMsg) => {
         const entities = this.session?.entities
@@ -454,6 +466,8 @@ export class Game {
   }
 
   private quitToMenu(): void {
+    const showProfileCta =
+      !this.profile && this.activeSlotIndex !== null && !this.cloudWorld && this.mode !== 'guest' && supabaseConfigured()
     if (this.mode !== 'guest' && this.session) {
       if (this.cloudWorld) {
         // Kick off the final cloud write, then refresh the menu's world list.
@@ -470,7 +484,7 @@ export class Game {
     this.cloudWorld = null
     this.panels.close()
     this.teardownSession()
-    this.menu.showMain()
+    this.menu.showMain(showProfileCta)
     this.updateInputState()
     this.mobileControls?.hide()
   }
@@ -524,7 +538,9 @@ export class Game {
         s.entities.serialize().animals.filter((a) =>
           [...owners.values()].some((p) => (a.pos.x - p.x) ** 2 + (a.pos.z - p.z) ** 2 < 96 * 96),
         ),
+      s.sky.time,
     )
+    this.hud.setPlayerList(this.mp ? [this.mp.selfName, ...this.mp.peerNames] : [])
 
     if (this.mode !== 'guest' && this.playing) {
       this.saveTimer += dt * 1000

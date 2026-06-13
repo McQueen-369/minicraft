@@ -1,5 +1,6 @@
 import type { LocalWorldMeta } from '../persist/storage'
 import type { Profile, WorldMeta } from '../net/cloud'
+import { generateRoomCode } from '../net/protocol'
 
 const STYLE = `
 .mc-menu {
@@ -36,6 +37,15 @@ const STYLE = `
 .mc-menu-box .world-row button { width: auto; margin: 0; padding: 8px 10px; font-size: 13px; flex-shrink: 0; }
 .mc-menu-box .world-row button.danger:hover { background: #a33; }
 .mc-menu-box .empty { color: #888; font-size: 13px; margin: 10px 0; }
+.mc-menu-box .save-notice {
+  background: rgba(40,90,60,0.2); border: 1px solid #4a7; border-radius: 3px;
+  padding: 8px 10px; color: #9c9; font-size: 13px; margin-bottom: 4px;
+}
+.mc-room-code {
+  font-size: 36px; letter-spacing: 8px; color: #aff; font-weight: bold;
+  text-align: center; padding: 16px; margin: 12px 0;
+  background: rgba(0,50,20,0.4); border: 2px solid #4a7; border-radius: 4px;
+}
 `
 
 export interface MenuCallbacks {
@@ -43,7 +53,7 @@ export interface MenuCallbacks {
   onPlaySlot: (index: number) => void
   onNewSlot: (index: number, name: string) => void
   onDeleteSlot: (index: number) => void
-  onHostSlot: (index: number, playerName: string) => Promise<void>
+  onHostSlot: (index: number, playerName: string, roomCode: string) => Promise<void>
   onJoin: (name: string, code: string) => Promise<void>
   onResume: () => void
   onQuitToMenu: () => void
@@ -55,7 +65,7 @@ export interface MenuCallbacks {
   onSignOut: () => void
   listWorlds: () => Promise<WorldMeta[]>
   onPlayCloud: (world: WorldMeta) => Promise<void>
-  onHostCloud: (world: WorldMeta) => Promise<void>
+  onHostCloud: (world: WorldMeta, roomCode: string) => Promise<void>
   onCreateCloud: (name: string) => Promise<void>
   onDeleteCloud: (world: WorldMeta) => Promise<void>
 }
@@ -96,7 +106,7 @@ export class Menu {
     if (this.mode === 'main') this.showMain()
   }
 
-  showMain(): void {
+  showMain(afterLocalQuit = false): void {
     this.mode = 'main'
     this.mainRenderSeq++
     this.el.style.display = 'flex'
@@ -105,6 +115,11 @@ export class Menu {
     this.box.appendChild(el('div', 'a tiny voxel world', 'sub'))
 
     const profile = this.cb.multiplayerAvailable ? this.cb.profile() : null
+    if (afterLocalQuit && !profile && this.cb.multiplayerAvailable) {
+      this.box.appendChild(
+        el('div', 'Your world is saved on this device only — create a profile below to access it from anywhere.', 'save-notice'),
+      )
+    }
     if (profile) this.renderSignedIn(profile)
     else this.renderSignedOut()
 
@@ -122,47 +137,21 @@ export class Menu {
   private renderSignedOut(): void {
     const error = el('div', '', 'error')
 
-    const localSection = el('div', '', 'section')
-    localSection.appendChild(el('div', 'Local Worlds', 'section-title'))
-    const slots = this.cb.listLocalSlots()
-    for (let i = 0; i < slots.length; i++) {
-      localSection.appendChild(this.localSlotRow(slots[i], i, false, null, error))
-    }
-    this.box.appendChild(localSection)
-
     if (!this.cb.multiplayerAvailable) {
+      const localSection = el('div', '', 'section')
+      localSection.appendChild(el('div', 'Local Worlds', 'section-title'))
+      const slots = this.cb.listLocalSlots()
+      for (let i = 0; i < slots.length; i++) {
+        localSection.appendChild(this.localSlotRow(slots[i], i, false))
+      }
+      this.box.appendChild(localSection)
       this.box.appendChild(el('div', 'Multiplayer unavailable: missing Supabase configuration (.env.local)', 'hint'))
       return
     }
 
-    const mpSection = el('div', '', 'section')
-    mpSection.appendChild(el('div', 'Play online (no profile)', 'section-title'))
-    const name = input('Your name (for multiplayer)', 16)
-    name.value = localStorage.getItem('minicraft-name') ?? ''
-    const code = input('Room code (e.g. MC-1234)', 8)
-    const getName = () => {
-      const n = name.value.trim() || 'Player'
-      try {
-        localStorage.setItem('minicraft-name', n)
-      } catch {
-        // ignore
-      }
-      return n
-    }
-    mpSection.appendChild(name)
-    // Re-render slots with Host buttons now that we have the name input
-    while (localSection.firstChild) localSection.removeChild(localSection.firstChild)
-    localSection.appendChild(el('div', 'Local Worlds', 'section-title'))
-    for (let i = 0; i < slots.length; i++) {
-      localSection.appendChild(this.localSlotRow(slots[i], i, true, name, error))
-    }
-    mpSection.appendChild(code)
-    this.asyncButton(mpSection, 'Join Game', error, () => this.cb.onJoin(getName(), code.value.trim().toUpperCase()))
-    mpSection.appendChild(error)
-    this.box.appendChild(mpSection)
-
+    // 1. Profile auth — top of page so players can sign up before creating a world
     const auth = el('div', '', 'section')
-    auth.appendChild(el('div', 'Profile — save worlds to the cloud and play them anywhere', 'section-title'))
+    auth.appendChild(el('div', 'Create Profile / Sign In', 'section-title'))
     const username = input('Username (3-16 letters/numbers)', 16)
     const password = input('Password', 64)
     password.type = 'password'
@@ -179,14 +168,122 @@ export class Menu {
     })
     auth.appendChild(authError)
     this.box.appendChild(auth)
+
+    // 2. Existing local worlds (only filled slots)
+    const slots = this.cb.listLocalSlots()
+    const hasWorlds = slots.some(Boolean)
+    if (hasWorlds) {
+      const localSection = el('div', '', 'section')
+      localSection.appendChild(el('div', 'Local Worlds', 'section-title'))
+      for (let i = 0; i < slots.length; i++) {
+        if (slots[i]) {
+          localSection.appendChild(
+            this.localSlotRow(slots[i], i, true,
+              (idx, worldName) => this.showPlayPrompt(idx, worldName),
+            ),
+          )
+        }
+      }
+      this.box.appendChild(localSection)
+    }
+
+    // 3. Actions: two buttons — Create New World + Join a Friend
+    const firstEmpty = slots.findIndex((s) => !s)
+    const actionsSection = el('div', '', 'section')
+
+    // Create New World form (hidden until button click)
+    const createForm = el('div', '', '')
+    createForm.style.display = 'none'
+    if (firstEmpty !== -1) {
+      const worldNameInput = input(`World ${firstEmpty + 1}`, 32)
+      worldNameInput.placeholder = `World ${firstEmpty + 1}`
+      createForm.appendChild(worldNameInput)
+      const createBtn = document.createElement('button')
+      createBtn.textContent = 'Create'
+      createBtn.addEventListener('click', () => {
+        this.cb.onNewSlot(firstEmpty, worldNameInput.value.trim() || `World ${firstEmpty + 1}`)
+      })
+      createForm.appendChild(createBtn)
+      const cancelCreate = document.createElement('button')
+      cancelCreate.textContent = 'Cancel'
+      cancelCreate.addEventListener('click', () => this.showMain())
+      createForm.appendChild(cancelCreate)
+    }
+
+    // Join a Friend form (hidden until button click)
+    const joinForm = el('div', '', '')
+    joinForm.style.display = 'none'
+    const nameInput = input('Your name (for multiplayer)', 16)
+    nameInput.value = localStorage.getItem('minicraft-name') ?? ''
+    const getName = () => {
+      const n = nameInput.value.trim() || 'Player'
+      try { localStorage.setItem('minicraft-name', n) } catch { /* ignore */ }
+      return n
+    }
+    const codeInput = input('Room code (e.g. MC-1234)', 8)
+    joinForm.appendChild(nameInput)
+    joinForm.appendChild(codeInput)
+    this.asyncButton(joinForm, 'Join Game', error, () =>
+      this.cb.onJoin(getName(), codeInput.value.trim().toUpperCase()),
+    )
+    const cancelJoin = document.createElement('button')
+    cancelJoin.textContent = 'Cancel'
+    cancelJoin.addEventListener('click', () => this.showMain())
+    joinForm.appendChild(cancelJoin)
+
+    // Button row — hidden when a form is open
+    const btnRow = el('div', '', '')
+    if (firstEmpty !== -1) {
+      this.button(btnRow, 'Create New World', () => {
+        btnRow.style.display = 'none'
+        createForm.style.display = ''
+        ;(createForm.querySelector('input') as HTMLInputElement | null)?.focus()
+      })
+    }
+    this.button(btnRow, 'Join a Friend', () => {
+      btnRow.style.display = 'none'
+      joinForm.style.display = ''
+      nameInput.focus()
+    })
+
+    actionsSection.appendChild(btnRow)
+    if (firstEmpty !== -1) actionsSection.appendChild(createForm)
+    actionsSection.appendChild(joinForm)
+    actionsSection.appendChild(error)
+    this.box.appendChild(actionsSection)
+  }
+
+  private showPlayPrompt(slotIndex: number, worldName: string): void {
+    this.box.innerHTML = ''
+    this.box.appendChild(el('h1', 'MINICRAFT'))
+    this.box.appendChild(el('div', `"${worldName}" is saved on this device only.`, 'sub'))
+
+    const section = el('div', '', 'section')
+    section.appendChild(el('div', 'Create a free profile to back up your worlds', 'section-title'))
+    const username = input('Username (3-16 letters/numbers)', 16)
+    const password = input('Password', 64)
+    password.type = 'password'
+    const authError = el('div', '', 'error')
+    section.appendChild(username)
+    section.appendChild(password)
+    this.asyncButton(section, 'Create Profile & Play', authError, async () => {
+      await this.cb.onSignUp(username.value.trim(), password.value)
+      this.cb.onPlaySlot(slotIndex)
+    })
+    section.appendChild(authError)
+    this.box.appendChild(section)
+
+    const skip = el('div', '', 'section')
+    this.button(skip, '▶ Play without profile', () => this.cb.onPlaySlot(slotIndex))
+    this.button(skip, '← Back to menu', () => this.showMain())
+    this.box.appendChild(skip)
   }
 
   private localSlotRow(
     slot: LocalWorldMeta | null,
     index: number,
     showHost: boolean,
-    hostNameInput: HTMLInputElement | null,
-    error: HTMLElement,
+    onBeforePlay?: (index: number, worldName: string) => void,
   ): HTMLElement {
     const row = el('div', '', 'world-row')
     if (slot) {
@@ -196,15 +293,20 @@ export class Menu {
       row.appendChild(meta)
       const playBtn = document.createElement('button')
       playBtn.textContent = '▶ Play'
-      playBtn.addEventListener('click', () => this.cb.onPlaySlot(index))
+      playBtn.addEventListener('click', () => {
+        if (onBeforePlay) onBeforePlay(index, slot.name)
+        else this.cb.onPlaySlot(index)
+      })
       row.appendChild(playBtn)
-      if (showHost && hostNameInput) {
-        const hostBtn = this.asyncButton(row, 'Host', error, () => {
-          const n = hostNameInput.value.trim() || 'Player'
-          try { localStorage.setItem('minicraft-name', n) } catch { /* ignore */ }
-          return this.cb.onHostSlot(index, n)
+      if (showHost) {
+        const hostBtn = document.createElement('button')
+        hostBtn.textContent = 'Host'
+        hostBtn.addEventListener('click', () => {
+          const roomCode = generateRoomCode()
+          this.showHostScreen(`Hosting "${slot.name}"`, roomCode, (playerName) =>
+            this.cb.onHostSlot(index, playerName, roomCode), true)
         })
-        void hostBtn
+        row.appendChild(hostBtn)
       }
       const delBtn = document.createElement('button')
       delBtn.textContent = '✕'
@@ -247,6 +349,37 @@ export class Menu {
     nameInput.focus()
   }
 
+  private showHostScreen(
+    subtitle: string,
+    roomCode: string,
+    onStart: (playerName: string) => Promise<void>,
+    askName = false,
+  ): void {
+    this.box.innerHTML = ''
+    this.box.appendChild(el('h1', 'MINICRAFT'))
+    this.box.appendChild(el('div', subtitle, 'sub'))
+    const codeSection = el('div', '', 'section')
+    codeSection.appendChild(el('div', 'Share this code with friends:', 'section-title'))
+    codeSection.appendChild(el('div', roomCode, 'mc-room-code'))
+    this.box.appendChild(codeSection)
+    let nameInput: HTMLInputElement | null = null
+    if (askName) {
+      const nameSection = el('div', '', 'section')
+      nameInput = input('Your name', 16)
+      nameInput.value = localStorage.getItem('minicraft-name') ?? ''
+      nameSection.appendChild(nameInput)
+      this.box.appendChild(nameSection)
+    }
+    const hostError = el('div', '', 'error')
+    this.asyncButton(this.box, '▶ Start Hosting', hostError, async () => {
+      const playerName = nameInput ? (nameInput.value.trim() || 'Player') : 'Player'
+      if (nameInput) try { localStorage.setItem('minicraft-name', playerName) } catch { /* ignore */ }
+      await onStart(playerName)
+    })
+    this.button(this.box, '← Back to Menu', () => this.showMain())
+    this.box.appendChild(hostError)
+  }
+
   // -------------------------------------------------------------- signed in
 
   private renderSignedIn(profile: Profile): void {
@@ -270,11 +403,21 @@ export class Menu {
     worlds.appendChild(el('div', 'Your worlds', 'section-title'))
     const list = el('div', 'Loading worlds…', 'empty')
     worlds.appendChild(list)
+    const createForm = el('div', '', '')
+    createForm.style.display = 'none'
     const newName = input('New world name', 32)
-    worlds.appendChild(newName)
-    this.asyncButton(worlds, 'Create New World', error, async () => {
+    createForm.appendChild(newName)
+    const createError = el('div', '', 'error')
+    this.asyncButton(createForm, 'Create', createError, async () => {
       await this.cb.onCreateCloud(newName.value.trim() || `World ${new Date().toLocaleDateString()}`)
     })
+    createForm.appendChild(createError)
+    const createBtn = this.button(worlds, 'Create New World', () => {
+      createBtn.style.display = 'none'
+      createForm.style.display = ''
+      newName.focus()
+    })
+    worlds.appendChild(createForm)
     this.box.appendChild(worlds)
 
     const localSlots = this.cb.listLocalSlots()
@@ -283,19 +426,26 @@ export class Menu {
       local.appendChild(el('div', 'Local Worlds (this device)', 'section-title'))
       const localError = el('div', '', 'error')
       for (let i = 0; i < localSlots.length; i++) {
-        if (localSlots[i]) local.appendChild(this.localSlotRow(localSlots[i], i, false, null, localError))
+        if (localSlots[i]) local.appendChild(this.localSlotRow(localSlots[i], i, false))
       }
       local.appendChild(localError)
       this.box.appendChild(local)
     }
 
     const join = el('div', '', 'section')
-    join.appendChild(el('div', 'Join a friend', 'section-title'))
+    const joinForm = el('div', '', '')
+    joinForm.style.display = 'none'
     const code = input('Room code (e.g. MC-1234)', 8)
-    join.appendChild(code)
-    this.asyncButton(join, 'Join Game', error, () =>
+    joinForm.appendChild(code)
+    this.asyncButton(joinForm, 'Join Game', error, () =>
       this.cb.onJoin(profile.username, code.value.trim().toUpperCase()),
     )
+    const joinBtn = this.button(join, 'Join a Friend', () => {
+      joinBtn.style.display = 'none'
+      joinForm.style.display = ''
+      code.focus()
+    })
+    join.appendChild(joinForm)
     this.box.appendChild(join)
     this.box.appendChild(error)
 
@@ -326,7 +476,11 @@ export class Menu {
     meta.appendChild(el('div', `saved ${new Date(w.updatedAt).toLocaleString()}`, 'when'))
     row.appendChild(meta)
     this.asyncButton(row, 'Play', error, () => this.cb.onPlayCloud(w))
-    this.asyncButton(row, 'Host', error, () => this.cb.onHostCloud(w))
+    this.button(row, 'Host', () => {
+      const roomCode = generateRoomCode()
+      this.showHostScreen(`Hosting "${w.name}"`, roomCode, () => this.cb.onHostCloud(w, roomCode))
+      // askName=false: signed-in user already has profile.username
+    })
     const del = this.asyncButton(row, '✕', error, async () => {
       if (!confirm(`Delete world "${w.name}" forever?`)) return
       await this.cb.onDeleteCloud(w)
