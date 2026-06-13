@@ -23,7 +23,7 @@ export class Player {
   update(dt: number, controls: Controls): void {
     const dir = controls.moveDirection()
     const speed = controls.fly ? FLY_SPEED : WALK_SPEED
-    const gameplay = controls.gameplayInput && controls.isLocked
+    const gameplay = controls.gameplayInput && (controls.isLocked || controls.isTouchDevice)
     let flyMoveY = 0
     if (gameplay && controls.fly) {
       if (controls.keys.has('Space')) flyMoveY += FLY_SPEED
