@@ -374,11 +374,21 @@ export class Menu {
     worlds.appendChild(el('div', 'Your worlds', 'section-title'))
     const list = el('div', 'Loading worlds…', 'empty')
     worlds.appendChild(list)
+    const createForm = el('div', '', '')
+    createForm.style.display = 'none'
     const newName = input('New world name', 32)
-    worlds.appendChild(newName)
-    this.asyncButton(worlds, 'Create New World', error, async () => {
+    createForm.appendChild(newName)
+    const createError = el('div', '', 'error')
+    this.asyncButton(createForm, 'Create', createError, async () => {
       await this.cb.onCreateCloud(newName.value.trim() || `World ${new Date().toLocaleDateString()}`)
     })
+    createForm.appendChild(createError)
+    const createBtn = this.button(worlds, 'Create New World', () => {
+      createBtn.style.display = 'none'
+      createForm.style.display = ''
+      newName.focus()
+    })
+    worlds.appendChild(createForm)
     this.box.appendChild(worlds)
 
     const localSlots = this.cb.listLocalSlots()

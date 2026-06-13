@@ -185,9 +185,11 @@ describe('Menu signed in', () => {
     const cb = signedIn()
     new Menu(document.body, cb)
     await flush()
+    // Click "Create New World" to reveal the name input
+    buttons(document.body).get('Create New World')!.click()
     const name = [...document.querySelectorAll('input')].find((i) => i.placeholder === 'New world name')!
     name.value = 'Castle'
-    buttons(document.body).get('Create New World')!.click()
+    buttons(document.body).get('Create')!.click()
     await flush()
     expect(cb.onCreateCloud).toHaveBeenCalledWith('Castle')
   })
