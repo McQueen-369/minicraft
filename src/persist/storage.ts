@@ -1,4 +1,5 @@
 import type { SavedAnimal } from '../entities/entityManager'
+import { FURNITURE_KINDS, type SavedFurniture } from '../entities/furniture'
 import { itemDef, type ChestContents, type Slot } from '../items/items'
 
 export interface SaveData {
@@ -9,6 +10,7 @@ export interface SaveData {
   edits: Record<string, number>
   chests: Record<string, ChestContents>
   animals: { animals: SavedAnimal[]; spawnedChunks: string[] }
+  furniture: SavedFurniture[]
   skyTime: number
 }
 
@@ -41,6 +43,7 @@ export function deserialize(json: string | null): SaveData | null {
         animals: Array.isArray(data.animals?.animals) ? data.animals.animals : [],
         spawnedChunks: Array.isArray(data.animals?.spawnedChunks) ? data.animals.spawnedChunks : [],
       },
+      furniture: sanitizeFurniture(data.furniture),
       skyTime: typeof data.skyTime === 'number' ? data.skyTime : 0.25,
     }
   } catch {
@@ -54,6 +57,24 @@ function sanitizeSlots(slots: (Slot | null)[]): (Slot | null)[] {
       ? { itemId: s.itemId, count: s.count }
       : null,
   )
+}
+
+function sanitizeFurniture(list: unknown): SavedFurniture[] {
+  if (!Array.isArray(list)) return []
+  const out: SavedFurniture[] = []
+  for (const f of list) {
+    if (
+      f &&
+      typeof f.id === 'string' &&
+      FURNITURE_KINDS.includes(f.kind) &&
+      isFinite(f.x) &&
+      isFinite(f.y) &&
+      isFinite(f.z)
+    ) {
+      out.push({ id: f.id, kind: f.kind, x: f.x, y: f.y, z: f.z, yaw: Number(f.yaw) || 0, open: !!f.open })
+    }
+  }
+  return out
 }
 
 function sanitizeChests(chests: Record<string, ChestContents>): Record<string, ChestContents> {

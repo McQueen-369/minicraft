@@ -79,5 +79,46 @@ export function drawItemIcon(canvas: HTMLCanvasElement, itemId: number, atlasCan
       ctx.strokeRect(2 * px, 4 * px, 12 * px, 10 * px)
       break
     }
+    case ItemId.Door: {
+      p(4, 2, 8, 12, '#7a5326')
+      ctx.strokeStyle = '#553a1f'
+      ctx.lineWidth = px
+      ctx.strokeRect(4 * px, 2 * px, 8 * px, 12 * px)
+      p(10, 8, 1, 1, '#d9c27a')
+      break
+    }
+    case ItemId.Window: {
+      p(3, 3, 10, 10, '#b08d5a')
+      p(4, 4, 8, 8, '#cfeff4')
+      ctx.fillStyle = '#b08d5a'
+      ctx.fillRect(7.5 * px, 4 * px, px, 8 * px)
+      ctx.fillRect(4 * px, 7.5 * px, 8 * px, px)
+      break
+    }
+    case ItemId.Desk: {
+      p(2, 5, 12, 2, '#7a572f') // top
+      p(3, 7, 1, 6, '#6b4a2a')
+      p(12, 7, 1, 6, '#6b4a2a')
+      break
+    }
+    case ItemId.Chair: {
+      p(5, 2, 2, 11, '#8a5a2b') // back post
+      p(5, 8, 6, 2, '#8a5a2b') // seat
+      p(9, 9, 1, 4, '#8a5a2b')
+      break
+    }
+    case ItemId.Bed: {
+      p(2, 7, 12, 4, '#6b4a2a') // frame
+      p(3, 6, 4, 3, '#f6f4ee') // pillow
+      p(7, 7, 6, 2, '#4f7fae') // blanket
+      break
+    }
+    case ItemId.Sofa: {
+      p(3, 6, 10, 5, '#5b6e8c') // body
+      p(3, 4, 2, 6, '#4e5f79') // left arm
+      p(11, 4, 2, 6, '#4e5f79') // right arm
+      p(4, 5, 8, 2, '#6b7d99')
+      break
+    }
   }
 }

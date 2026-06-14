@@ -1,12 +1,20 @@
 import * as THREE from 'three'
+import { Music } from './audio/music'
 import { AUTOSAVE_INTERVAL_MS, CLOUD_AUTOSAVE_INTERVAL_MS, WATER_LEVEL } from './constants'
 import { blockKey, chunkKey, worldToChunk } from './core/coords'
 import { hashString } from './core/rng'
+import { DecorationManager } from './entities/decorations'
 import { EntityManager } from './entities/entityManager'
-import { BlockInteraction } from './interact/blockInteraction'
+import { FurnitureManager } from './entities/furnitureManager'
+import { FURNITURE_LABEL } from './entities/furniture'
+import { BlockInteraction, type FurnitureEvent } from './interact/blockInteraction'
+import { BlockId, blockDef } from './core/blocks'
 import { chestLoot } from './items/chest'
 import { Inventory } from './items/inventory'
-import type { ChestContents } from './items/items'
+import { furnitureItemFor } from './items/items'
+import type { ChestContents, Slot } from './items/items'
+import { buildStarterHouse } from './world/house'
+import { Minimap, type MapMarker } from './ui/minimap'
 import * as cloud from './net/cloud'
 import { isSessionExpired, loadStoredProfile, storeProfile, type Profile, type WorldMeta } from './net/cloud'
 import { connectChannel, Multiplayer } from './net/multiplayer'
@@ -19,6 +27,7 @@ import { createAtlas, type Atlas } from './render/atlas'
 import { ChunkRenderer } from './render/chunkRenderer'
 import { Sky } from './render/sky'
 import { HUD } from './ui/hud'
+import { animalInfo, itemInfo } from './ui/info'
 import { Menu } from './ui/menu'
 import { MobileControls } from './ui/mobileControls'
 import { Panels } from './ui/panels'
@@ -33,6 +42,8 @@ interface Session {
   player: Player
   chunkRenderer: ChunkRenderer
   entities: EntityManager
+  furniture: FurnitureManager
+  decorations: DecorationManager
   interaction: BlockInteraction
   sky: Sky
   water: THREE.Mesh
@@ -49,6 +60,8 @@ export class Game {
   private readonly hud: HUD
   private readonly panels: Panels
   private readonly menu: Menu
+  private readonly minimap: Minimap
+  private readonly music = new Music()
   private readonly worldStore = new MultiWorldStore(localStorage)
   private readonly playerId = crypto.randomUUID().slice(0, 8)
   private readonly mobileControls: MobileControls | null = null
@@ -66,6 +79,7 @@ export class Game {
   private playing = false
   private worldReady = false
   private openChestKey: string | null = null
+  private nameplateKey: string | null = null
   private saveTimer = 0
   private lastTime = performance.now()
   private fps = 0
@@ -80,6 +94,7 @@ export class Game {
     this.controls = new Controls(this.renderer.domElement)
     this.hud = new HUD(root, this.inventory, this.atlas.canvas)
     this.panels = new Panels(root, this.inventory, this.atlas.canvas)
+    this.minimap = new Minimap(root)
     this.menu = new Menu(root, {
       listLocalSlots: () => this.worldStore.listSlots(),
       onPlaySlot: (index) => this.startSlot(index),
@@ -122,6 +137,20 @@ export class Game {
       }
     }
     this.hud.onInventory = openInventory
+    this.hud.onInfoClose = () => {
+      if (this.playing && !this.menu.isOpen && !this.panels.isOpen) this.controls.requestLock()
+    }
+    this.hud.onToggleMusic = () => this.music.toggle()
+    // Browsers block audio until a user gesture; start the soundtrack on the first one.
+    const startMusic = () => {
+      this.music.start()
+      window.removeEventListener('pointerdown', startMusic)
+      window.removeEventListener('keydown', startMusic)
+      window.removeEventListener('touchstart', startMusic)
+    }
+    window.addEventListener('pointerdown', startMusic)
+    window.addEventListener('keydown', startMusic)
+    window.addEventListener('touchstart', startMusic)
     this.hud.onSelectHotbar = (i) => {
       if (!this.playing || this.menu.isOpen || this.panels.isOpen) return
       this.inventory.selectHotbar(i)
@@ -148,7 +177,7 @@ export class Game {
       this.camera.updateProjectionMatrix()
     })
     document.addEventListener('pointerlockchange', () => {
-      if (!this.controls.isLocked && this.playing && !this.panels.isOpen && !this.menu.isOpen) {
+      if (!this.controls.isLocked && this.playing && !this.panels.isOpen && !this.menu.isOpen && !this.hud.isInfoOpen) {
         this.menu.showPause(
           [
             this.cloudWorld ? `"${this.cloudWorld.name}" saves to ${this.profile?.username ?? 'your profile'}` : null,
@@ -163,6 +192,11 @@ export class Game {
     document.addEventListener('keydown', (e) => {
       if (!this.playing) return
       if (e.code === 'KeyE' && !this.menu.isOpen) openInventory()
+      if (e.code === 'KeyI' && !this.menu.isOpen && !this.panels.isOpen) {
+        // Release the pointer so the info card is clickable on desktop; the
+        // pointerlockchange guard above keeps the pause menu from appearing.
+        if (this.hud.openTargetInfo()) this.controls.releaseLock()
+      }
       if (this.controls.gameplayInput && e.code.startsWith('Digit')) {
         const n = Number(e.code.slice(5))
         if (n >= 1 && n <= 9) this.inventory.selectHotbar(n - 1)
@@ -199,6 +233,9 @@ export class Game {
     const player = new Player(world)
     const entities = new EntityManager(scene, world)
     if (save) entities.load(save.animals)
+    const furniture = new FurnitureManager(scene)
+    if (save) furniture.load(save.furniture)
+    const decorations = new DecorationManager(scene, seed)
 
     const spawn = findSpawn(terrain)
     if (spawnOverride) {
@@ -209,7 +246,9 @@ export class Game {
       this.controls.pitch = save.player.pitch
       this.controls.fly = save.player.fly
     } else {
-      player.spawnAt(spawn.x + 0.5, spawn.z + 0.5)
+      // Fresh world: drop a furnished starter house at spawn and stand inside it.
+      const home = buildStarterHouse(world, furniture, spawn.x, spawn.z)
+      player.state.pos = { ...home }
       this.controls.fly = false
     }
     this.inventory.load(save?.inventory ?? [])
@@ -218,6 +257,7 @@ export class Game {
       world,
       this.inventory,
       entities,
+      furniture,
       player,
       this.controls,
       this.camera,
@@ -231,6 +271,10 @@ export class Game {
     }
 
     interaction.onOpenChest = (x, y, z) => {
+      if (world.isTreasureChest(x, y, z)) {
+        this.openTreasureBox(x, y, z)
+        return
+      }
       this.openChestKey = blockKey(x, y, z)
       this.controls.releaseLock()
       this.panels.openChest(world.getChestContents(x, y, z))
@@ -239,6 +283,7 @@ export class Game {
     interaction.onBlockEdit = (x, y, z, id) => this.mp?.sendEdit(x, y, z, id)
     interaction.onAnimalEvent = (ev) =>
       this.mp?.sendAnimalEvent({ ev: ev.type, animalId: ev.animalId ?? '', kind: ev.kind, pos: ev.pos, owner: ev.owner })
+    interaction.onFurnitureEvent = (ev: FurnitureEvent) => this.mp?.sendFurniture({ ev: ev.type, item: ev.item, id: ev.id })
 
     const water = new THREE.Mesh(
       new THREE.PlaneGeometry(640, 640),
@@ -248,7 +293,7 @@ export class Game {
     water.position.y = WATER_LEVEL + 0.35
     scene.add(water)
 
-    this.session = { world, scene, player, chunkRenderer, entities, interaction, sky, water, seed, spawn }
+    this.session = { world, scene, player, chunkRenderer, entities, furniture, decorations, interaction, sky, water, seed, spawn }
     this.worldReady = false
     this.saveTimer = 0
   }
@@ -385,6 +430,7 @@ export class Game {
           edits: Object.fromEntries(s.world.edits),
           chests: Object.fromEntries(s.world.chests),
           animals: s.entities.serialize(),
+          furniture: s.furniture.serialize(),
           spawn: { x: s.spawn.x + 0.5, y: s.world.terrain.heightAt(s.spawn.x, s.spawn.z) + 1.01, z: s.spawn.z + 0.5 },
         }
       },
@@ -397,6 +443,7 @@ export class Game {
           edits: snap.edits,
           chests: snap.chests,
           animals: snap.animals,
+          furniture: snap.furniture ?? [],
           skyTime: snap.skyTime,
         }
         this.createSession(snap.seed, save, snap.spawn)
@@ -448,6 +495,17 @@ export class Game {
           entities.release(msg.kind as import('./items/items').AnimalKind, msg.pos, msg.owner ?? null, msg.animalId)
         }
       },
+      applyFurnitureEvent: (msg: import('./net/protocol').FurnitureMsg) => {
+        const fm = this.session?.furniture
+        if (!fm) return
+        if (msg.ev === 'place' && msg.item) {
+          fm.place(msg.item.kind, msg.item.x, msg.item.y, msg.item.z, msg.item.yaw, msg.item.id)
+        } else if (msg.ev === 'remove' && msg.id) {
+          fm.remove(msg.id)
+        } else if (msg.ev === 'toggle' && msg.id) {
+          fm.toggleDoor(msg.id)
+        }
+      },
     }
   }
 
@@ -457,6 +515,7 @@ export class Game {
     this.updateInputState()
     this.controls.requestLock()
     this.mobileControls?.show()
+    this.minimap.show()
   }
 
   private resume(): void {
@@ -487,10 +546,31 @@ export class Game {
     this.menu.showMain(showProfileCta)
     this.updateInputState()
     this.mobileControls?.hide()
+    this.minimap.hide()
   }
 
   private updateInputState(): void {
     this.controls.gameplayInput = !this.panels.isOpen && !this.menu.isOpen
+  }
+
+  /**
+   * Open a natural treasure box: sweep its loot into the bag, show a summary of
+   * what was found, and consume the box (it is never kept as a chest item).
+   */
+  private openTreasureBox(x: number, y: number, z: number): void {
+    const s = this.session
+    if (!s) return
+    const obtained: Slot[] = []
+    for (const slot of s.world.getChestContents(x, y, z)) {
+      if (!slot) continue
+      this.inventory.add(slot.itemId, slot.count)
+      obtained.push({ itemId: slot.itemId, count: slot.count })
+    }
+    s.world.setBlock(x, y, z, BlockId.Air)
+    this.mp?.sendEdit(x, y, z, BlockId.Air)
+    this.controls.releaseLock()
+    this.panels.openSummary(obtained)
+    this.updateInputState()
   }
 
   // ------------------------------------------------------------------- frame
@@ -517,6 +597,8 @@ export class Game {
       s.interaction.update(dt)
     }
     s.player.applyCamera(this.camera, this.controls)
+    this.updateNameplate(s)
+    if (this.playing) this.updateMinimap(s, pos, dt)
 
     const owners = new Map<string, { x: number; y: number; z: number }>()
     owners.set(this.playerId, pos)
@@ -526,6 +608,8 @@ export class Game {
       }
     }
     s.entities.update(dt, pos, owners, this.mode !== 'guest')
+    s.furniture.update(pos, dt)
+    if (this.worldReady) s.decorations.update(s.world, pos, dt)
     s.sky.update(dt, this.camera.position)
     s.water.position.x = pos.x
     s.water.position.z = pos.z
@@ -562,6 +646,58 @@ export class Game {
       s.sky.phaseInfo,
     )
     this.renderer.render(s.scene, this.camera)
+  }
+
+  /** Reflect the crosshair target (animal or block) in the HUD nameplate. */
+  private updateNameplate(s: Session): void {
+    let key: string | null = null
+    let name: string | null = null
+    let info: ReturnType<typeof animalInfo> | null = null
+    if (this.playing && !this.panels.isOpen && !this.menu.isOpen) {
+      const animal = s.interaction.targetAnimal
+      const furn = s.interaction.targetFurniture
+      const tb = s.interaction.targetBlock
+      if (animal) {
+        key = `a:${animal.kind}`
+        name = animal.kind.charAt(0).toUpperCase() + animal.kind.slice(1)
+        info = animalInfo(animal.kind)
+      } else if (furn) {
+        const itemId = furnitureItemFor(furn.kind)
+        key = `f:${furn.kind}`
+        name = FURNITURE_LABEL[furn.kind]
+        info = itemInfo(itemId)
+      } else if (tb) {
+        const id = s.world.getBlock(tb.x, tb.y, tb.z)
+        const def = blockDef(id)
+        if (def) {
+          key = `b:${id}`
+          name = def.name
+          info = itemInfo(id)
+        }
+      }
+    }
+    // Only touch the DOM when the target actually changes.
+    if (key === this.nameplateKey) return
+    this.nameplateKey = key
+    this.hud.setTarget(name, info)
+  }
+
+  /** Feed terrain + entity positions to the navigation map. */
+  private updateMinimap(s: Session, pos: { x: number; z: number }, dt: number): void {
+    const markers: MapMarker[] = []
+    for (const a of s.entities.animals.values()) {
+      const dx = a.pos.x - pos.x
+      const dz = a.pos.z - pos.z
+      if (dx * dx + dz * dz < 180 * 180) {
+        markers.push({ x: a.pos.x, z: a.pos.z, color: a.owner ? '#ffd34d' : '#caa84d' })
+      }
+    }
+    if (this.mp) {
+      for (const avatar of this.mp.peers.values()) {
+        markers.push({ x: avatar.group.position.x, z: avatar.group.position.z, color: '#7ad0ff' })
+      }
+    }
+    this.minimap.update(s.world.terrain, pos, this.controls.yaw, markers, dt)
   }
 
   private isAreaReady(s: Session, px: number, pz: number): boolean {
@@ -634,6 +770,7 @@ export class Game {
       edits: Object.fromEntries(s.world.edits),
       chests: Object.fromEntries(s.world.chests),
       animals: s.entities.serialize(),
+      furniture: s.furniture.serialize(),
       skyTime: s.sky.time,
     }
   }
@@ -643,18 +780,52 @@ function randomSeed(): number {
   return hashString(`${Date.now()}-${Math.random()}`)
 }
 
-/** First column at or near the origin that is comfortably above water. */
+/**
+ * A column near the origin on flat, dry land — so the starter house and its
+ * yard sit on a plain. Scans a spiral of candidates, scoring each by the height
+ * spread across the house+farm footprint, and returns the flattest (accepting
+ * the first nearly level one).
+ */
 function findSpawn(terrain: Terrain): { x: number; z: number } {
-  for (let r = 0; r < 64; r++) {
-    for (const [x, z] of [
-      [r * 8, 0],
-      [-r * 8, 0],
-      [0, r * 8],
-      [0, -r * 8],
-      [r * 8, r * 8],
-    ]) {
-      if (terrain.heightAt(x, z) > WATER_LEVEL + 2) return { x, z }
+  // Coarse sample points spanning the house + farm yard, relative to center.
+  const samples: [number, number][] = []
+  for (let dx = -11; dx <= 16; dx += 7) {
+    for (let dz = -9; dz <= 9; dz += 6) samples.push([dx, dz])
+  }
+  let best: { x: number; z: number } | null = null
+  let bestRange = Infinity
+  for (let r = 0; r < 40; r++) {
+    for (const [x, z] of ringCandidates(r)) {
+      let min = Infinity
+      let max = -Infinity
+      for (const [dx, dz] of samples) {
+        const h = terrain.heightAt(x + dx, z + dz)
+        if (h < min) min = h
+        if (h > max) max = h
+      }
+      if (min <= WATER_LEVEL + 2) continue // keep the yard dry
+      const range = max - min
+      if (range < bestRange) {
+        bestRange = range
+        best = { x, z }
+      }
+      if (range <= 2) return { x, z } // flat enough — take it
     }
   }
-  return { x: 0, z: 0 }
+  return best ?? { x: 0, z: 0 }
+}
+
+function ringCandidates(r: number): [number, number][] {
+  if (r === 0) return [[0, 0]]
+  const s = r * 10
+  return [
+    [s, 0],
+    [-s, 0],
+    [0, s],
+    [0, -s],
+    [s, s],
+    [-s, -s],
+    [s, -s],
+    [-s, s],
+  ]
 }

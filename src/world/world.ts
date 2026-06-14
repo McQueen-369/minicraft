@@ -11,6 +11,8 @@ export class World {
   readonly edits: Map<string, number>
   /** Chest inventories keyed by "x,y,z". */
   readonly chests: Map<string, ChestContents>
+  /** Keys of naturally generated loot chests ("treasure boxes"). */
+  readonly treasureChests = new Set<string>()
   /** Chunk keys whose mesh needs rebuilding; drained by the renderer. */
   readonly dirtyChunks = new Set<string>()
 
@@ -55,9 +57,10 @@ export class World {
     // Stock naturally generated chests that still exist and have no contents yet.
     for (const pos of this.terrain.naturalChestsIn(cx, cz)) {
       const bk = blockKey(pos.x, pos.y, pos.z)
-      if (!this.chests.has(bk) && chunk.get(pos.x - x0, pos.y, pos.z - z0) === BlockId.Chest) {
-        this.chests.set(bk, this.chestLoot(pos.x, pos.y, pos.z))
-      }
+      if (chunk.get(pos.x - x0, pos.y, pos.z - z0) !== BlockId.Chest) continue
+      // Flag it as a treasure box (re-flagged on every load so opening behaves consistently).
+      this.treasureChests.add(bk)
+      if (!this.chests.has(bk)) this.chests.set(bk, this.chestLoot(pos.x, pos.y, pos.z))
     }
     this.chunks.set(key, chunk)
     this.dirtyChunks.add(key)
@@ -82,7 +85,10 @@ export class World {
     const key = blockKey(x, y, z)
     if (this.terrain.generateBlock(x, y, z) === id) this.edits.delete(key)
     else this.edits.set(key, id)
-    if (id !== BlockId.Chest) this.chests.delete(key)
+    if (id !== BlockId.Chest) {
+      this.chests.delete(key)
+      this.treasureChests.delete(key)
+    }
 
     const cx = worldToChunk(x)
     const cz = worldToChunk(z)
@@ -96,6 +102,11 @@ export class World {
     if (lx === CHUNK_SIZE - 1) this.dirtyChunks.add(chunkKey(cx + 1, cz))
     if (lz === 0) this.dirtyChunks.add(chunkKey(cx, cz - 1))
     if (lz === CHUNK_SIZE - 1) this.dirtyChunks.add(chunkKey(cx, cz + 1))
+  }
+
+  /** Whether the chest at this position is a naturally generated treasure box. */
+  isTreasureChest(x: number, y: number, z: number): boolean {
+    return this.treasureChests.has(blockKey(x, y, z))
   }
 
   getChestContents(x: number, y: number, z: number): ChestContents {

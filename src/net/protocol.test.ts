@@ -15,6 +15,7 @@ describe('protocol', () => {
         edits: { '1,2,3': 0 },
         chests: { '4,5,6': [{ itemId: 2, count: 3 }] },
         animals: { animals: [], spawnedChunks: ['0,0'] },
+        furniture: [],
         spawn: { x: 0.5, y: 40, z: 0.5 },
       },
       { t: 'edit', x: -4, y: 30, z: 9, id: 8 },
