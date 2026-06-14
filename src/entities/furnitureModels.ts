@@ -57,10 +57,15 @@ function buildDesk(): FurnitureModel {
 
 function buildBed(): FurnitureModel {
   const g = new THREE.Group()
-  part(g, 0.92, 0.22, 0.96, 0, 0.11, 0, 0x6b4a2a) // frame
-  part(g, 0.82, 0.14, 0.86, 0, 0.29, 0.03, 0xe6e2d8) // mattress
-  part(g, 0.82, 0.1, 0.5, 0, 0.4, 0.18, 0x4f7fae) // blanket
-  part(g, 0.74, 0.12, 0.22, 0, 0.41, -0.32, 0xf6f4ee) // pillow
+  const frame = 0x6b4a2a
+  // Double bed: occupies its cell plus the next cell in +z (head at the anchor).
+  for (const sx of [-1, 1]) {
+    for (const cz of [-0.35, 1.2]) part(g, 0.12, 0.18, 0.12, sx * 0.42, 0.09, cz, frame)
+  }
+  part(g, 1.0, 0.26, 1.9, 0, 0.31, 0.45, frame) // frame
+  part(g, 0.9, 0.16, 1.7, 0, 0.5, 0.45, 0xe6e2d8) // mattress
+  part(g, 0.9, 0.12, 1.0, 0, 0.6, 0.9, 0x4f7fae) // blanket (foot end)
+  part(g, 0.82, 0.16, 0.36, 0, 0.62, -0.2, 0xf6f4ee) // pillow (head end)
   return { group: g, pivot: null }
 }
 

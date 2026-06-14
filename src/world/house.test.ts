@@ -12,12 +12,12 @@ describe('buildStarterHouse', () => {
     const fm = new FurnitureManager(new THREE.Scene())
     const spawn = buildStarterHouse(world, fm, 0, 0)
 
-    // Furniture: a door, windows, and room pieces are present.
+    // Furniture: a front door + a farm gate, windows, and room pieces.
     const kinds = [...fm.items.values()].map((f) => f.kind)
-    expect(kinds).toContain('door')
+    expect(kinds.filter((k) => k === 'door').length).toBeGreaterThanOrEqual(2)
     expect(kinds).toContain('bed')
     expect(kinds).toContain('sofa')
-    expect(kinds.filter((k) => k === 'window').length).toBeGreaterThanOrEqual(2)
+    expect(kinds.filter((k) => k === 'window').length).toBeGreaterThanOrEqual(4)
 
     // The floor under the spawn is a solid plank.
     const floorY = world.terrain.heightAt(0, 0)

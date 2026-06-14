@@ -270,7 +270,8 @@ export class HUD {
       <p>FLY — Toggle fly &nbsp; DOWN (fly) — Descend &nbsp; BAG — Inventory</p>
       <p>Tap hotbar slot or type 1–9 — Select item</p>
       <h3>Furniture & Home</h3>
-      <p>New worlds start with a furnished house (bedroom + living room)</p>
+      <p>New worlds start with a furnished house (bedroom + living room) and a fenced farm</p>
+      <p>Release tamed animals into the farm pen — toggle them to "stay" to keep them in</p>
       <p>Place furniture (doors, windows, desk, chairs, bed, sofa) with USE; MINE to pick it back up</p>
       <p>USE a door to swing it open or closed</p>
       <h3>Map & Music</h3>

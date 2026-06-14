@@ -23,7 +23,7 @@ export const FURNITURE_HEIGHT: Record<FurnitureKind, number> = {
   window: 1,
   desk: 1,
   chair: 0.95,
-  bed: 0.6,
+  bed: 0.8,
   sofa: 0.9,
 }
 

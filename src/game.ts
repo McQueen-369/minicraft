@@ -3,6 +3,7 @@ import { Music } from './audio/music'
 import { AUTOSAVE_INTERVAL_MS, CLOUD_AUTOSAVE_INTERVAL_MS, WATER_LEVEL } from './constants'
 import { blockKey, chunkKey, worldToChunk } from './core/coords'
 import { hashString } from './core/rng'
+import { DecorationManager } from './entities/decorations'
 import { EntityManager } from './entities/entityManager'
 import { FurnitureManager } from './entities/furnitureManager'
 import { FURNITURE_LABEL } from './entities/furniture'
@@ -42,6 +43,7 @@ interface Session {
   chunkRenderer: ChunkRenderer
   entities: EntityManager
   furniture: FurnitureManager
+  decorations: DecorationManager
   interaction: BlockInteraction
   sky: Sky
   water: THREE.Mesh
@@ -233,6 +235,7 @@ export class Game {
     if (save) entities.load(save.animals)
     const furniture = new FurnitureManager(scene)
     if (save) furniture.load(save.furniture)
+    const decorations = new DecorationManager(scene, seed)
 
     const spawn = findSpawn(terrain)
     if (spawnOverride) {
@@ -290,7 +293,7 @@ export class Game {
     water.position.y = WATER_LEVEL + 0.35
     scene.add(water)
 
-    this.session = { world, scene, player, chunkRenderer, entities, furniture, interaction, sky, water, seed, spawn }
+    this.session = { world, scene, player, chunkRenderer, entities, furniture, decorations, interaction, sky, water, seed, spawn }
     this.worldReady = false
     this.saveTimer = 0
   }
@@ -606,6 +609,7 @@ export class Game {
     }
     s.entities.update(dt, pos, owners, this.mode !== 'guest')
     s.furniture.update(pos, dt)
+    if (this.worldReady) s.decorations.update(s.world, pos, dt)
     s.sky.update(dt, this.camera.position)
     s.water.position.x = pos.x
     s.water.position.z = pos.z
@@ -776,18 +780,52 @@ function randomSeed(): number {
   return hashString(`${Date.now()}-${Math.random()}`)
 }
 
-/** First column at or near the origin that is comfortably above water. */
+/**
+ * A column near the origin on flat, dry land — so the starter house and its
+ * yard sit on a plain. Scans a spiral of candidates, scoring each by the height
+ * spread across the house+farm footprint, and returns the flattest (accepting
+ * the first nearly level one).
+ */
 function findSpawn(terrain: Terrain): { x: number; z: number } {
-  for (let r = 0; r < 64; r++) {
-    for (const [x, z] of [
-      [r * 8, 0],
-      [-r * 8, 0],
-      [0, r * 8],
-      [0, -r * 8],
-      [r * 8, r * 8],
-    ]) {
-      if (terrain.heightAt(x, z) > WATER_LEVEL + 2) return { x, z }
+  // Coarse sample points spanning the house + farm yard, relative to center.
+  const samples: [number, number][] = []
+  for (let dx = -11; dx <= 16; dx += 7) {
+    for (let dz = -9; dz <= 9; dz += 6) samples.push([dx, dz])
+  }
+  let best: { x: number; z: number } | null = null
+  let bestRange = Infinity
+  for (let r = 0; r < 40; r++) {
+    for (const [x, z] of ringCandidates(r)) {
+      let min = Infinity
+      let max = -Infinity
+      for (const [dx, dz] of samples) {
+        const h = terrain.heightAt(x + dx, z + dz)
+        if (h < min) min = h
+        if (h > max) max = h
+      }
+      if (min <= WATER_LEVEL + 2) continue // keep the yard dry
+      const range = max - min
+      if (range < bestRange) {
+        bestRange = range
+        best = { x, z }
+      }
+      if (range <= 2) return { x, z } // flat enough — take it
     }
   }
-  return { x: 0, z: 0 }
+  return best ?? { x: 0, z: 0 }
+}
+
+function ringCandidates(r: number): [number, number][] {
+  if (r === 0) return [[0, 0]]
+  const s = r * 10
+  return [
+    [s, 0],
+    [-s, 0],
+    [0, s],
+    [0, -s],
+    [s, s],
+    [-s, -s],
+    [s, -s],
+    [-s, s],
+  ]
 }
