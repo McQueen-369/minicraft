@@ -8,10 +8,10 @@ export interface InfoContent {
 }
 
 const TAME_FOOD: Record<AnimalKind, string> = {
-  pig: 'Carrot',
+  pig: 'Apple',
   chicken: 'Seeds',
   sheep: 'Wheat',
-  rabbit: 'Apple',
+  rabbit: 'Carrot',
   cat: 'Fish',
   dog: 'Bone',
 }
@@ -71,6 +71,10 @@ export function itemInfo(itemId: number): InfoContent {
     if (def.furniture === 'door') lines.push('USE a placed door to swing it open or closed.')
     lines.push('Pick up: MINE (hold left-click) the piece to collect it back into your bag.')
     lines.push('Get: your starter house comes furnished, and furniture is found in treasure boxes.')
+  } else if (def.kind === 'net') {
+    lines.push('Use: hold it and right-click (USE on mobile) while aiming at a pond or lake to catch fish.')
+    lines.push('Fish is used to tame cats. You can also find fish in treasure boxes.')
+    lines.push('Get: starts in your bag at the beginning of every new world.')
   }
   return { title: def.name, lines }
 }

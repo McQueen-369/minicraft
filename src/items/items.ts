@@ -23,12 +23,12 @@ export const ItemId = {
   Wheat: 110,
   Carrot: 111,
   Seeds: 112,
-  CapturedPig: 120,
-  CapturedChicken: 121,
-  CapturedSheep: 122,
   Apple: 113,
   Fish: 114,
   Bone: 115,
+  CapturedPig: 120,
+  CapturedChicken: 121,
+  CapturedSheep: 122,
   CapturedRabbit: 123,
   CapturedCat: 124,
   CapturedDog: 125,
@@ -38,6 +38,7 @@ export const ItemId = {
   Chair: 133,
   Bed: 134,
   Sofa: 135,
+  Net: 140,
 } as const
 
 export type ItemId = (typeof ItemId)[keyof typeof ItemId]
@@ -51,7 +52,7 @@ export type ChestContents = (Slot | null)[]
 
 export interface ItemDef {
   name: string
-  kind: 'block' | 'tool' | 'food' | 'capture' | 'furniture'
+  kind: 'block' | 'tool' | 'food' | 'capture' | 'furniture' | 'net'
   block?: BlockId
   tool?: { type: ToolType; power: number }
   /** Which animal this food tames. */
@@ -74,12 +75,12 @@ ITEMS.set(ItemId.StonePickaxe, { name: 'Stone Pickaxe', kind: 'tool', tool: { ty
 ITEMS.set(ItemId.Axe, { name: 'Axe', kind: 'tool', tool: { type: 'axe', power: 4 }, maxStack: 1 })
 ITEMS.set(ItemId.Shears, { name: 'Shears', kind: 'tool', tool: { type: 'shears', power: 8 }, maxStack: 1 })
 ITEMS.set(ItemId.Wheat, { name: 'Wheat', kind: 'food', food: 'sheep', maxStack: MAX_STACK })
-ITEMS.set(ItemId.Carrot, { name: 'Carrot', kind: 'food', food: 'pig', maxStack: MAX_STACK })
+ITEMS.set(ItemId.Carrot, { name: 'Carrot', kind: 'food', food: 'rabbit', maxStack: MAX_STACK })
 ITEMS.set(ItemId.Seeds, { name: 'Seeds', kind: 'food', food: 'chicken', maxStack: MAX_STACK })
 ITEMS.set(ItemId.CapturedPig, { name: 'Pig (captured)', kind: 'capture', animal: 'pig', maxStack: 1 })
 ITEMS.set(ItemId.CapturedChicken, { name: 'Chicken (captured)', kind: 'capture', animal: 'chicken', maxStack: 1 })
 ITEMS.set(ItemId.CapturedSheep, { name: 'Sheep (captured)', kind: 'capture', animal: 'sheep', maxStack: 1 })
-ITEMS.set(ItemId.Apple, { name: 'Apple', kind: 'food', food: 'rabbit', maxStack: MAX_STACK })
+ITEMS.set(ItemId.Apple, { name: 'Apple', kind: 'food', food: 'pig', maxStack: MAX_STACK })
 ITEMS.set(ItemId.Fish, { name: 'Fish', kind: 'food', food: 'cat', maxStack: MAX_STACK })
 ITEMS.set(ItemId.Bone, { name: 'Bone', kind: 'food', food: 'dog', maxStack: MAX_STACK })
 ITEMS.set(ItemId.CapturedRabbit, { name: 'Rabbit (captured)', kind: 'capture', animal: 'rabbit', maxStack: 1 })
@@ -91,6 +92,7 @@ ITEMS.set(ItemId.Desk, { name: 'Desk', kind: 'furniture', furniture: 'desk', max
 ITEMS.set(ItemId.Chair, { name: 'Chair', kind: 'furniture', furniture: 'chair', maxStack: 16 })
 ITEMS.set(ItemId.Bed, { name: 'Bed', kind: 'furniture', furniture: 'bed', maxStack: 16 })
 ITEMS.set(ItemId.Sofa, { name: 'Sofa', kind: 'furniture', furniture: 'sofa', maxStack: 16 })
+ITEMS.set(ItemId.Net, { name: 'Fishing Net', kind: 'net', maxStack: 1 })
 
 const FURNITURE_ITEM: Record<FurnitureKind, number> = {
   door: ItemId.Door,
@@ -116,6 +118,7 @@ export type ItemCategory = 'blocks' | 'tools' | 'food' | 'animals' | 'furniture'
 export function itemCategory(id: number): ItemCategory {
   switch (itemDef(id)?.kind) {
     case 'tool':
+    case 'net':
       return 'tools'
     case 'food':
       return 'food'

@@ -66,6 +66,50 @@ export function drawItemIcon(canvas: HTMLCanvasElement, itemId: number, atlasCan
       for (const [x, y] of [[4, 5], [8, 4], [11, 7], [6, 9], [9, 11], [4, 12]]) p(x, y, 1.5, 1.5, '#7a9c3d')
       break
     }
+    case ItemId.Apple: {
+      p(7, 2, 2, 2, '#5a3e1a')     // stem
+      p(8, 1, 3, 2, '#3d7a20')     // leaf
+      p(4, 4, 8, 8, '#c0392b')     // body centre
+      p(3, 5, 1, 6, '#c0392b')     // left curve
+      p(12, 5, 1, 6, '#c0392b')    // right curve
+      p(5, 3, 6, 1, '#c0392b')     // top curve
+      p(4, 12, 8, 1, '#c0392b')    // bottom
+      p(5, 5, 3, 2, '#e74c3c')     // highlight
+      break
+    }
+    case ItemId.Fish: {
+      p(10, 3, 4, 3, '#2176ae')    // tail fin upper
+      p(10, 10, 4, 3, '#2176ae')   // tail fin lower
+      p(2, 5, 10, 6, '#3498db')    // body
+      p(4, 4, 5, 3, '#2176ae')     // dorsal fin
+      p(3, 7, 2, 2, '#fff')        // eye white
+      p(3, 7, 1, 1, '#111')        // eye pupil
+      p(5, 6, 4, 1, 'rgba(255,255,255,0.25)') // shine
+      break
+    }
+    case ItemId.Bone: {
+      for (let i = 0; i < 7; i++) p(4 + i, 4 + i, 2.5, 2.5, '#f0ede5')  // shaft
+      p(2, 2, 5, 4, '#f0ede5')    // end knob A
+      p(9, 10, 5, 4, '#f0ede5')   // end knob B
+      break
+    }
+    case ItemId.Net: {
+      // Handle
+      for (let i = 0; i < 5; i++) p(9 + i, 11 + i, 2, 2, '#7a5726')
+      // Hoop outline
+      p(2, 1, 7, 2, '#8b6914')
+      p(2, 1, 2, 9, '#8b6914')
+      p(7, 1, 2, 9, '#8b6914')
+      p(3, 9, 5, 2, '#8b6914')
+      // Net mesh
+      p(3, 3, 5, 1, 'rgba(139,105,20,0.55)')
+      p(3, 5, 5, 1, 'rgba(139,105,20,0.55)')
+      p(3, 7, 5, 1, 'rgba(139,105,20,0.55)')
+      p(4, 2, 1, 7, 'rgba(139,105,20,0.55)')
+      p(6, 2, 1, 7, 'rgba(139,105,20,0.55)')
+      p(8, 2, 1, 7, 'rgba(139,105,20,0.55)')
+      break
+    }
     case ItemId.CapturedPig:
     case ItemId.CapturedChicken:
     case ItemId.CapturedSheep: {
@@ -77,6 +121,43 @@ export function drawItemIcon(canvas: HTMLCanvasElement, itemId: number, atlasCan
       ctx.strokeStyle = '#555'
       ctx.lineWidth = px
       ctx.strokeRect(2 * px, 4 * px, 12 * px, 10 * px)
+      break
+    }
+    case ItemId.CapturedRabbit: {
+      p(3, 6, 10, 7, '#d4b896')
+      p(5, 8, 2, 2, '#222')
+      p(9, 8, 2, 2, '#222')
+      p(5, 1, 2, 6, '#d4b896')     // left ear
+      p(9, 1, 2, 6, '#d4b896')     // right ear
+      p(5.5, 1.5, 1, 5, '#e8a0a0') // inner ears
+      p(9.5, 1.5, 1, 5, '#e8a0a0')
+      ctx.strokeStyle = '#555'
+      ctx.lineWidth = px
+      ctx.strokeRect(2 * px, 5 * px, 12 * px, 9 * px)
+      break
+    }
+    case ItemId.CapturedCat: {
+      p(3, 6, 10, 7, '#e8c060')
+      p(5, 8, 2, 2, '#222')
+      p(9, 8, 2, 2, '#222')
+      p(3, 2, 3, 5, '#e8c060')     // left ear (triangular)
+      p(10, 2, 3, 5, '#e8c060')    // right ear
+      p(4, 3, 1, 3, '#e8a0a0')     // inner ears
+      p(11, 3, 1, 3, '#e8a0a0')
+      ctx.strokeStyle = '#555'
+      ctx.lineWidth = px
+      ctx.strokeRect(2 * px, 5 * px, 12 * px, 9 * px)
+      break
+    }
+    case ItemId.CapturedDog: {
+      p(3, 6, 10, 7, '#c8a870')
+      p(5, 8, 2, 2, '#222')
+      p(9, 8, 2, 2, '#222')
+      p(1, 5, 3, 6, '#b89060')     // left floppy ear
+      p(12, 5, 3, 6, '#b89060')    // right floppy ear
+      ctx.strokeStyle = '#555'
+      ctx.lineWidth = px
+      ctx.strokeRect(2 * px, 5 * px, 12 * px, 9 * px)
       break
     }
     case ItemId.Door: {

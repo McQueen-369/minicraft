@@ -11,7 +11,7 @@ import { BlockInteraction, type FurnitureEvent } from './interact/blockInteracti
 import { BlockId, blockDef } from './core/blocks'
 import { chestLoot } from './items/chest'
 import { Inventory } from './items/inventory'
-import { furnitureItemFor } from './items/items'
+import { furnitureItemFor, ItemId } from './items/items'
 import type { ChestContents, Slot } from './items/items'
 import { buildStarterHouse } from './world/house'
 import { Minimap, type MapMarker } from './ui/minimap'
@@ -252,6 +252,8 @@ export class Game {
       this.controls.fly = false
     }
     this.inventory.load(save?.inventory ?? [])
+    // Fresh world: give the player a fishing net to start with.
+    if (!save) this.inventory.add(ItemId.Net, 1)
 
     const interaction = new BlockInteraction(
       world,
@@ -273,6 +275,7 @@ export class Game {
         if (interaction.captureTargetAnimal()) this.hud.showToast('Stored animal in bag')
       }
     }
+    interaction.onFish = () => this.hud.showToast('Caught a fish!')
 
     interaction.onOpenChest = (x, y, z) => {
       if (world.isTreasureChest(x, y, z)) {

@@ -21,9 +21,19 @@ const STYLE = `
 }
 .mc-panel {
   background: #c6c6c6; border: 3px solid; border-color: #fff #555 #555 #fff;
-  padding: 12px; color: #333; font-family: 'Courier New', monospace;
-  max-height: 85vh; max-width: 95vw; overflow: auto;
+  color: #333; font-family: 'Courier New', monospace;
+  max-height: 85vh; max-width: 95vw;
+  display: flex; flex-direction: column; overflow: hidden;
 }
+.mc-panel-scroll {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 12px;
+}
+.mc-hotbar-sticky {
+  flex: 0 0 auto; padding: 4px 12px 10px; border-top: 2px solid #555;
+  background: #c6c6c6;
+}
+.mc-hotbar-sticky .mc-grid { margin-bottom: 0; }
+.mc-hotbar-label { font-size: 11px; color: #555; margin-bottom: 4px; }
 .mc-panel h3 { margin: 0 0 8px; font-size: 15px; }
 .mc-panel-body { display: flex; gap: 12px; align-items: flex-start; }
 .mc-cats { display: flex; flex-direction: column; gap: 5px; flex: 0 0 auto; }
@@ -141,9 +151,15 @@ export class Panels {
   private render(): void {
     this.panel.innerHTML = ''
     if (this.summary) {
-      this.renderSummary()
+      const scroll = document.createElement('div')
+      scroll.className = 'mc-panel-scroll'
+      this.renderSummary(scroll)
+      this.panel.appendChild(scroll)
       return
     }
+    // Scrollable main area (chest + inventory rows).
+    const scroll = document.createElement('div')
+    scroll.className = 'mc-panel-scroll'
     const body = document.createElement('div')
     body.className = 'mc-panel-body'
     body.appendChild(this.categoryBar())
@@ -152,7 +168,17 @@ export class Panels {
     if (this.category === 'all') this.renderAll(main)
     else this.renderFiltered(main, this.category)
     body.appendChild(main)
-    this.panel.appendChild(body)
+    scroll.appendChild(body)
+    this.panel.appendChild(scroll)
+    // Sticky hotbar always visible at the bottom.
+    const sticky = document.createElement('div')
+    sticky.className = 'mc-hotbar-sticky'
+    const label = document.createElement('div')
+    label.className = 'mc-hotbar-label'
+    label.textContent = 'Hotbar (1–9)'
+    sticky.appendChild(label)
+    sticky.appendChild(this.grid(this.inventory.slots, 0, 9))
+    this.panel.appendChild(sticky)
   }
 
   private categoryBar(): HTMLElement {
@@ -176,10 +202,9 @@ export class Panels {
       main.appendChild(this.title('Chest'))
       main.appendChild(this.grid(this.chestSlots, 0, this.chestSlots.length))
     }
-    main.appendChild(this.title(this.chestSlots ? 'Inventory' : 'Inventory (1-9 = hotbar)'))
-    // Main inventory rows first, hotbar row last (like the classic layout).
+    main.appendChild(this.title('Inventory'))
+    // Main inventory rows (slots 9+); hotbar is pinned in the sticky footer.
     main.appendChild(this.grid(this.inventory.slots, 9, this.inventory.slots.length))
-    main.appendChild(this.grid(this.inventory.slots, 0, 9))
   }
 
   private renderFiltered(main: HTMLElement, category: ItemCategory): void {
@@ -206,19 +231,19 @@ export class Panels {
     }
   }
 
-  private renderSummary(): void {
-    this.panel.appendChild(this.title('Treasure Box'))
+  private renderSummary(container: HTMLElement): void {
+    container.appendChild(this.title('Treasure Box'))
     const items = this.summary ?? []
     if (items.length === 0) {
       const msg = document.createElement('p')
       msg.className = 'mc-summary-msg'
       msg.textContent = 'The box was empty.'
-      this.panel.appendChild(msg)
+      container.appendChild(msg)
     } else {
       const msg = document.createElement('p')
       msg.className = 'mc-summary-msg'
       msg.textContent = 'You found and collected:'
-      this.panel.appendChild(msg)
+      container.appendChild(msg)
 
       const grid = document.createElement('div')
       grid.className = 'mc-grid'
@@ -231,15 +256,15 @@ export class Panels {
         line.textContent = `${item.count} × ${name}`
         names.appendChild(line)
       }
-      this.panel.appendChild(grid)
-      this.panel.appendChild(names)
+      container.appendChild(grid)
+      container.appendChild(names)
     }
     const close = document.createElement('button')
     close.className = 'mc-summary-close'
     close.textContent = 'Close'
     close.addEventListener('click', () => this.close())
     close.addEventListener('touchstart', (e) => { e.preventDefault(); this.close() }, { passive: false })
-    this.panel.appendChild(close)
+    container.appendChild(close)
   }
 
   private title(text: string): HTMLElement {

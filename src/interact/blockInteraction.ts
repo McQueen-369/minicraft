@@ -1,11 +1,11 @@
 import * as THREE from 'three'
-import { REACH } from '../constants'
+import { REACH, WATER_LEVEL } from '../constants'
 import { BlockId, blockDef, isSolid } from '../core/blocks'
 import type { EntityManager } from '../entities/entityManager'
 import type { FurnitureManager } from '../entities/furnitureManager'
 import type { Furniture, SavedFurniture } from '../entities/furniture'
 import type { Inventory } from '../items/inventory'
-import { breakTime, captureItemFor, furnitureItemFor, itemDef } from '../items/items'
+import { breakTime, captureItemFor, furnitureItemFor, itemDef, ItemId } from '../items/items'
 import type { Controls } from '../player/controls'
 import { boxOverlapsVoxel, type Vec3 } from '../player/physics'
 import type { Player } from '../player/player'
@@ -44,6 +44,8 @@ export class BlockInteraction {
   onAnimalEvent: (ev: AnimalEvent) => void = () => {}
   onFurnitureEvent: (ev: FurnitureEvent) => void = () => {}
   onOpenChest: (x: number, y: number, z: number) => void = () => {}
+  /** Called when the player successfully catches a fish. */
+  onFish: () => void = () => {}
 
   private leftDown = false
   private mining: { x: number; y: number; z: number; elapsed: number; total: number } | null = null
@@ -195,8 +197,37 @@ export class BlockInteraction {
       }
     }
     this.inventory.add(def.drops, 1)
+    // Mining leaves from trees: chance to find apples (tame pigs) or bones (tame dogs).
+    if (id === BlockId.Leaves) {
+      const r = Math.random()
+      if (r < 0.2) this.inventory.add(ItemId.Apple, 1)
+      else if (r < 0.4) this.inventory.add(ItemId.Bone, 1)
+    }
     this.world.setBlock(x, y, z, BlockId.Air)
     this.onBlockEdit(x, y, z, BlockId.Air)
+  }
+
+  /** Try to catch fish using the net. Returns true when a fish was caught. */
+  private tryFish(): boolean {
+    const eye = this.player.eyePosition
+    const dir = this.camera.getWorldDirection(new THREE.Vector3())
+    // Aiming directly at an underwater block (sand/stone floor of a pond).
+    if (this.targetBlock && this.targetBlock.y <= WATER_LEVEL) {
+      this.inventory.add(ItemId.Fish, 1)
+      this.onFish()
+      return true
+    }
+    // Ray passes through the water surface without hitting a solid block first.
+    if (dir.y < 0 && eye.y > WATER_LEVEL) {
+      const tWater = (WATER_LEVEL + 0.35 - eye.y) / dir.y
+      const tBlock = this.targetBlock?.distance ?? Infinity
+      if (tWater > 0 && tWater < REACH && tWater < tBlock) {
+        this.inventory.add(ItemId.Fish, 1)
+        this.onFish()
+        return true
+      }
+    }
+    return false
   }
 
   private rightClick(): void {
@@ -208,6 +239,11 @@ export class BlockInteraction {
         this.onFurnitureEvent({ type: 'toggle', id: f.id })
       }
       return
+    }
+    // Fishing: net held, aimed at water, no animal target.
+    if (!this.targetAnimal) {
+      const heldDef = this.inventory.heldSlot ? itemDef(this.inventory.heldSlot.itemId) : null
+      if (heldDef?.kind === 'net' && this.tryFish()) return
     }
     const dir = this.camera.getWorldDirection(new THREE.Vector3())
     const eye = this.player.eyePosition

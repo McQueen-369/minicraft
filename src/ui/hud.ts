@@ -268,13 +268,18 @@ export class HUD {
       <h3>Map & Music</h3>
       <p>Mini-map sits top-right — tap it to open the full navigation map</p>
       <p>♪ button toggles the background music</p>
+      <h3>Animals &amp; Taming</h3>
+      <p>Apple → tame Pig &nbsp; Carrot → tame Rabbit &nbsp; Seeds → tame Chicken</p>
+      <p>Wheat → tame Sheep &nbsp; Fish → tame Cat &nbsp; Bone → tame Dog</p>
+      <p>Mine tree leaves — chance of finding Apples or Bones</p>
+      <p>Hold the Fishing Net and right-click (USE) while aiming at a pond to catch Fish</p>
+      <p>Shift + right-click your tamed animal — Capture it into the bag</p>
+      <p>Select a captured-animal item and USE on open ground — Release the animal</p>
       <h3>Tips</h3>
       <p>Look at an animal or block — its name shows up top; tap the ⓘ (or press I) for how to tame/use it</p>
       <p>Open a treasure box to auto-collect its loot — the box is used up, not kept</p>
       <p>Open the BAG to browse items by category (Blocks, Tools, Food, Animals, Furniture)</p>
-      <p>Feed animals to tame them</p>
-      <p>Shift + right-click your animal — Capture it</p>
-      <p>Use a captured-animal item — Release the animal</p>
+      <p>In multiplayer each player shows up in a unique shirt colour</p>
     `
     const closeBtn = box.querySelector('.mc-instructions-close')!
     closeBtn.addEventListener('click', () => { overlay.style.display = 'none' })
