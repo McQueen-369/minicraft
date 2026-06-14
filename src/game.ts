@@ -157,7 +157,6 @@ export class Game {
     }
 
     this.mobileControls = this.controls.isTouchDevice ? new MobileControls(root, this.controls) : null
-    if (this.mobileControls) this.mobileControls.onInventory = openInventory
 
     this.inventory.onChange = () => this.hud.refresh()
     this.panels.onClose = () => {
@@ -187,6 +186,7 @@ export class Game {
             .join(' · ') || undefined,
         )
         this.updateInputState()
+        this.updateMusic()
       }
     })
     document.addEventListener('keydown', (e) => {
@@ -268,6 +268,10 @@ export class Game {
       this.mobileControls.onMineStart = () => interaction.startMining()
       this.mobileControls.onMineStop = () => interaction.stopMining()
       this.mobileControls.onUse = () => interaction.triggerRightClick()
+      // Double-tap the look area to store the targeted tamed animal in the bag.
+      this.mobileControls.onDoubleTap = () => {
+        if (interaction.captureTargetAnimal()) this.hud.showToast('Stored animal in bag')
+      }
     }
 
     interaction.onOpenChest = (x, y, z) => {
@@ -513,15 +517,23 @@ export class Game {
     this.playing = true
     this.menu.hide()
     this.updateInputState()
+    this.updateMusic()
     this.controls.requestLock()
     this.mobileControls?.show()
     this.minimap.show()
+    if (this.session) this.minimap.setHome(this.session.spawn.x, this.session.spawn.z)
   }
 
   private resume(): void {
     this.menu.hide()
     this.updateInputState()
+    this.updateMusic()
     this.controls.requestLock()
+  }
+
+  /** Background music only sounds while actively playing (not on menu / paused). */
+  private updateMusic(): void {
+    this.music.setActive(this.playing && !this.menu.isOpen)
   }
 
   private quitToMenu(): void {
@@ -545,6 +557,7 @@ export class Game {
     this.teardownSession()
     this.menu.showMain(showProfileCta)
     this.updateInputState()
+    this.updateMusic()
     this.mobileControls?.hide()
     this.minimap.hide()
   }

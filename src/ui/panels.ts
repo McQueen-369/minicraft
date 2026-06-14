@@ -273,6 +273,9 @@ export class Panels {
     const slot = slots[i]
     if (slot) this.fillCell(el, slot)
     el.addEventListener('mousedown', () => this.clickSlot(slots, i))
+    // Touch devices: handle the tap directly and suppress the synthesized
+    // mouse event so a single tap doesn't pick-then-drop in one go.
+    el.addEventListener('touchstart', (e) => { e.preventDefault(); this.clickSlot(slots, i) }, { passive: false })
     return el
   }
 

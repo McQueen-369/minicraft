@@ -62,6 +62,7 @@ export class Minimap {
   private pos = { x: 0, z: 0 }
   private yaw = 0
   private markers: MapMarker[] = []
+  private home: { x: number; z: number } | null = null
 
   constructor(root: HTMLElement) {
     const style = document.createElement('style')
@@ -95,6 +96,7 @@ export class Minimap {
       '<span class="sw" style="background:#d23b3b"></span>You (arrow shows facing) &nbsp; ' +
       '<span class="sw" style="background:#ffd34d"></span>Animals &nbsp; ' +
       '<span class="sw" style="background:#7ad0ff"></span>Players<br>' +
+      '<span class="sw" style="background:#f4d35e"></span>🏠 Home &nbsp; ' +
       '<span class="sw" style="background:#2e6fae"></span>Water &nbsp; ' +
       '<span class="sw" style="background:#d9cfa0"></span>Sand &nbsp; ' +
       '<span class="sw" style="background:#5cab46"></span>Grass &nbsp; ' +
@@ -113,6 +115,11 @@ export class Minimap {
     close.addEventListener('click', closeBig)
     close.addEventListener('touchstart', closeBig, { passive: false })
     this.overlay.addEventListener('mousedown', (e) => { if (e.target === this.overlay) this.overlay.style.display = 'none' })
+  }
+
+  /** Mark the player's home (starter house) so it shows on the map. */
+  setHome(x: number, z: number): void {
+    this.home = { x, z }
   }
 
   show(): void { this.container.style.display = '' }
@@ -166,6 +173,17 @@ export class Minimap {
     }
     ctx.putImageData(img, 0, 0)
 
+    // Home icon — clamped to the map edge when off-screen so it always points
+    // the player back toward their house.
+    if (this.home) {
+      let sx = ((this.home.x - cx) / step) + size / 2
+      let sy = ((this.home.z - cz) / step) + size / 2
+      const m = size > 200 ? 9 : 6
+      sx = Math.max(m, Math.min(size - m, sx))
+      sy = Math.max(m, Math.min(size - m, sy))
+      drawHouseIcon(ctx, sx, sy, size > 200 ? 7 : 5)
+    }
+
     // Markers (animals, players).
     for (const m of this.markers) {
       const sx = ((m.x - cx) / step) + size / 2
@@ -200,6 +218,31 @@ export class Minimap {
     ctx.stroke()
     ctx.restore()
   }
+}
+
+/** A little house glyph: walls with a peaked roof, outlined for contrast. */
+function drawHouseIcon(ctx: CanvasRenderingContext2D, x: number, y: number, r: number): void {
+  ctx.save()
+  ctx.translate(x, y)
+  ctx.lineJoin = 'round'
+  ctx.lineWidth = 1.5
+  ctx.strokeStyle = '#3a2a12'
+  ctx.fillStyle = '#f4d35e'
+  // Walls.
+  ctx.beginPath()
+  ctx.rect(-r * 0.7, 0, r * 1.4, r)
+  ctx.fill()
+  ctx.stroke()
+  // Roof.
+  ctx.beginPath()
+  ctx.moveTo(-r, 0)
+  ctx.lineTo(0, -r)
+  ctx.lineTo(r, 0)
+  ctx.closePath()
+  ctx.fillStyle = '#c1440e'
+  ctx.fill()
+  ctx.stroke()
+  ctx.restore()
 }
 
 function terrainColor(h: number): [number, number, number] {

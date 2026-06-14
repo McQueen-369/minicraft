@@ -5,18 +5,8 @@ import { drawItemIcon } from './icons'
 import type { InfoContent } from './info'
 
 const STYLE = `
-.mc-inv-btn {
-  position: absolute; top: 140px; right: 12px; z-index: 7;
-  width: 52px; height: 52px; border-radius: 10px;
-  background: rgba(20,20,20,0.65); border: 2px solid #888;
-  color: #fff; font-size: 10px; font-weight: bold; text-align: center;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  cursor: pointer; user-select: none; gap: 2px;
-  -webkit-tap-highlight-color: transparent;
-}
-.mc-inv-btn:hover, .mc-inv-btn:active { border-color: #fff; background: rgba(60,60,60,0.7); }
 .mc-help-btn {
-  position: absolute; top: 140px; right: 72px; z-index: 7;
+  position: absolute; top: 140px; right: 12px; z-index: 7;
   width: 52px; height: 52px; border-radius: 10px;
   background: rgba(20,20,20,0.65); border: 2px solid #888;
   color: #fff; font-size: 22px; font-weight: bold;
@@ -26,7 +16,7 @@ const STYLE = `
 }
 .mc-help-btn:hover, .mc-help-btn:active { border-color: #fff; background: rgba(60,60,60,0.7); }
 .mc-music-btn {
-  position: absolute; top: 140px; right: 132px; z-index: 7;
+  position: absolute; top: 140px; right: 72px; z-index: 7;
   width: 52px; height: 52px; border-radius: 10px;
   background: rgba(20,20,20,0.65); border: 2px solid #888;
   color: #fff; font-size: 22px; font-weight: bold;
@@ -264,11 +254,12 @@ export class HUD {
       <p>E — Inventory &nbsp; 1–9 — Select hotbar &nbsp; Scroll — Cycle hotbar</p>
       <p>Left-click (hold) — Mine &nbsp; Right-click — Place / Use / Open chest</p>
       <h3>Mobile Controls</h3>
-      <p>Joystick — Move (push straight up to also jump)</p>
+      <p>Joystick — Move</p>
       <p>Swipe right side — Look around</p>
-      <p>JUMP — Jump &nbsp; MINE (hold) — Mine &nbsp; USE — Place / Interact</p>
-      <p>FLY — Toggle fly &nbsp; DOWN (fly) — Descend &nbsp; BAG — Inventory</p>
-      <p>Tap hotbar slot or type 1–9 — Select item</p>
+      <p>Green ▲ — Jump / fly up &nbsp; Red ⛏ (hold) — Mine &nbsp; Blue ▼ — Fly down</p>
+      <p>USE — Place / Interact &nbsp; FLY — Toggle fly</p>
+      <p>Double-tap the look area while aiming at your animal — Store it in the bag</p>
+      <p>Tap the BAG slot by the hotbar — Open inventory &nbsp; Tap hotbar slot — Select item</p>
       <h3>Furniture & Home</h3>
       <p>New worlds start with a furnished house (bedroom + living room) and a fenced farm</p>
       <p>Release tamed animals into the farm pen — toggle them to "stay" to keep them in</p>
@@ -295,28 +286,6 @@ export class HUD {
     overlay.appendChild(box)
     root.appendChild(overlay)
     this.instructionsOverlay = overlay
-
-    const invBtn = document.createElement('div')
-    invBtn.className = 'mc-inv-btn'
-    invBtn.title = 'Inventory (E)'
-    const svgNS = 'http://www.w3.org/2000/svg'
-    const svg = document.createElementNS(svgNS, 'svg')
-    svg.setAttribute('viewBox', '0 0 24 24')
-    svg.setAttribute('fill', 'none')
-    svg.setAttribute('stroke', 'currentColor')
-    svg.setAttribute('stroke-width', '2')
-    const rect = document.createElementNS(svgNS, 'rect')
-    rect.setAttribute('x', '2'); rect.setAttribute('y', '3')
-    rect.setAttribute('width', '20'); rect.setAttribute('height', '14'); rect.setAttribute('rx', '2')
-    const p1 = document.createElementNS(svgNS, 'path'); p1.setAttribute('d', 'M8 21h8M12 17v4')
-    const p2 = document.createElementNS(svgNS, 'path'); p2.setAttribute('d', 'M6 7h4M6 11h12')
-    svg.append(rect, p1, p2)
-    const label = document.createElement('span')
-    label.textContent = 'BAG'
-    invBtn.append(svg, label)
-    invBtn.addEventListener('click', () => this.onInventory())
-    invBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.onInventory() }, { passive: false })
-    root.appendChild(invBtn)
 
     // Nameplate for the animal / block under the crosshair, with an info button.
     this.nameplate = document.createElement('div')

@@ -100,6 +100,23 @@ export class BlockInteraction {
   /** Called by mobile USE button: place block / open chest / feed or toggle animal. */
   triggerRightClick(): void { if (this.active) this.rightClick() }
 
+  /**
+   * Called by a mobile double-tap: store the tamed animal under the crosshair
+   * into the bag (the touch equivalent of shift + right-click). Returns whether
+   * an animal was captured.
+   */
+  captureTargetAnimal(): boolean {
+    if (!this.active) return false
+    const animal = this.targetAnimal
+    if (!animal || animal.owner !== this.playerId) return false
+    const captureItem = captureItemFor(animal.kind)
+    if (this.inventory.add(captureItem, 1) > 0) return false // bag full
+    this.entities.capture(animal.id)
+    this.onAnimalEvent({ type: 'capture', animalId: animal.id })
+    this.targetAnimal = null
+    return true
+  }
+
   update(dt: number): void {
     if (!this.active) {
       this.highlight.visible = false

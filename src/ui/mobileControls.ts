@@ -22,57 +22,93 @@ const STYLE = `
   position: absolute; top: 0; bottom: 70px; right: 0; left: 50%;
   pointer-events: all; touch-action: none;
 }
+
+/* Coloured action cluster on the right, aligned with the joystick height. */
+.mc-action-cluster {
+  position: absolute; bottom: 200px; right: 16px;
+  width: 150px; height: 140px; pointer-events: none;
+}
+.mc-cbtn {
+  position: absolute; width: 64px; height: 64px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; cursor: pointer; user-select: none; pointer-events: all;
+  -webkit-tap-highlight-color: transparent;
+}
+.mc-cbtn svg { width: 30px; height: 30px; pointer-events: none; }
+.mc-jump-btn {
+  top: 0; left: 50%; transform: translateX(-50%);
+  background: rgba(100,200,100,0.32); border: 2px solid rgba(100,200,100,0.7);
+}
+.mc-jump-btn:active { background: rgba(100,200,100,0.6); }
+.mc-mine-btn {
+  bottom: 0; left: 0;
+  background: rgba(220,100,80,0.32); border: 2px solid rgba(220,100,80,0.7);
+}
+.mc-mine-btn:active { background: rgba(220,100,80,0.65); }
+.mc-down-btn {
+  bottom: 0; right: 0;
+  background: rgba(100,120,220,0.32); border: 2px solid rgba(100,120,220,0.7);
+}
+.mc-down-btn:active { background: rgba(100,120,220,0.65); }
+
+/* FLY / USE row, underneath the coloured cluster. */
 .mc-action-btns {
-  position: absolute; bottom: 80px; right: 16px;
-  display: flex; flex-direction: column; gap: 8px; pointer-events: all;
+  position: absolute; bottom: 120px; right: 16px;
+  display: flex; flex-direction: row; gap: 10px; pointer-events: all;
 }
 .mc-btn {
   width: 60px; height: 60px; border-radius: 50%;
   background: rgba(255,255,255,0.18); border: 2px solid rgba(255,255,255,0.4);
-  color: #fff; font-size: 11px; font-weight: bold;
+  color: #fff; font-size: 12px; font-weight: bold;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; user-select: none; text-shadow: 0 1px 2px #000;
   -webkit-tap-highlight-color: transparent;
 }
 .mc-btn:active { background: rgba(255,255,255,0.35); }
-.mc-jump-btn {
-  position: absolute; bottom: 80px; right: 92px;
-  width: 70px; height: 70px; border-radius: 50%;
-  background: rgba(100,200,100,0.3); border: 2px solid rgba(100,200,100,0.6);
-  color: #fff; font-size: 13px; font-weight: bold;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; user-select: none;
-  -webkit-tap-highlight-color: transparent; pointer-events: all;
-}
-.mc-jump-btn:active { background: rgba(100,200,100,0.55); }
-.mc-mine-btn {
-  position: absolute; bottom: 80px; right: 172px;
-  width: 70px; height: 70px; border-radius: 50%;
-  background: rgba(220,100,80,0.3); border: 2px solid rgba(220,100,80,0.6);
-  color: #fff; font-size: 12px; font-weight: bold;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; user-select: none;
-  -webkit-tap-highlight-color: transparent; pointer-events: all;
-}
-.mc-mine-btn:active { background: rgba(220,100,80,0.65); }
-.mc-down-btn {
-  position: absolute; bottom: 160px; right: 172px;
-  width: 60px; height: 60px; border-radius: 50%;
-  background: rgba(100,120,220,0.3); border: 2px solid rgba(100,120,220,0.6);
-  color: #fff; font-size: 12px; font-weight: bold;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; user-select: none;
-  -webkit-tap-highlight-color: transparent; pointer-events: all;
-}
-.mc-down-btn:active { background: rgba(100,120,220,0.65); }
 .mc-btn-active {
   background: rgba(255,220,50,0.45) !important; border-color: rgba(255,220,50,0.9) !important;
 }
 `
 
+const SVG_NS = 'http://www.w3.org/2000/svg'
+
+/** Build a small white-on-transparent icon for the action buttons. */
+function makeIcon(paths: string[], filled: boolean): SVGElement {
+  const svg = document.createElementNS(SVG_NS, 'svg')
+  svg.setAttribute('viewBox', '0 0 24 24')
+  if (filled) {
+    svg.setAttribute('fill', '#fff')
+    svg.setAttribute('stroke', 'none')
+  } else {
+    svg.setAttribute('fill', 'none')
+    svg.setAttribute('stroke', '#fff')
+    svg.setAttribute('stroke-width', '2')
+    svg.setAttribute('stroke-linecap', 'round')
+    svg.setAttribute('stroke-linejoin', 'round')
+  }
+  for (const d of paths) {
+    const p = document.createElementNS(SVG_NS, 'path')
+    p.setAttribute('d', d)
+    svg.appendChild(p)
+  }
+  return svg
+}
+
+const ICON_UP = ['M12 3 4 13h5v8h6v-8h5z']
+const ICON_DOWN = ['M12 21 4 11h5V3h6v8h5z']
+const ICON_PICK = [
+  'M14.531 12.469 6.619 20.38a1 1 0 1 1-3-3l7.912-7.912',
+  'M15.686 4.314A12.5 12.5 0 0 0 5.461 2.958 1 1 0 0 0 5.58 4.71a22 22 0 0 1 6.318 3.393',
+  'M17.7 3.7a1 1 0 0 0-1.4 0l-4.6 4.6a1 1 0 0 0 0 1.4l2.6 2.6a1 1 0 0 0 1.4 0l4.6-4.6a1 1 0 0 0 0-1.4z',
+  'M19.686 8.314a12.5 12.5 0 0 1 1.356 10.225 1 1 0 0 1-1.751-.119 22 22 0 0 0-3.393-6.319',
+]
+
 const BASE_RADIUS = 70
 const KNOB_RADIUS = 27
 const MAX_DIST = BASE_RADIUS - KNOB_RADIUS
+const TAP_MAX_MS = 250
+const TAP_MAX_MOVE = 10
+const DOUBLE_TAP_MS = 300
 
 export class MobileControls {
   private readonly container: HTMLDivElement
@@ -82,12 +118,16 @@ export class MobileControls {
   private joystickOrigin = { x: 0, y: 0 }
   private lookTouchId: number | null = null
   private lookLast = { x: 0, y: 0 }
+  private lookStart = { x: 0, y: 0 }
+  private lookStartTime = 0
+  private lookMoved = false
+  private lastTapTime = 0
   private jumpHolds = 0
-  private joystickAutoJump = false
-  onInventory: () => void = () => {}
   onMineStart: () => void = () => {}
   onMineStop: () => void = () => {}
   onUse: () => void = () => {}
+  /** Double-tap on the look area — used to store the targeted animal in the bag. */
+  onDoubleTap: () => void = () => {}
 
   constructor(
     root: HTMLElement,
@@ -116,7 +156,7 @@ export class MobileControls {
     jZone.addEventListener('touchend', (e) => this.onJoystickEnd(e), { passive: false })
     jZone.addEventListener('touchcancel', (e) => this.onJoystickEnd(e), { passive: false })
 
-    // Look zone (right half of screen)
+    // Look zone (right half of screen). A quick double-tap stores the targeted animal.
     const lookZone = document.createElement('div')
     lookZone.className = 'mc-look-zone'
     lookZone.addEventListener('touchstart', (e) => this.onLookStart(e), { passive: false })
@@ -125,34 +165,44 @@ export class MobileControls {
     lookZone.addEventListener('touchcancel', (e) => this.onLookEnd(e), { passive: false })
     this.container.appendChild(lookZone)
 
-    // Jump / fly-up button — held while finger is down so it also works as fly-up
+    // Coloured action cluster (right side, aligned with the joystick height):
+    // JUMP on top, MINE bottom-left, DOWN bottom-right.
+    const cluster = document.createElement('div')
+    cluster.className = 'mc-action-cluster'
+
+    // Jump button (green, up arrow) — held while the finger is down so it also
+    // works as fly-up.
     const jumpBtn = document.createElement('div')
-    jumpBtn.className = 'mc-jump-btn'
-    jumpBtn.textContent = 'JUMP'
+    jumpBtn.className = 'mc-cbtn mc-jump-btn'
+    jumpBtn.title = 'Jump / fly up'
+    jumpBtn.appendChild(makeIcon(ICON_UP, true))
     jumpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.addJump() }, { passive: false })
     jumpBtn.addEventListener('touchend', (e) => { e.preventDefault(); this.removeJump() }, { passive: false })
     jumpBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); this.removeJump() }, { passive: false })
-    this.container.appendChild(jumpBtn)
+    cluster.appendChild(jumpBtn)
 
-    // Mine / break button (hold = hold left-click)
+    // Mine / break button (red, pickaxe; hold = hold left-click).
     const mineBtn = document.createElement('div')
-    mineBtn.className = 'mc-mine-btn'
-    mineBtn.textContent = 'MINE'
+    mineBtn.className = 'mc-cbtn mc-mine-btn'
+    mineBtn.title = 'Mine'
+    mineBtn.appendChild(makeIcon(ICON_PICK, false))
     mineBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.onMineStart() }, { passive: false })
     mineBtn.addEventListener('touchend', (e) => { e.preventDefault(); this.onMineStop() }, { passive: false })
     mineBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); this.onMineStop() }, { passive: false })
-    this.container.appendChild(mineBtn)
+    cluster.appendChild(mineBtn)
 
-    // Fly-down button (hold = sink while flying)
+    // Fly-down button (blue, down arrow; hold = sink while flying).
     const downBtn = document.createElement('div')
-    downBtn.className = 'mc-down-btn'
-    downBtn.textContent = 'DOWN'
+    downBtn.className = 'mc-cbtn mc-down-btn'
+    downBtn.title = 'Fly down'
+    downBtn.appendChild(makeIcon(ICON_DOWN, true))
     downBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.controls.keys.add('ShiftLeft') }, { passive: false })
     downBtn.addEventListener('touchend', (e) => { e.preventDefault(); this.controls.keys.delete('ShiftLeft') }, { passive: false })
     downBtn.addEventListener('touchcancel', (e) => { e.preventDefault(); this.controls.keys.delete('ShiftLeft') }, { passive: false })
-    this.container.appendChild(downBtn)
+    cluster.appendChild(downBtn)
+    this.container.appendChild(cluster)
 
-    // Action buttons column (right side, stacked top → bottom = FLY, USE, BAG)
+    // FLY / USE row, underneath the coloured cluster.
     const actionBtns = document.createElement('div')
     actionBtns.className = 'mc-action-btns'
 
@@ -174,13 +224,6 @@ export class MobileControls {
     useBtn.textContent = 'USE'
     useBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.onUse() }, { passive: false })
     actionBtns.appendChild(useBtn)
-
-    // Inventory button
-    const invBtn = document.createElement('div')
-    invBtn.className = 'mc-btn'
-    invBtn.textContent = 'BAG'
-    invBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.onInventory() }, { passive: false })
-    actionBtns.appendChild(invBtn)
     this.container.appendChild(actionBtns)
 
     root.appendChild(this.container)
@@ -210,10 +253,6 @@ export class MobileControls {
       this.joystickTouchId = null
       this.knob.style.transform = 'translate(-50%,-50%)'
       this.controls.joystickDir = null
-      if (this.joystickAutoJump) {
-        this.joystickAutoJump = false
-        this.removeJump()
-      }
     }
   }
 
@@ -238,10 +277,6 @@ export class MobileControls {
 
     if (dist < 8) {
       this.controls.joystickDir = null
-      if (this.joystickAutoJump) {
-        this.joystickAutoJump = false
-        this.removeJump()
-      }
       return
     }
     // ny positive = screen-down = move forward; nx positive = screen-right = strafe right
@@ -253,16 +288,6 @@ export class MobileControls {
     const len = Math.hypot(wx, wz)
     if (len > 0) { wx /= len; wz /= len }
     this.controls.joystickDir = { x: wx, z: wz }
-
-    // Auto-jump when joystick is pushed strongly forward (upward) and held there
-    const isForwardJump = fwd > 0.8 && dist > 15
-    if (isForwardJump && !this.joystickAutoJump) {
-      this.joystickAutoJump = true
-      this.addJump()
-    } else if (!isForwardJump && this.joystickAutoJump) {
-      this.joystickAutoJump = false
-      this.removeJump()
-    }
   }
 
   private onLookStart(e: TouchEvent): void {
@@ -271,6 +296,9 @@ export class MobileControls {
     const t = e.changedTouches[0]
     this.lookTouchId = t.identifier
     this.lookLast = { x: t.clientX, y: t.clientY }
+    this.lookStart = { x: t.clientX, y: t.clientY }
+    this.lookStartTime = performance.now()
+    this.lookMoved = false
   }
 
   private onLookMove(e: TouchEvent): void {
@@ -280,6 +308,9 @@ export class MobileControls {
       const dx = t.clientX - this.lookLast.x
       const dy = t.clientY - this.lookLast.y
       this.lookLast = { x: t.clientX, y: t.clientY }
+      if (Math.hypot(t.clientX - this.lookStart.x, t.clientY - this.lookStart.y) > TAP_MAX_MOVE) {
+        this.lookMoved = true
+      }
       this.controls.touchLook(dx, dy)
     }
   }
@@ -287,7 +318,18 @@ export class MobileControls {
   private onLookEnd(e: TouchEvent): void {
     e.preventDefault()
     for (const t of Array.from(e.changedTouches)) {
-      if (t.identifier === this.lookTouchId) this.lookTouchId = null
+      if (t.identifier !== this.lookTouchId) continue
+      this.lookTouchId = null
+      const now = performance.now()
+      const wasTap = !this.lookMoved && now - this.lookStartTime < TAP_MAX_MS
+      if (wasTap) {
+        if (now - this.lastTapTime < DOUBLE_TAP_MS) {
+          this.lastTapTime = 0
+          this.onDoubleTap()
+        } else {
+          this.lastTapTime = now
+        }
+      }
     }
   }
 
@@ -301,7 +343,6 @@ export class MobileControls {
     this.controls.joystickDir = null
     this.joystickTouchId = null
     this.lookTouchId = null
-    this.joystickAutoJump = false
     this.jumpHolds = 0
     this.controls.keys.delete('Space')
     this.controls.keys.delete('ShiftLeft')
