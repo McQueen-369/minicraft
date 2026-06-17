@@ -1,4 +1,5 @@
 import { CHEST_SLOTS } from '../constants'
+import { BlockId } from '../core/blocks'
 import { hash2D } from '../core/rng'
 import { ItemId, type ChestContents } from './items'
 
@@ -26,6 +27,39 @@ export function chestLoot(seed: number, x: number, z: number): ChestContents {
   if (r(13) < 0.5) {
     const furniture = [ItemId.Chair, ItemId.Desk, ItemId.Bed, ItemId.Sofa, ItemId.Window, ItemId.Door]
     put(furniture[Math.floor(r(14) * furniture.length) % furniture.length], 1)
+  }
+  return contents
+}
+
+/** Instant loot from breaking/right-clicking a mystery box. */
+export function mysteryBoxLoot(blockId: number): ChestContents {
+  const contents: ChestContents = []
+  const rand = () => Math.random()
+  if (blockId === BlockId.MysteryBoxEpic) {
+    contents.push({ itemId: ItemId.StonePickaxe, count: 1 })
+    contents.push({ itemId: ItemId.Axe, count: 1 })
+    contents.push({ itemId: ItemId.Shears, count: 1 })
+    contents.push({ itemId: ItemId.Net, count: 1 })
+    contents.push({ itemId: ItemId.Fish, count: 5 + Math.floor(rand() * 5) })
+    contents.push({ itemId: ItemId.Apple, count: 5 + Math.floor(rand() * 5) })
+    contents.push({ itemId: ItemId.Bone, count: 5 + Math.floor(rand() * 5) })
+    const furniture = [ItemId.Chair, ItemId.Desk, ItemId.Bed, ItemId.Sofa, ItemId.Window, ItemId.Door]
+    contents.push({ itemId: furniture[Math.floor(rand() * furniture.length)], count: 2 })
+  } else if (blockId === BlockId.MysteryBoxRare) {
+    if (rand() < 0.7) contents.push({ itemId: ItemId.StonePickaxe, count: 1 })
+    else contents.push({ itemId: ItemId.WoodPickaxe, count: 1 })
+    if (rand() < 0.6) contents.push({ itemId: ItemId.Axe, count: 1 })
+    if (rand() < 0.5) contents.push({ itemId: ItemId.Net, count: 1 })
+    contents.push({ itemId: ItemId.Fish, count: 2 + Math.floor(rand() * 4) })
+    contents.push({ itemId: ItemId.Bone, count: 2 + Math.floor(rand() * 4) })
+    if (rand() < 0.5) contents.push({ itemId: ItemId.Shears, count: 1 })
+  } else {
+    // Common teal mystery box
+    contents.push({ itemId: ItemId.WoodPickaxe, count: 1 })
+    if (rand() < 0.4) contents.push({ itemId: ItemId.Net, count: 1 })
+    contents.push({ itemId: ItemId.Fish, count: 1 + Math.floor(rand() * 3) })
+    contents.push({ itemId: ItemId.Apple, count: 3 + Math.floor(rand() * 4) })
+    contents.push({ itemId: ItemId.Wheat, count: 3 + Math.floor(rand() * 4) })
   }
   return contents
 }

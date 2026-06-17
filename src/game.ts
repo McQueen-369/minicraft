@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { Music } from './audio/music'
-import { AUTOSAVE_INTERVAL_MS, CLOUD_AUTOSAVE_INTERVAL_MS, WATER_LEVEL } from './constants'
+import { AUTOSAVE_INTERVAL_MS, CLOUD_AUTOSAVE_INTERVAL_MS, PLAYER_EYE, WATER_LEVEL } from './constants'
 import { blockKey, chunkKey, worldToChunk } from './core/coords'
 import { hashString } from './core/rng'
 import { DecorationManager } from './entities/decorations'
@@ -14,6 +14,7 @@ import { Inventory } from './items/inventory'
 import { furnitureItemFor, ItemId } from './items/items'
 import type { ChestContents, Slot } from './items/items'
 import { buildStarterHouse } from './world/house'
+import { buildVillage, villageAnchorForChunk } from './world/village'
 import { Minimap, type MapMarker } from './ui/minimap'
 import * as cloud from './net/cloud'
 import { isSessionExpired, loadStoredProfile, storeProfile, type Profile, type WorldMeta } from './net/cloud'
@@ -31,6 +32,12 @@ import { animalInfo, itemInfo } from './ui/info'
 import { Menu } from './ui/menu'
 import { MobileControls } from './ui/mobileControls'
 import { Panels } from './ui/panels'
+import { Chat } from './ui/chat'
+import { CraftingPanel } from './ui/crafting'
+import { MarketPanel } from './ui/market'
+import { playAnimalSound } from './audio/sounds'
+import { FishSchool } from './render/fish'
+import { BirdFlock } from './render/birds'
 import { Terrain } from './world/terrain'
 import { World } from './world/world'
 
@@ -47,8 +54,11 @@ interface Session {
   interaction: BlockInteraction
   sky: Sky
   water: THREE.Mesh
+  fish: FishSchool
+  birds: BirdFlock
   seed: number
   spawn: { x: number; z: number }
+  builtVillages: Set<string>
 }
 
 export class Game {
@@ -61,7 +71,12 @@ export class Game {
   private readonly panels: Panels
   private readonly menu: Menu
   private readonly minimap: Minimap
+  private readonly chat: Chat
+  private readonly crafting: CraftingPanel
+  private readonly market: MarketPanel
   private readonly music = new Music()
+  private mountedHorseId: string | null = null
+  private handGroup: THREE.Group | null = null
   private readonly worldStore = new MultiWorldStore(localStorage)
   private readonly playerId = crypto.randomUUID().slice(0, 8)
   private readonly mobileControls: MobileControls | null = null
@@ -95,6 +110,9 @@ export class Game {
     this.hud = new HUD(root, this.inventory, this.atlas.canvas)
     this.panels = new Panels(root, this.inventory, this.atlas.canvas)
     this.minimap = new Minimap(root)
+    this.chat = new Chat(root)
+    this.crafting = new CraftingPanel(root, this.inventory, this.atlas.canvas)
+    this.market = new MarketPanel(root, this.inventory, this.atlas.canvas)
     this.menu = new Menu(root, {
       listLocalSlots: () => this.worldStore.listSlots(),
       onPlaySlot: (index) => this.startSlot(index),
@@ -137,6 +155,36 @@ export class Game {
       }
     }
     this.hud.onInventory = openInventory
+    this.hud.onChatToggle = () => {
+      if (!this.playing || this.menu.isOpen) return
+      this.chat.togglePanel()
+    }
+    this.hud.onCraftToggle = () => {
+      if (!this.playing || this.menu.isOpen) return
+      if (this.crafting.isOpen) {
+        this.crafting.close()
+      } else {
+        this.controls.releaseLock()
+        this.crafting.open()
+        this.hud.setCraftOpen(true)
+        this.updateInputState()
+      }
+    }
+    this.crafting.onClose = () => {
+      this.hud.setCraftOpen(false)
+      this.updateInputState()
+      if (this.playing && !this.panels.isOpen && !this.menu.isOpen) this.controls.requestLock()
+    }
+    this.crafting.onCraft = () => {
+      this.hud.showToast('Crafted!')
+    }
+    this.market.onClose = () => {
+      this.updateInputState()
+      if (this.playing && !this.panels.isOpen && !this.menu.isOpen) this.controls.requestLock()
+    }
+    this.market.onTrade = (name) => {
+      this.hud.showToast(`Traded for ${name}!`)
+    }
     this.hud.onInfoClose = () => {
       if (this.playing && !this.menu.isOpen && !this.panels.isOpen) this.controls.requestLock()
     }
@@ -191,11 +239,43 @@ export class Game {
     })
     document.addEventListener('keydown', (e) => {
       if (!this.playing) return
+      if (e.code === 'KeyF' && this.mountedHorseId && !this.menu.isOpen) {
+        // Undo the fly toggle Controls just made, and dismount instead.
+        this.controls.fly = !this.controls.fly
+        this.dismountHorse()
+      }
       if (e.code === 'KeyE' && !this.menu.isOpen) openInventory()
       if (e.code === 'KeyI' && !this.menu.isOpen && !this.panels.isOpen) {
-        // Release the pointer so the info card is clickable on desktop; the
-        // pointerlockchange guard above keeps the pause menu from appearing.
+        // I with a named target → open target info; otherwise open instructions.
         if (this.hud.openTargetInfo()) this.controls.releaseLock()
+        else this.hud.showInstructions()
+      }
+      if (e.code === 'KeyC' && !this.panels.isOpen && !this.menu.isOpen && !this.chat.isOpen && !this.crafting.isOpen) {
+        e.preventDefault()
+        this.chat.openPanel()
+        this.hud.setChatOpen(true)
+      } else if (e.code === 'KeyC' && this.chat.isOpen) {
+        e.preventDefault()
+        this.chat.closePanel()
+      }
+      if (e.code === 'KeyZ' && !this.panels.isOpen && !this.menu.isOpen && !this.chat.isOpen) {
+        e.preventDefault()
+        if (this.crafting.isOpen) {
+          this.crafting.close()
+        } else {
+          this.controls.releaseLock()
+          this.crafting.open()
+          this.hud.setCraftOpen(true)
+          this.updateInputState()
+        }
+      }
+      if (e.code === 'KeyM' && !this.menu.isOpen) {
+        e.preventDefault()
+        this.minimap.toggleMap()
+      }
+      if (e.code === 'Enter' && this.mp && !this.panels.isOpen && !this.menu.isOpen && !this.chat.isOpen) {
+        e.preventDefault()
+        this.chat.openPanel(true)
       }
       if (this.controls.gameplayInput && e.code.startsWith('Digit')) {
         const n = Number(e.code.slice(5))
@@ -270,12 +350,44 @@ export class Game {
       this.mobileControls.onMineStart = () => interaction.startMining()
       this.mobileControls.onMineStop = () => interaction.stopMining()
       this.mobileControls.onUse = () => interaction.triggerRightClick()
+      // Single tap the look area to trigger right-click (feed/tame).
+      this.mobileControls.onTap = () => {
+        interaction.triggerRightClick()
+      }
       // Double-tap the look area to store the targeted tamed animal in the bag.
       this.mobileControls.onDoubleTap = () => {
         if (interaction.captureTargetAnimal()) this.hud.showToast('Stored animal in bag')
       }
     }
     interaction.onFish = () => this.hud.showToast('Caught a fish!')
+    interaction.onMysteryBoxOpen = (rarity) => this.hud.showToast(`Opened a ${rarity} Mystery Box!`)
+    interaction.onOpenMarket = () => {
+      this.controls.releaseLock()
+      this.market.open(seed)
+      this.updateInputState()
+    }
+    interaction.onMount = (animalId) => {
+      const horse = entities.animals.get(animalId)
+      if (!horse) return
+      horse.mode = 'ridden'
+      this.mountedHorseId = animalId
+      this.controls.fly = false
+      this.hud.showToast('Riding horse — press F to dismount')
+    }
+
+    this.chat.onSend = (text) => {
+      const name = this.mp?.selfName ?? 'Player'
+      this.chat.showMessage(name, text, true)
+      this.mp?.sendChat(text)
+    }
+    this.chat.onOpen = () => {
+      this.controls.gameplayInput = false
+      this.hud.setChatOpen(true)
+    }
+    this.chat.onClose = () => {
+      this.updateInputState()
+      this.hud.setChatOpen(false)
+    }
 
     interaction.onOpenChest = (x, y, z) => {
       if (world.isTreasureChest(x, y, z)) {
@@ -288,8 +400,12 @@ export class Game {
       this.updateInputState()
     }
     interaction.onBlockEdit = (x, y, z, id) => this.mp?.sendEdit(x, y, z, id)
-    interaction.onAnimalEvent = (ev) =>
+    interaction.onAnimalEvent = (ev) => {
+      if (ev.type === 'tame' && ev.kind) {
+        playAnimalSound(ev.kind as import('./items/items').AnimalKind)
+      }
       this.mp?.sendAnimalEvent({ ev: ev.type, animalId: ev.animalId ?? '', kind: ev.kind, pos: ev.pos, owner: ev.owner })
+    }
     interaction.onFurnitureEvent = (ev: FurnitureEvent) => this.mp?.sendFurniture({ ev: ev.type, item: ev.item, id: ev.id })
 
     const water = new THREE.Mesh(
@@ -300,13 +416,34 @@ export class Game {
     water.position.y = WATER_LEVEL + 0.35
     scene.add(water)
 
-    this.session = { world, scene, player, chunkRenderer, entities, furniture, decorations, interaction, sky, water, seed, spawn }
+    // First-person hand viewmodel
+    if (this.handGroup) this.camera.remove(this.handGroup)
+    const handGroup = new THREE.Group()
+    const handMat = new THREE.MeshLambertMaterial({ color: 0xffcc99, fog: false, depthTest: false })
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.28, 0.06), handMat)
+    arm.position.y = -0.14
+    arm.renderOrder = 100
+    const fist = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.09), handMat)
+    fist.position.y = -0.33
+    fist.renderOrder = 100
+    handGroup.add(arm, fist)
+    handGroup.position.set(0.2, -0.2, -0.38)
+    this.camera.add(handGroup)
+    this.handGroup = handGroup
+
+    const fish = new FishSchool(scene, seed)
+    const birds = new BirdFlock(scene, seed)
+    this.session = { world, scene, player, chunkRenderer, entities, furniture, decorations, interaction, sky, water, fish, birds, seed, spawn, builtVillages: new Set() }
     this.worldReady = false
     this.saveTimer = 0
   }
 
   private teardownSession(): void {
     if (!this.session) return
+    if (this.handGroup) {
+      this.camera.remove(this.handGroup)
+      this.handGroup = null
+    }
     this.session.interaction.dispose()
     this.session.scene.traverse((obj) => {
       if (obj instanceof THREE.Mesh || obj instanceof THREE.LineSegments) {
@@ -513,6 +650,10 @@ export class Game {
           fm.toggleDoor(msg.id)
         }
       },
+      onChat: (playerId: string, name: string, text: string) => {
+        void playerId
+        this.chat.showMessage(name, text)
+      },
     }
   }
 
@@ -524,6 +665,7 @@ export class Game {
     this.controls.requestLock()
     this.mobileControls?.show()
     this.minimap.show()
+    this.chat.show()
     if (this.session) this.minimap.setHome(this.session.spawn.x, this.session.spawn.z)
   }
 
@@ -556,17 +698,29 @@ export class Game {
     this.mp = null
     this.playing = false
     this.cloudWorld = null
+    this.mountedHorseId = null
     this.panels.close()
+    this.crafting.close()
+    this.market.close()
     this.teardownSession()
     this.menu.showMain(showProfileCta)
     this.updateInputState()
     this.updateMusic()
     this.mobileControls?.hide()
     this.minimap.hide()
+    this.chat.hide()
   }
 
   private updateInputState(): void {
-    this.controls.gameplayInput = !this.panels.isOpen && !this.menu.isOpen
+    this.controls.gameplayInput = !this.panels.isOpen && !this.menu.isOpen && !this.chat.isOpen && !this.market.isOpen
+  }
+
+  private dismountHorse(): void {
+    if (!this.session || !this.mountedHorseId) return
+    const horse = this.session.entities.animals.get(this.mountedHorseId)
+    if (horse && horse.mode === 'ridden') horse.mode = 'follow'
+    this.mountedHorseId = null
+    this.hud.showToast('Dismounted horse')
   }
 
   /**
@@ -599,6 +753,20 @@ export class Game {
     const s = this.session
     if (!s) return
 
+    // Horse riding: push rider controls into the horse before entities update.
+    const HORSE_RIDE_SPEED = 5.5
+    if (this.mountedHorseId) {
+      const horse = s.entities.animals.get(this.mountedHorseId)
+      if (horse && horse.mode === 'ridden') {
+        const dir = this.controls.moveDirection()
+        horse.riderVel = { x: dir.x * HORSE_RIDE_SPEED, z: dir.z * HORSE_RIDE_SPEED }
+        horse.riderJump = this.controls.keys.has('Space') && this.controls.gameplayInput
+        horse.yaw = this.controls.yaw + Math.PI
+      } else {
+        this.mountedHorseId = null
+      }
+    }
+
     const pos = s.player.state.pos
     if (!this.worldReady) {
       // Stream aggressively until the area around the spawn point is meshed.
@@ -609,8 +777,22 @@ export class Game {
     }
 
     if (this.playing && this.worldReady) {
-      s.player.update(dt, this.controls)
+      if (!this.mountedHorseId) s.player.update(dt, this.controls)
       s.interaction.update(dt)
+    }
+
+    // Build villages when their anchor chunk loads (host/singleplayer only).
+    if (this.mode !== 'guest') {
+      for (const key of s.world.chunks.keys()) {
+        if (s.builtVillages.has(key)) continue
+        const [cx, cz] = key.split(',').map(Number)
+        if (villageAnchorForChunk(s.seed, cx, cz)) {
+          s.builtVillages.add(key)
+          buildVillage(s.world, s.furniture, s.entities, cx, cz)
+        } else {
+          s.builtVillages.add(key)
+        }
+      }
     }
     s.player.applyCamera(this.camera, this.controls)
     this.updateNameplate(s)
@@ -624,11 +806,40 @@ export class Game {
       }
     }
     s.entities.update(dt, pos, owners, this.mode !== 'guest')
+
+    // After horse physics, sync player position onto the horse.
+    if (this.mountedHorseId) {
+      const horse = s.entities.animals.get(this.mountedHorseId)
+      if (horse && horse.mode === 'ridden') {
+        s.player.state.pos.x = horse.pos.x
+        s.player.state.pos.y = horse.pos.y + 1.4
+        s.player.state.pos.z = horse.pos.z
+        s.player.state.vel.x = 0
+        s.player.state.vel.y = 0
+        s.player.state.vel.z = 0
+      } else {
+        this.mountedHorseId = null
+      }
+    }
+
     s.furniture.update(pos, dt)
+    s.fish.update(dt, pos.x, pos.z)
+    s.birds.update(dt, pos.x, pos.z)
     if (this.worldReady) s.decorations.update(s.world, pos, dt)
     s.sky.update(dt, this.camera.position)
     s.water.position.x = pos.x
     s.water.position.z = pos.z
+
+    // Hand swing animation
+    if (this.handGroup) {
+      const prog = s.interaction.miningProgress
+      const targetX = prog !== null ? -Math.sin(prog * Math.PI) * 0.7 : 0
+      this.handGroup.rotation.x += (targetX - this.handGroup.rotation.x) * Math.min(dt * 14, 1)
+    }
+
+    // Underwater blue tint
+    const eyeY = pos.y + PLAYER_EYE
+    this.hud.setUnderwater(eyeY < WATER_LEVEL + 0.35)
 
     this.mp?.update(
       dt,
@@ -678,7 +889,7 @@ export class Game {
         name = animal.kind.charAt(0).toUpperCase() + animal.kind.slice(1)
         info = animalInfo(animal.kind)
       } else if (furn) {
-        const itemId = furnitureItemFor(furn.kind)
+        const itemId = furnitureItemFor(furn.kind) ?? 0
         key = `f:${furn.kind}`
         name = FURNITURE_LABEL[furn.kind]
         info = itemInfo(itemId)

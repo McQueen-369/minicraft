@@ -7,7 +7,7 @@ export interface InfoContent {
   lines: string[]
 }
 
-const TAME_FOOD: Record<AnimalKind, string> = {
+const TAME_FOOD: Partial<Record<AnimalKind, string>> = {
   pig: 'Apple',
   chicken: 'Seeds',
   sheep: 'Wheat',
@@ -22,7 +22,13 @@ function capitalize(s: string): string {
 
 /** How to tame, command, capture and release a given animal. */
 export function animalInfo(kind: AnimalKind): InfoContent {
-  const food = TAME_FOOD[kind]
+  if (kind === 'villager') {
+    return {
+      title: 'Villager',
+      lines: ['A friendly inhabitant of the village.', 'Villagers wander peacefully and cannot be tamed or captured.'],
+    }
+  }
+  const food = TAME_FOOD[kind]!
   return {
     title: capitalize(kind),
     lines: [

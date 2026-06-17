@@ -1,6 +1,6 @@
 export const CHUNK_SIZE = 16
 export const WORLD_HEIGHT = 96
-export const RENDER_DISTANCE = 7
+export const RENDER_DISTANCE = 12
 export const UNLOAD_DISTANCE = RENDER_DISTANCE + 1
 export const WATER_LEVEL = 24
 

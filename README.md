@@ -1,21 +1,81 @@
 # Minicraft
 
-A browser-based Minecraft-style voxel game built from scratch with Three.js + TypeScript.
-No assets, no engine — terrain, textures, animals, and UI are all generated procedurally in code.
+A browser-based 3D voxel exploration game built with Three.js and TypeScript.
+No assets — terrain, textures, animals, buildings, and UI are all generated procedurally in code.
 
 ![Minicraft](https://img.shields.io/badge/built%20with-three.js-049EF4)
 
 ## Features
 
-- **Infinite terrain** — seeded simplex-noise hills, lakes with sand beaches, trees, streamed in 16×96×16 chunks as you explore
-- **Mine & build** — hold left-click to mine (tools matter!), right-click to place; 10 block types
-- **Inventory** — 200-slot inventory with stacks up to 200; open with E or the bag button; hotbar slots 1–9
-- **Tools & chests** — wood/stone pickaxes, axe, and shears spawn in naturally generated loot chests; chests store items
-- **Animals** — pigs, chickens, sheep, rabbits, cats, and dogs wander the world. Feed them to tame (pigs→carrot, chickens→seeds, sheep→wheat, rabbits→apple, cats→fish, dogs→bone), tell them to follow or stay, capture them to carry
-- **Day-night cycle** — 30-minute days and 20-minute nights with sunrises, sunsets, and starry-dark nights; a live HUD timer shows time remaining in the current phase
-- **5 local save slots** — keep up to 5 named worlds per browser; your existing save is automatically migrated to Slot 1
-- **Player profiles & cloud saves** — create a profile (username + password, no email) and your worlds save to Supabase every 30 seconds; play them from any device, keep as many named worlds as you like
-- **Online multiplayer** — host a room from any local or cloud world and friends join with a code from anywhere, via Supabase Realtime; block edits, players, chests, and animals all sync
+### World & Exploration
+- **Infinite procedural terrain** — seeded simplex-noise hills, rivers, lakes with sand beaches, streamed in chunks as you explore
+- **Expanded render distance** — 12-chunk view radius for wide-open exploration
+- **Day/night cycle** — sun, moon, and stars; live HUD timer shows current phase
+- **Villages** — procedurally placed settlements with houses, a campfire, a market stall, and villager NPCs
+- **Minimap** — press M to toggle; shows nearby animals and your home spawn
+
+### Blocks & Resources
+- **10+ block types** — Grass, Dirt, Stone, Sand, Wood, Leaves, Apple Leaves, Planks, Brick, Glass, Ladder
+- **Gold Ore** — shiny yellow spots appear on the surface; rich veins run through deep stone layers
+- **Mystery Boxes** — Common, Rare, and Epic variants found in the wild, each containing random loot
+- **Loot chests** — naturally generated on the surface, filled with tools and resources
+
+### Animals & Taming
+| Animal | Tamed with | Notes |
+|--------|-----------|-------|
+| Pig | Apple | Found under trees |
+| Sheep | Wheat | Roams open fields |
+| Chicken | Seeds | Common everywhere |
+| Rabbit | Carrot | Fast; skittish |
+| Cat | Fish | Needs a fishing net |
+| Dog | Bone | Mining leaves may drop bones |
+| Horse | Wheat | Rideable! Press F to dismount |
+
+- Tamed animals **follow** you by default; right-click to toggle **follow/stay**
+- **Shift + right-click** a tamed animal to capture it into your bag
+- Right-click on captured animal item to **release** it at a target spot
+
+### Horses
+- Tame with Wheat, then **right-click** to mount
+- Horses are significantly faster than walking (~5.5 m/s)
+- Press **F** to dismount
+- Horses can jump over obstacles (Space while riding)
+
+### Apple Trees
+- About 30% of trees are apple trees — recognisable by the **red apples** visible in their leaf canopy
+- Breaking apple leaves drops an Apple; regular leaves drop a Leaf block (and occasionally a Bone)
+
+### Fishing
+- Start with a **Fishing Net** in your hotbar
+- Aim at water and **right-click** to cast — works if the ray hits an underwater block or crosses the water surface
+- Visible **fish schools** swim beneath the surface
+
+### Market
+- Visit the market stall in any village and **right-click** to open
+- Spend Gold to buy raw materials, food, tools, and furniture
+- Stock of 8 items rotates **hourly** (seeded by the world)
+- Gold is mined from Gold Ore deposits
+
+### Crafting
+- Press **Z** to open the crafting table — craft planks from wood, glass from sand, and more
+
+### Building & Furniture
+- Place doors, windows, desks, chairs, beds, sofas, chests, and ladders
+- **Left-click** on placed furniture to pick it back up; campfires and market stalls are fixed
+- Chests store up to 27 extra item stacks
+
+### Atmosphere
+- **Colorful birds** circle overhead in the sky
+- **Fish schools** swim in lakes and ponds
+- Underwater blue tint when submerged
+- Background music (toggle with the music button in the HUD)
+
+### Multiplayer *(requires Supabase — see setup below)*
+- Host a world and share a room code (e.g. `MC-4821`) with friends
+- Block edits, animals, chests, and player avatars sync in real time
+- Real-time **chat** (press C or Enter)
+
+---
 
 ## Run it
 
@@ -24,78 +84,97 @@ npm install
 npm run dev        # open http://localhost:5173
 ```
 
-Other commands: `npm run test:run` (unit tests), `npm run build` (production build into dist/).
+Other commands: `npm run test:run` (80+ unit tests), `npm run build` (production build into `dist/`).
 
 ### Multiplayer setup
 
-Copy `.env.example` to `.env.local` (already contains working publishable keys for the
-shared Supabase project — these are client-side keys, safe in the browser):
+Copy `.env.example` to `.env.local` (contains working publishable keys for the shared Supabase project):
 
 ```bash
 cp .env.example .env.local
 ```
 
-Without `.env.local` the game runs in singleplayer (localStorage saves) only.
+Without `.env.local` the game runs in singleplayer-only mode.
 
-- **Host** opens a room from a local world slot and shows a room code (e.g. `MC-4821`)
-- Friends pick **Join Game** and enter the code — they spawn at your world's spawn point
-- The host's browser is the source of truth: it simulates animals and saves the world
+### Profiles & cloud saves
 
-### Profiles & cloud worlds
+Click **Create Profile** on the main menu to save worlds to the cloud (username + password — no email):
 
-Click **Create Profile** on the menu (username + password — no email involved) to
-save worlds to the cloud instead of the browser:
+- Worlds autosave every 30 seconds and appear on any device you sign in from
+- Host a profile world online; the session saves back to your profile automatically
 
-- **Create New World** makes a named world stored in your profile; it autosaves every
-  30 seconds and on quit, and shows up on any device you sign in from
-- **Play** / **Host** / **✕** next to each world load it, host it online, or delete it
-- Hosting a profile world saves the multiplayer session back to the **host's** profile —
-  guests with their own profiles can join with the room code, but only the initiator's
-  copy of the world is written
-- Signed-in players appear in multiplayer under their profile username
-- Worlds live in `minicraft_*` tables in the shared Supabase project. Direct table access is blocked;
-  the client goes through `SECURITY DEFINER` RPCs that check a session token
-  (`supabase/migrations/` has the full schema). Tokens expire after 30 days
-
-Guests without a profile get up to 5 local world slots in the browser (one per slot).
+---
 
 ## Controls
 
+### Movement & Camera
+
 | Input | Action |
-|---|---|
-| Click | capture mouse (Esc releases) |
-| WASD / Arrow keys | move |
-| Space | jump |
-| F | toggle fly mode (Space/Shift = up/down) |
-| E | open/close inventory |
-| Hold left-click | mine the targeted block |
-| Right-click | place held block / open chest / use item |
-| 1–9 or scroll wheel | select hotbar slot |
-| Right-click animal with its food | tame it |
-| Right-click your tamed animal | toggle follow / stay |
-| Shift + right-click your animal | capture it into an inventory item |
-| Right-click ground with captured animal | release it |
+|-------|--------|
+| Click canvas | Capture mouse pointer (Esc releases) |
+| W / A / S / D or Arrow keys | Move |
+| Space | Jump |
+| F | Toggle fly mode (Space = up, Shift = down) |
+| Mouse drag | Look around |
 
-**Mobile / iPad:** virtual joystick (bottom-left) to move, swipe right side to look, JUMP and BAG buttons on-screen. Controls appear automatically when a touch device is detected.
+### Horse riding
 
-Food and tools are found in loot chests scattered across the world (watch for the
-wooden boxes on the surface). Stone is slow to mine by hand — find a pickaxe first.
+| Input | Action |
+|-------|--------|
+| Right-click on tamed horse | Mount horse |
+| F | Dismount horse |
+| W / A / S / D | Steer horse (faster than walking) |
+| Space | Horse jump |
+
+### Mining & Building
+
+| Input | Action |
+|-------|--------|
+| Hold left-click | Mine the targeted block |
+| Right-click | Place held block / open chest / feed or interact with animal |
+| Shift + right-click (animal) | Capture tamed animal into bag |
+| Right-click ground with capture item | Release animal |
+
+### UI & Shortcuts
+
+| Key | Action |
+|-----|--------|
+| E or I | Open / close inventory bag |
+| Z | Open / close crafting panel |
+| M | Toggle minimap |
+| C or Enter | Open chat panel (multiplayer) |
+| I (with target in view) | Show item / animal info |
+| 1 – 9 | Select hotbar slot |
+| Scroll wheel | Cycle hotbar selection |
+
+**Mobile / tablet:** virtual joystick (bottom-left) to move, swipe right side to look, JUMP and BAG buttons on-screen.
+
+---
+
+## Tips
+
+- **Gold** appears as yellow flecks on the surface and in deep stone; mine it with a pickaxe
+- **Apple trees** show red apples in their canopy — only they drop Apples for taming pigs
+- **Fishing net** is in your starting hotbar — aim at water and right-click
+- **Horse** is the fastest way to explore. Tame with Wheat, right-click to ride, F to dismount
+- **Market** refreshes every real-world hour. Save up Gold and check back for new stock
+- The **minimap** (M) marks animals in yellow/gold so you can find tamed ones
+- Pressing **I** while looking at a block or animal shows a tooltip with taming / drop info
+
+---
 
 ## Project structure
 
 ```
 src/
 ├── core/      blocks, chunk-coordinate math, seeded RNG
-├── world/     noise, terrain generation, chunked world with edit diffs
-├── render/    procedural texture atlas, chunk mesher (hidden-face culling), day-night sky
+├── world/     noise, terrain generation, chunked world with edit diffs, village builder
+├── render/    procedural texture atlas, chunk mesher, day-night sky, fish school, bird flock
 ├── player/    pointer-lock + touch controls, AABB voxel physics
-├── interact/  voxel DDA raycast, mining/placing/animal interaction
-├── items/     item registry, inventory (200 slots x 200 stack), chest loot
-├── entities/  animal AI (wander/follow/stay), blocky 3D models, manager
-├── net/       message protocol, Supabase Realtime transport, remote avatars, profile/cloud-save API
-├── ui/        HUD (hotbar, day-night timer, mining bar), inventory/chest panels, menus, mobile controls, item icons
-└── persist/   localStorage save/load, 5-slot MultiWorldStore with legacy migration
+├── interact/  voxel DDA raycast, mining / placing / animal / furniture interaction
+├── items/     item registry, inventory (200 slots × 200 stack), chest loot tables
+├── entities/  animal AI (wander / follow / stay / ridden), blocky 3D models, entity manager
+├── net/       Supabase Realtime transport, remote avatars, multiplayer protocol, cloud-save API
+├── ui/        HUD, inventory / chest / crafting / market panels, minimap, menus, mobile controls
+└── persist/   localStorage save/load, 5-slot MultiWorldStore
 ```
-
-All gameplay logic (terrain, meshing, physics, raycast, inventory, AI, protocol,
-persistence, menus) is pure and unit-tested — `npm run test:run` runs 80+ tests in node.

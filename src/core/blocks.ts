@@ -10,6 +10,12 @@ export const BlockId = {
   Brick: 8,
   Glass: 9,
   Chest: 10,
+  MysteryBox: 11,
+  MysteryBoxRare: 12,
+  MysteryBoxEpic: 13,
+  Ladder: 14,
+  GoldOre: 15,
+  AppleLeaves: 16,
 } as const
 
 export type BlockId = (typeof BlockId)[keyof typeof BlockId]
@@ -30,6 +36,15 @@ export const Tile = {
   ChestSide: 11,
   ChestFront: 12,
   ChestTop: 13,
+  MysteryBoxSide: 14,
+  MysteryBoxTop: 15,
+  MysteryBoxRareSide: 16,
+  MysteryBoxRareTop: 17,
+  MysteryBoxEpicSide: 18,
+  MysteryBoxEpicTop: 19,
+  LadderSide: 20,
+  GoldOreSide: 21,
+  AppleLeaves: 22,
 } as const
 
 export type ToolType = 'pickaxe' | 'axe' | 'shears'
@@ -43,8 +58,8 @@ export interface BlockDef {
   hardness: number
   /** Tool type that speeds up mining this block. */
   tool: ToolType | null
-  /** BlockId of what is collected when broken (defaults to self). */
-  drops: BlockId
+  /** Item ID of what is collected when broken (defaults to self). */
+  drops: number
 }
 
 const def = (
@@ -83,6 +98,23 @@ export const BLOCKS: Record<BlockId, BlockDef | null> = {
   [BlockId.Glass]: def('Glass', uniform(Tile.Glass), 0.4, null, { id: BlockId.Glass, opaque: false }),
   [BlockId.Chest]: def('Chest', { top: Tile.ChestTop, side: Tile.ChestFront, bottom: Tile.ChestTop }, 3, 'axe', {
     id: BlockId.Chest,
+  }),
+  [BlockId.MysteryBox]: def('Mystery Box', { top: Tile.MysteryBoxTop, side: Tile.MysteryBoxSide, bottom: Tile.MysteryBoxTop }, 1, null, { id: BlockId.MysteryBox }),
+  [BlockId.MysteryBoxRare]: def('Rare Mystery Box', { top: Tile.MysteryBoxRareTop, side: Tile.MysteryBoxRareSide, bottom: Tile.MysteryBoxRareTop }, 1, null, { id: BlockId.MysteryBoxRare }),
+  [BlockId.MysteryBoxEpic]: def('Epic Mystery Box', { top: Tile.MysteryBoxEpicTop, side: Tile.MysteryBoxEpicSide, bottom: Tile.MysteryBoxEpicTop }, 1, null, { id: BlockId.MysteryBoxEpic }),
+  [BlockId.Ladder]: def('Ladder', { top: Tile.LadderSide, side: Tile.LadderSide, bottom: Tile.LadderSide }, 0.5, 'axe', {
+    id: BlockId.Ladder,
+    solid: false,
+    opaque: false,
+  }),
+  [BlockId.GoldOre]: def('Gold Ore', { top: Tile.GoldOreSide, side: Tile.GoldOreSide, bottom: Tile.GoldOreSide }, 6, 'pickaxe', {
+    id: BlockId.GoldOre,
+    drops: 200, // ItemId.Gold — drops raw gold, not the ore block itself
+  }),
+  [BlockId.AppleLeaves]: def('Apple Leaves', { top: Tile.AppleLeaves, side: Tile.AppleLeaves, bottom: Tile.AppleLeaves }, 0.4, 'shears', {
+    id: BlockId.AppleLeaves,
+    opaque: false,
+    drops: 113, // ItemId.Apple
   }),
 }
 

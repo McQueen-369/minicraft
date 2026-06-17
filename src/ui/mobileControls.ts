@@ -126,6 +126,8 @@ export class MobileControls {
   onMineStart: () => void = () => {}
   onMineStop: () => void = () => {}
   onUse: () => void = () => {}
+  /** Single tap on the look area — triggers right-click (feed/tame). */
+  onTap: () => void = () => {}
   /** Double-tap on the look area — used to store the targeted animal in the bag. */
   onDoubleTap: () => void = () => {}
 
@@ -328,6 +330,7 @@ export class MobileControls {
           this.onDoubleTap()
         } else {
           this.lastTapTime = now
+          this.onTap()
         }
       }
     }

@@ -150,12 +150,71 @@ function buildDog(): AnimalModel {
   return { group, legs }
 }
 
+function buildVillager(): AnimalModel {
+  const group = new THREE.Group()
+  const skin = 0xffcc99
+  const robe = 0x5a3e1a
+  const dark = 0x3d2a0e
+  // Body (brown robe)
+  const body = box(0.5, 0.75, 0.3, robe)
+  body.position.y = 1.05
+  // Head
+  const head = box(0.42, 0.42, 0.42, skin)
+  head.position.set(0, 1.67, 0)
+  // Nose
+  const nose = box(0.1, 0.1, 0.12, 0xcc9966)
+  nose.position.set(0, 1.63, 0.24)
+  // Arms
+  const armL = box(0.16, 0.6, 0.16, robe)
+  armL.position.set(-0.33, 1.1, 0)
+  const armR = box(0.16, 0.6, 0.16, robe)
+  armR.position.set(0.33, 1.1, 0)
+  group.add(body, head, nose, armL, armR)
+  const legs = [
+    leg(0.18, 0.62, dark, -0.12, 0, 0.62),
+    leg(0.18, 0.62, dark, 0.12, 0, 0.62),
+  ]
+  group.add(...legs)
+  return { group, legs }
+}
+
+function buildHorse(): AnimalModel {
+  const group = new THREE.Group()
+  // Body (bay brown)
+  const body = box(0.65, 0.6, 1.3, 0x8b5a2b)
+  body.position.y = 1.05
+  // Neck
+  const neck = box(0.28, 0.5, 0.28, 0x8b5a2b)
+  neck.position.set(0, 1.42, 0.55)
+  // Head
+  const head = box(0.28, 0.32, 0.6, 0x8b5a2b)
+  head.position.set(0, 1.52, 0.88)
+  // Mane (dark strip on neck/head)
+  const mane = box(0.1, 0.44, 0.22, 0x5a3019)
+  mane.position.set(0, 1.64, 0.5)
+  // Tail
+  const tail = box(0.12, 0.45, 0.14, 0x5a3019)
+  tail.position.set(0, 1.0, -0.72)
+  tail.rotation.x = 0.45
+  group.add(body, neck, head, mane, tail)
+  const legs = [
+    leg(0.2, 0.72, 0x7a4a22, -0.2, 0.42, 0.72),
+    leg(0.2, 0.72, 0x7a4a22, 0.2, 0.42, 0.72),
+    leg(0.2, 0.72, 0x7a4a22, -0.2, -0.42, 0.72),
+    leg(0.2, 0.72, 0x7a4a22, 0.2, -0.42, 0.72),
+  ]
+  group.add(...legs)
+  return { group, legs }
+}
+
 export function buildAnimalModel(kind: AnimalKind): AnimalModel {
   if (kind === 'pig') return buildPig()
   if (kind === 'sheep') return buildSheep()
   if (kind === 'rabbit') return buildRabbit()
   if (kind === 'cat') return buildCat()
   if (kind === 'dog') return buildDog()
+  if (kind === 'villager') return buildVillager()
+  if (kind === 'horse') return buildHorse()
   return buildChicken()
 }
 

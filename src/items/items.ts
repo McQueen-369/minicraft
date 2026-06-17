@@ -2,7 +2,7 @@ import { MAX_STACK } from '../constants'
 import { BlockId, blockDef, type ToolType } from '../core/blocks'
 import type { FurnitureKind } from '../entities/furniture'
 
-export type AnimalKind = 'pig' | 'chicken' | 'sheep' | 'rabbit' | 'cat' | 'dog'
+export type AnimalKind = 'pig' | 'chicken' | 'sheep' | 'rabbit' | 'cat' | 'dog' | 'villager' | 'horse'
 
 export const ItemId = {
   // Items 1..99 are placeable blocks and share BlockId values.
@@ -16,6 +16,7 @@ export const ItemId = {
   Brick: BlockId.Brick,
   Glass: BlockId.Glass,
   Chest: BlockId.Chest,
+  Ladder: BlockId.Ladder,
   WoodPickaxe: 100,
   StonePickaxe: 101,
   Axe: 102,
@@ -32,6 +33,7 @@ export const ItemId = {
   CapturedRabbit: 123,
   CapturedCat: 124,
   CapturedDog: 125,
+  CapturedHorse: 126,
   Door: 130,
   Window: 131,
   Desk: 132,
@@ -39,6 +41,7 @@ export const ItemId = {
   Bed: 134,
   Sofa: 135,
   Net: 140,
+  Gold: 200,
 } as const
 
 export type ItemId = (typeof ItemId)[keyof typeof ItemId]
@@ -55,8 +58,8 @@ export interface ItemDef {
   kind: 'block' | 'tool' | 'food' | 'capture' | 'furniture' | 'net'
   block?: BlockId
   tool?: { type: ToolType; power: number }
-  /** Which animal this food tames. */
-  food?: AnimalKind
+  /** Which animal kind(s) this food tames. */
+  food?: AnimalKind | AnimalKind[]
   /** Which animal a capture item releases. */
   animal?: AnimalKind
   /** Which furniture piece this item places. */
@@ -74,7 +77,7 @@ ITEMS.set(ItemId.WoodPickaxe, { name: 'Wood Pickaxe', kind: 'tool', tool: { type
 ITEMS.set(ItemId.StonePickaxe, { name: 'Stone Pickaxe', kind: 'tool', tool: { type: 'pickaxe', power: 8 }, maxStack: 1 })
 ITEMS.set(ItemId.Axe, { name: 'Axe', kind: 'tool', tool: { type: 'axe', power: 4 }, maxStack: 1 })
 ITEMS.set(ItemId.Shears, { name: 'Shears', kind: 'tool', tool: { type: 'shears', power: 8 }, maxStack: 1 })
-ITEMS.set(ItemId.Wheat, { name: 'Wheat', kind: 'food', food: 'sheep', maxStack: MAX_STACK })
+ITEMS.set(ItemId.Wheat, { name: 'Wheat', kind: 'food', food: ['sheep', 'horse'], maxStack: MAX_STACK })
 ITEMS.set(ItemId.Carrot, { name: 'Carrot', kind: 'food', food: 'rabbit', maxStack: MAX_STACK })
 ITEMS.set(ItemId.Seeds, { name: 'Seeds', kind: 'food', food: 'chicken', maxStack: MAX_STACK })
 ITEMS.set(ItemId.CapturedPig, { name: 'Pig (captured)', kind: 'capture', animal: 'pig', maxStack: 1 })
@@ -86,6 +89,7 @@ ITEMS.set(ItemId.Bone, { name: 'Bone', kind: 'food', food: 'dog', maxStack: MAX_
 ITEMS.set(ItemId.CapturedRabbit, { name: 'Rabbit (captured)', kind: 'capture', animal: 'rabbit', maxStack: 1 })
 ITEMS.set(ItemId.CapturedCat, { name: 'Cat (captured)', kind: 'capture', animal: 'cat', maxStack: 1 })
 ITEMS.set(ItemId.CapturedDog, { name: 'Dog (captured)', kind: 'capture', animal: 'dog', maxStack: 1 })
+ITEMS.set(ItemId.CapturedHorse, { name: 'Horse (captured)', kind: 'capture', animal: 'horse', maxStack: 1 })
 ITEMS.set(ItemId.Door, { name: 'Door', kind: 'furniture', furniture: 'door', maxStack: 16 })
 ITEMS.set(ItemId.Window, { name: 'Window', kind: 'furniture', furniture: 'window', maxStack: 16 })
 ITEMS.set(ItemId.Desk, { name: 'Desk', kind: 'furniture', furniture: 'desk', maxStack: 16 })
@@ -93,8 +97,9 @@ ITEMS.set(ItemId.Chair, { name: 'Chair', kind: 'furniture', furniture: 'chair', 
 ITEMS.set(ItemId.Bed, { name: 'Bed', kind: 'furniture', furniture: 'bed', maxStack: 16 })
 ITEMS.set(ItemId.Sofa, { name: 'Sofa', kind: 'furniture', furniture: 'sofa', maxStack: 16 })
 ITEMS.set(ItemId.Net, { name: 'Fishing Net', kind: 'net', maxStack: 1 })
+ITEMS.set(ItemId.Gold, { name: 'Gold', kind: 'block', maxStack: MAX_STACK })
 
-const FURNITURE_ITEM: Record<FurnitureKind, number> = {
+const FURNITURE_ITEM: Partial<Record<FurnitureKind, number>> = {
   door: ItemId.Door,
   window: ItemId.Window,
   desk: ItemId.Desk,
@@ -103,8 +108,8 @@ const FURNITURE_ITEM: Record<FurnitureKind, number> = {
   sofa: ItemId.Sofa,
 }
 
-/** The hotbar item that places a given furniture piece. */
-export function furnitureItemFor(kind: FurnitureKind): number {
+/** The hotbar item that places a given furniture piece; undefined for non-placeable kinds like campfire. */
+export function furnitureItemFor(kind: FurnitureKind): number | undefined {
   return FURNITURE_ITEM[kind]
 }
 
@@ -131,12 +136,22 @@ export function itemCategory(id: number): ItemCategory {
   }
 }
 
+/** All registered item IDs belonging to a given inventory category, in insertion order. */
+export function itemIdsForCategory(category: ItemCategory): number[] {
+  const out: number[] = []
+  for (const id of ITEMS.keys()) {
+    if (itemCategory(id) === category) out.push(id)
+  }
+  return out
+}
+
 export function captureItemFor(kind: AnimalKind): ItemId {
   if (kind === 'pig') return ItemId.CapturedPig
   if (kind === 'chicken') return ItemId.CapturedChicken
   if (kind === 'rabbit') return ItemId.CapturedRabbit
   if (kind === 'cat') return ItemId.CapturedCat
   if (kind === 'dog') return ItemId.CapturedDog
+  if (kind === 'horse') return ItemId.CapturedHorse
   return ItemId.CapturedSheep
 }
 

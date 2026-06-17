@@ -5,6 +5,7 @@ import type { EntityManager } from '../entities/entityManager'
 import type { FurnitureManager } from '../entities/furnitureManager'
 import type { Furniture, SavedFurniture } from '../entities/furniture'
 import type { Inventory } from '../items/inventory'
+import { mysteryBoxLoot } from '../items/chest'
 import { breakTime, captureItemFor, furnitureItemFor, itemDef, ItemId } from '../items/items'
 import type { Controls } from '../player/controls'
 import { boxOverlapsVoxel, type Vec3 } from '../player/physics'
@@ -46,6 +47,12 @@ export class BlockInteraction {
   onOpenChest: (x: number, y: number, z: number) => void = () => {}
   /** Called when the player successfully catches a fish. */
   onFish: () => void = () => {}
+  /** Called when a mystery box is opened, with its rarity tier. */
+  onMysteryBoxOpen: (rarity: string) => void = () => {}
+  /** Called when the player right-clicks a market stall. */
+  onOpenMarket: () => void = () => {}
+  /** Called when the player mounts a horse. */
+  onMount: (animalId: string) => void = () => {}
 
   private leftDown = false
   private mining: { x: number; y: number; z: number; elapsed: number; total: number } | null = null
@@ -74,7 +81,10 @@ export class BlockInteraction {
 
     this.onMouseDown = (e) => {
       if (!this.active) return
-      if (e.button === 0 && !this.tryPickupFurniture()) this.leftDown = true
+      if (e.button === 0) {
+        if (this.captureTargetAnimal()) return
+        if (!this.tryPickupFurniture()) this.leftDown = true
+      }
       if (e.button === 2) this.rightClick()
     }
     this.onMouseUp = (e) => {
@@ -97,7 +107,10 @@ export class BlockInteraction {
   }
 
   /** Called by mobile MINE button: pick up targeted furniture, else hold to mine. */
-  startMining(): void { if (!this.tryPickupFurniture()) this.leftDown = true }
+  startMining(): void {
+    if (this.captureTargetAnimal()) return
+    if (!this.tryPickupFurniture()) this.leftDown = true
+  }
   stopMining(): void { this.leftDown = false }
   /** Called by mobile USE button: place block / open chest / feed or toggle animal. */
   triggerRightClick(): void { if (this.active) this.rightClick() }
@@ -181,10 +194,25 @@ export class BlockInteraction {
     }
   }
 
+  private collectMysteryBoxLoot(id: number, x: number, y: number, z: number): void {
+    const loot = mysteryBoxLoot(id)
+    for (const slot of loot) {
+      if (slot) this.inventory.add(slot.itemId, slot.count)
+    }
+    this.world.setBlock(x, y, z, BlockId.Air)
+    this.onBlockEdit(x, y, z, BlockId.Air)
+    const rarity = id === BlockId.MysteryBoxEpic ? 'Epic' : id === BlockId.MysteryBoxRare ? 'Rare' : 'Common'
+    this.onMysteryBoxOpen(rarity)
+  }
+
   private breakBlock(x: number, y: number, z: number): void {
     const id = this.world.getBlock(x, y, z)
     const def = blockDef(id)
     if (!def) return
+    if (id === BlockId.MysteryBox || id === BlockId.MysteryBoxRare || id === BlockId.MysteryBoxEpic) {
+      this.collectMysteryBoxLoot(id, x, y, z)
+      return
+    }
     if (id === BlockId.Chest) {
       for (const slot of this.world.getChestContents(x, y, z)) {
         if (slot) this.inventory.add(slot.itemId, slot.count)
@@ -197,11 +225,13 @@ export class BlockInteraction {
       }
     }
     this.inventory.add(def.drops, 1)
-    // Mining leaves from trees: chance to find apples (tame pigs) or bones (tame dogs).
+    // Regular leaves: chance to drop bone (no apples — those are only from apple trees).
     if (id === BlockId.Leaves) {
-      const r = Math.random()
-      if (r < 0.2) this.inventory.add(ItemId.Apple, 1)
-      else if (r < 0.4) this.inventory.add(ItemId.Bone, 1)
+      if (Math.random() < 0.3) this.inventory.add(ItemId.Bone, 1)
+    }
+    // Apple leaves: def.drops = Apple already; small extra chance of bone.
+    if (id === BlockId.AppleLeaves) {
+      if (Math.random() < 0.1) this.inventory.add(ItemId.Bone, 1)
     }
     this.world.setBlock(x, y, z, BlockId.Air)
     this.onBlockEdit(x, y, z, BlockId.Air)
@@ -237,6 +267,8 @@ export class BlockInteraction {
       if (f.kind === 'door') {
         this.furniture.toggleDoor(f.id)
         this.onFurnitureEvent({ type: 'toggle', id: f.id })
+      } else if (f.kind === 'market') {
+        this.onOpenMarket()
       }
       return
     }
@@ -260,6 +292,10 @@ export class BlockInteraction {
     const blockId = this.world.getBlock(hit.x, hit.y, hit.z)
     if (blockId === BlockId.Chest) {
       this.onOpenChest(hit.x, hit.y, hit.z)
+      return
+    }
+    if (blockId === BlockId.MysteryBox || blockId === BlockId.MysteryBoxRare || blockId === BlockId.MysteryBoxEpic) {
+      this.collectMysteryBoxLoot(blockId, hit.x, hit.y, hit.z)
       return
     }
 
@@ -305,8 +341,11 @@ export class BlockInteraction {
   private tryPickupFurniture(): boolean {
     const f = this.targetFurniture
     if (!f) return false
+    if (f.kind === 'campfire') return false
+    const itemId = furnitureItemFor(f.kind)
+    if (itemId === undefined) return false
     this.furniture.remove(f.id)
-    this.inventory.add(furnitureItemFor(f.kind), 1)
+    this.inventory.add(itemId, 1)
     this.onFurnitureEvent({ type: 'remove', id: f.id })
     this.targetFurniture = null
     return true
@@ -319,7 +358,9 @@ export class BlockInteraction {
     const heldDef = held ? itemDef(held.itemId) : null
 
     // Feed matching food -> tame.
-    if (heldDef?.kind === 'food' && heldDef.food === animal.kind) {
+    const foodFor = heldDef?.food
+    const feedsThis = Array.isArray(foodFor) ? foodFor.includes(animal.kind) : foodFor === animal.kind
+    if (heldDef?.kind === 'food' && feedsThis) {
       if (animal.owner === this.playerId && animal.mode !== 'wander') return
       this.inventory.removeFrom(this.inventory.selected)
       this.entities.tame(animalId, this.playerId)
@@ -335,6 +376,12 @@ export class BlockInteraction {
       if (this.inventory.add(captureItem, 1) > 0) return // inventory full
       this.entities.capture(animalId)
       this.onAnimalEvent({ type: 'capture', animalId })
+      return
+    }
+
+    // Horse: mount instead of toggle stay.
+    if (animal.kind === 'horse') {
+      this.onMount(animalId)
       return
     }
 

@@ -138,6 +138,11 @@ export class Minimap {
     this.draw(this.bigCanvas, BIG_HALF)
   }
 
+  toggleMap(): void {
+    if (this.isBigOpen) this.overlay.style.display = 'none'
+    else this.openBig()
+  }
+
   update(terrain: Terrain, pos: { x: number; z: number }, yaw: number, markers: MapMarker[], dt: number): void {
     this.terrain = terrain
     this.pos = { x: pos.x, z: pos.z }

@@ -84,6 +84,30 @@ const STYLE = `
 }
 .mc-bag-slot:hover, .mc-bag-slot:active { border-color: #fff; background: rgba(60,60,60,0.85); }
 .mc-bag-slot svg { width: 22px; height: 22px; }
+.mc-chat-btn {
+  height: 52px; margin-left: 4px; padding: 0 10px; border-radius: 8px;
+  background: rgba(20,20,20,0.7); border: 2px solid #888; color: #fff;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px; font-size: 9px; font-weight: bold; cursor: pointer; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.mc-chat-btn:hover, .mc-chat-btn:active { border-color: #fff; background: rgba(60,60,60,0.85); }
+.mc-chat-btn.active { border-color: #7ec8e3; background: rgba(20,60,80,0.85); }
+.mc-chat-btn svg { width: 22px; height: 22px; }
+.mc-craft-btn-hud {
+  height: 52px; margin-left: 4px; padding: 0 10px; border-radius: 8px;
+  background: rgba(20,20,20,0.7); border: 2px solid #888; color: #fff;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px; font-size: 9px; font-weight: bold; cursor: pointer; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.mc-craft-btn-hud:hover, .mc-craft-btn-hud:active { border-color: #fff; background: rgba(60,60,60,0.85); }
+.mc-craft-btn-hud.active { border-color: #f4c060; background: rgba(60,40,0,0.85); }
+.mc-craft-btn-hud svg { width: 22px; height: 22px; }
+.mc-underwater {
+  position: absolute; inset: 0; pointer-events: none; z-index: 4;
+  background: rgba(0,60,180,0.22); opacity: 0; transition: opacity 0.3s;
+}
 .mc-nameplate {
   position: absolute; left: 50%; top: 40px; transform: translateX(-50%);
   z-index: 6; display: none; align-items: center; gap: 8px;
@@ -134,10 +158,17 @@ export class HUD {
   private readonly nameplateName: HTMLSpanElement
   private readonly infoOverlay: HTMLDivElement
   private readonly infoBox: HTMLDivElement
+  private readonly chatBtn: HTMLDivElement
+  private readonly craftBtnHud: HTMLDivElement
+  private readonly underwaterOverlay: HTMLDivElement
   private currentInfo: InfoContent | null = null
   private toastTimer = 0
   /** Called when the inventory quick-access button is clicked. */
   onInventory: () => void = () => {}
+  /** Called when the chat button is tapped/clicked. */
+  onChatToggle: () => void = () => {}
+  /** Called when the craft button is tapped/clicked. */
+  onCraftToggle: () => void = () => {}
   /** Called when a hotbar slot is tapped/clicked to select it. */
   onSelectHotbar: (index: number) => void = () => {}
   /** Called when the info card closes (so the game can re-lock the pointer). */
@@ -203,7 +234,60 @@ export class HUD {
     bagSlot.addEventListener('click', () => this.onInventory())
     bagSlot.addEventListener('touchstart', (e) => { e.preventDefault(); this.onInventory() }, { passive: false })
     hotbar.appendChild(bagSlot)
+
+    // Chat button
+    const chatBtn = document.createElement('div')
+    chatBtn.className = 'mc-chat-btn'
+    chatBtn.title = 'Chat'
+    const chatSvgNS = 'http://www.w3.org/2000/svg'
+    const chatSvg = document.createElementNS(chatSvgNS, 'svg')
+    chatSvg.setAttribute('viewBox', '0 0 24 24')
+    chatSvg.setAttribute('fill', 'none')
+    chatSvg.setAttribute('stroke', 'currentColor')
+    chatSvg.setAttribute('stroke-width', '2')
+    chatSvg.setAttribute('stroke-linecap', 'round')
+    chatSvg.setAttribute('stroke-linejoin', 'round')
+    const chatBubble = document.createElementNS(chatSvgNS, 'path')
+    chatBubble.setAttribute('d', 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z')
+    chatSvg.appendChild(chatBubble)
+    const chatLabel = document.createElement('span')
+    chatLabel.textContent = 'CHAT'
+    chatBtn.append(chatSvg, chatLabel)
+    chatBtn.addEventListener('click', () => this.onChatToggle())
+    chatBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.onChatToggle() }, { passive: false })
+    hotbar.appendChild(chatBtn)
+    this.chatBtn = chatBtn
+
+    // Craft button
+    const craftBtnHud = document.createElement('div')
+    craftBtnHud.className = 'mc-craft-btn-hud'
+    craftBtnHud.title = 'Crafting'
+    const craftNS = 'http://www.w3.org/2000/svg'
+    const craftSvg = document.createElementNS(craftNS, 'svg')
+    craftSvg.setAttribute('viewBox', '0 0 24 24')
+    craftSvg.setAttribute('fill', 'none')
+    craftSvg.setAttribute('stroke', 'currentColor')
+    craftSvg.setAttribute('stroke-width', '2')
+    craftSvg.setAttribute('stroke-linecap', 'round')
+    craftSvg.setAttribute('stroke-linejoin', 'round')
+    // Wrench icon path
+    const wrenchPath = document.createElementNS(craftNS, 'path')
+    wrenchPath.setAttribute('d', 'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z')
+    craftSvg.appendChild(wrenchPath)
+    const craftLabel = document.createElement('span')
+    craftLabel.textContent = 'CRAFT'
+    craftBtnHud.append(craftSvg, craftLabel)
+    craftBtnHud.addEventListener('click', () => this.onCraftToggle())
+    craftBtnHud.addEventListener('touchstart', (e) => { e.preventDefault(); this.onCraftToggle() }, { passive: false })
+    hotbar.appendChild(craftBtnHud)
+    this.craftBtnHud = craftBtnHud
+
     root.appendChild(hotbar)
+
+    // Underwater tint overlay
+    this.underwaterOverlay = document.createElement('div')
+    this.underwaterOverlay.className = 'mc-underwater'
+    root.appendChild(this.underwaterOverlay)
 
     this.debug = document.createElement('div')
     this.debug.className = 'mc-debug'
@@ -251,8 +335,10 @@ export class HUD {
       <h3>Controls</h3>
       <p>WASD / Arrows — Move</p>
       <p>Space — Jump &nbsp; F — Toggle fly &nbsp; Shift (fly) — Down</p>
-      <p>E — Inventory &nbsp; 1–9 — Select hotbar &nbsp; Scroll — Cycle hotbar</p>
+      <p>E — Inventory &nbsp; C — Chat &nbsp; Z — Crafting &nbsp; M — Map</p>
+      <p>I — Instructions / Info &nbsp; 1–9 — Select hotbar &nbsp; Scroll — Cycle hotbar</p>
       <p>Left-click (hold) — Mine &nbsp; Right-click — Place / Use / Open chest</p>
+      <p>Climb Ladders: Space (up) &nbsp; Shift (down)</p>
       <h3>Mobile Controls</h3>
       <p>Joystick — Move</p>
       <p>Swipe right side — Look around</p>
@@ -276,10 +362,15 @@ export class HUD {
       <p>Shift + right-click your tamed animal — Capture it into the bag</p>
       <p>Select a captured-animal item and USE on open ground — Release the animal</p>
       <h3>Tips</h3>
+      <h3>Crafting</h3>
+      <p>Press Z or tap CRAFT to open the crafting panel — merge items to make tools, furniture, ladders, and more</p>
+      <p>Ladder: place on a wall and walk into it to climb; Space up, Shift down</p>
+      <h3>Tips</h3>
       <p>Look at an animal or block — its name shows up top; tap the ⓘ (or press I) for how to tame/use it</p>
       <p>Open a treasure box to auto-collect its loot — the box is used up, not kept</p>
       <p>Open the BAG to browse items by category (Blocks, Tools, Food, Animals, Furniture)</p>
       <p>In multiplayer each player shows up in a unique shirt colour</p>
+      <p>Villages appear across the world — explore to find houses, campfires, and friendly villagers</p>
     `
     const closeBtn = box.querySelector('.mc-instructions-close')!
     closeBtn.addEventListener('click', () => { overlay.style.display = 'none' })
@@ -331,7 +422,7 @@ export class HUD {
       const count = el.querySelector('.count')!
       if (slot) {
         drawItemIcon(canvas, slot.itemId, this.atlasCanvas)
-        count.textContent = slot.count > 1 ? String(slot.count) : ''
+        count.textContent = String(slot.count)
         el.title = itemDef(slot.itemId)?.name ?? ''
       } else {
         canvas.getContext('2d')!.clearRect(0, 0, canvas.width, canvas.height)
@@ -366,7 +457,7 @@ export class HUD {
     }
   }
 
-  private showInstructions(): void {
+  showInstructions(): void {
     this.instructionsOverlay.style.display = 'flex'
   }
 
@@ -423,5 +514,17 @@ export class HUD {
     }
     this.playerList.style.display = ''
     this.playerList.textContent = names.join('\n')
+  }
+
+  setChatOpen(open: boolean): void {
+    this.chatBtn.classList.toggle('active', open)
+  }
+
+  setCraftOpen(open: boolean): void {
+    this.craftBtnHud.classList.toggle('active', open)
+  }
+
+  setUnderwater(under: boolean): void {
+    this.underwaterOverlay.style.opacity = under ? '1' : '0'
   }
 }

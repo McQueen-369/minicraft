@@ -15,6 +15,16 @@ const HOP_SPEED = 7
 
 /** Advance one animal by dt seconds. Pure given its context. */
 export function stepAnimal(a: Animal, dt: number, ctx: AnimalContext): void {
+  if (a.mode === 'ridden') {
+    const rv = a.riderVel ?? { x: 0, z: 0 }
+    const jump = a.riderJump ?? false
+    a.riderJump = false
+    stepPhysics(a, { moveX: rv.x, moveZ: rv.z, jump, fly: false, flyMoveY: 0 }, dt, ctx.isSolid, ANIMAL_DIMS[a.kind])
+    if (a.hitWall && a.onGround) a.vel.y = HOP_SPEED
+    a.walkPhase = Math.hypot(rv.x, rv.z) > 0.1 ? a.walkPhase + dt * 4 : 0
+    return
+  }
+
   let speed = 0
   if (a.mode === 'follow' && ctx.ownerPos) {
     const dx = ctx.ownerPos.x - a.pos.x
