@@ -123,7 +123,7 @@ export class SaveStore {
   }
 }
 
-export const MAX_LOCAL_SLOTS = 5
+export const MAX_LOCAL_SLOTS = 10
 
 export interface LocalWorldMeta {
   name: string
@@ -137,7 +137,7 @@ const LEGACY_SAVE_KEY = 'minicraft-world-v1'
 export class MultiWorldStore {
   constructor(private readonly storage: StringStorage) {}
 
-  /** Returns a 5-element array; null means the slot is empty. */
+  /** Returns a 10-element array; null means the slot is empty. */
   listSlots(): (LocalWorldMeta | null)[] {
     this.ensureIndex()
     try {
