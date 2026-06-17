@@ -5,6 +5,7 @@ import type { EntityManager } from '../entities/entityManager'
 import type { FurnitureManager } from '../entities/furnitureManager'
 import type { Furniture, SavedFurniture } from '../entities/furniture'
 import type { Inventory } from '../items/inventory'
+import { mysteryBoxLoot } from '../items/chest'
 import { breakTime, captureItemFor, furnitureItemFor, itemDef, ItemId } from '../items/items'
 import type { Controls } from '../player/controls'
 import { boxOverlapsVoxel, type Vec3 } from '../player/physics'
@@ -46,6 +47,8 @@ export class BlockInteraction {
   onOpenChest: (x: number, y: number, z: number) => void = () => {}
   /** Called when the player successfully catches a fish. */
   onFish: () => void = () => {}
+  /** Called when a mystery box is opened, with its rarity tier. */
+  onMysteryBoxOpen: (rarity: string) => void = () => {}
 
   private leftDown = false
   private mining: { x: number; y: number; z: number; elapsed: number; total: number } | null = null
@@ -74,7 +77,10 @@ export class BlockInteraction {
 
     this.onMouseDown = (e) => {
       if (!this.active) return
-      if (e.button === 0 && !this.tryPickupFurniture()) this.leftDown = true
+      if (e.button === 0) {
+        if (this.captureTargetAnimal()) return
+        if (!this.tryPickupFurniture()) this.leftDown = true
+      }
       if (e.button === 2) this.rightClick()
     }
     this.onMouseUp = (e) => {
@@ -97,7 +103,10 @@ export class BlockInteraction {
   }
 
   /** Called by mobile MINE button: pick up targeted furniture, else hold to mine. */
-  startMining(): void { if (!this.tryPickupFurniture()) this.leftDown = true }
+  startMining(): void {
+    if (this.captureTargetAnimal()) return
+    if (!this.tryPickupFurniture()) this.leftDown = true
+  }
   stopMining(): void { this.leftDown = false }
   /** Called by mobile USE button: place block / open chest / feed or toggle animal. */
   triggerRightClick(): void { if (this.active) this.rightClick() }
@@ -181,10 +190,25 @@ export class BlockInteraction {
     }
   }
 
+  private collectMysteryBoxLoot(id: number, x: number, y: number, z: number): void {
+    const loot = mysteryBoxLoot(id)
+    for (const slot of loot) {
+      if (slot) this.inventory.add(slot.itemId, slot.count)
+    }
+    this.world.setBlock(x, y, z, BlockId.Air)
+    this.onBlockEdit(x, y, z, BlockId.Air)
+    const rarity = id === BlockId.MysteryBoxEpic ? 'Epic' : id === BlockId.MysteryBoxRare ? 'Rare' : 'Common'
+    this.onMysteryBoxOpen(rarity)
+  }
+
   private breakBlock(x: number, y: number, z: number): void {
     const id = this.world.getBlock(x, y, z)
     const def = blockDef(id)
     if (!def) return
+    if (id === BlockId.MysteryBox || id === BlockId.MysteryBoxRare || id === BlockId.MysteryBoxEpic) {
+      this.collectMysteryBoxLoot(id, x, y, z)
+      return
+    }
     if (id === BlockId.Chest) {
       for (const slot of this.world.getChestContents(x, y, z)) {
         if (slot) this.inventory.add(slot.itemId, slot.count)
@@ -260,6 +284,10 @@ export class BlockInteraction {
     const blockId = this.world.getBlock(hit.x, hit.y, hit.z)
     if (blockId === BlockId.Chest) {
       this.onOpenChest(hit.x, hit.y, hit.z)
+      return
+    }
+    if (blockId === BlockId.MysteryBox || blockId === BlockId.MysteryBoxRare || blockId === BlockId.MysteryBoxEpic) {
+      this.collectMysteryBoxLoot(blockId, hit.x, hit.y, hit.z)
       return
     }
 

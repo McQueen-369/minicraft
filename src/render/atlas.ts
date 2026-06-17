@@ -5,6 +5,7 @@ import { mulberry32 } from '../core/rng'
 export const TILE_PX = 16
 export const ATLAS_TILES = 4 // 4x4 grid
 export const ATLAS_PX = TILE_PX * ATLAS_TILES
+export const ATLAS_ROWS = 5
 
 /** Half-texel inset keeps neighboring tiles from bleeding at quad edges. */
 export const UV_EPSILON = 0.5 / ATLAS_PX
@@ -129,6 +130,65 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
       ctx.strokeStyle = '#5e4318'
       ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE_PX - 1, TILE_PX - 1)
       break
+    case Tile.MysteryBoxSide: {
+      ctx.fillStyle = '#1ab8c8'
+      ctx.fillRect(x0, y0, TILE_PX, TILE_PX)
+      ctx.strokeStyle = '#0d8a96'
+      ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE_PX - 1, TILE_PX - 1)
+      // "?" pixel art in white (5×7 at position 5,4)
+      ctx.fillStyle = '#ffffff'
+      // top curve: row 4, cols 5-9
+      ctx.fillRect(x0 + 5, y0 + 4, 5, 1)
+      // right side: col 9, rows 5-6
+      ctx.fillRect(x0 + 9, y0 + 5, 1, 2)
+      // curve-in: cols 7-8, rows 7-8
+      ctx.fillRect(x0 + 7, y0 + 7, 2, 2)
+      // dot: col 7, rows 10-11
+      ctx.fillRect(x0 + 7, y0 + 10, 1, 2)
+      break
+    }
+    case Tile.MysteryBoxTop:
+      ctx.fillStyle = '#1ab8c8'
+      ctx.fillRect(x0, y0, TILE_PX, TILE_PX)
+      ctx.strokeStyle = '#0d8a96'
+      ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE_PX - 1, TILE_PX - 1)
+      break
+    case Tile.MysteryBoxRareSide: {
+      ctx.fillStyle = '#9b45d4'
+      ctx.fillRect(x0, y0, TILE_PX, TILE_PX)
+      ctx.strokeStyle = '#6e2fa0'
+      ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE_PX - 1, TILE_PX - 1)
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(x0 + 5, y0 + 4, 5, 1)
+      ctx.fillRect(x0 + 9, y0 + 5, 1, 2)
+      ctx.fillRect(x0 + 7, y0 + 7, 2, 2)
+      ctx.fillRect(x0 + 7, y0 + 10, 1, 2)
+      break
+    }
+    case Tile.MysteryBoxRareTop:
+      ctx.fillStyle = '#9b45d4'
+      ctx.fillRect(x0, y0, TILE_PX, TILE_PX)
+      ctx.strokeStyle = '#6e2fa0'
+      ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE_PX - 1, TILE_PX - 1)
+      break
+    case Tile.MysteryBoxEpicSide: {
+      ctx.fillStyle = '#e8a400'
+      ctx.fillRect(x0, y0, TILE_PX, TILE_PX)
+      ctx.strokeStyle = '#b07800'
+      ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE_PX - 1, TILE_PX - 1)
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(x0 + 5, y0 + 4, 5, 1)
+      ctx.fillRect(x0 + 9, y0 + 5, 1, 2)
+      ctx.fillRect(x0 + 7, y0 + 7, 2, 2)
+      ctx.fillRect(x0 + 7, y0 + 10, 1, 2)
+      break
+    }
+    case Tile.MysteryBoxEpicTop:
+      ctx.fillStyle = '#e8a400'
+      ctx.fillRect(x0, y0, TILE_PX, TILE_PX)
+      ctx.strokeStyle = '#b07800'
+      ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE_PX - 1, TILE_PX - 1)
+      break
     default:
       ctx.fillStyle = '#ff00ff'
       ctx.fillRect(x0, y0, TILE_PX, TILE_PX)
@@ -138,9 +198,9 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
 export function createAtlas(): Atlas {
   const canvas = document.createElement('canvas')
   canvas.width = ATLAS_PX
-  canvas.height = ATLAS_PX
+  canvas.height = TILE_PX * ATLAS_ROWS
   const ctx = canvas.getContext('2d')!
-  for (let tile = 0; tile < ATLAS_TILES * ATLAS_TILES; tile++) {
+  for (let tile = 0; tile < ATLAS_TILES * ATLAS_ROWS; tile++) {
     drawTile(ctx, tile, (tile % ATLAS_TILES) * TILE_PX, Math.floor(tile / ATLAS_TILES) * TILE_PX)
   }
   const texture = new THREE.CanvasTexture(canvas)
@@ -157,7 +217,7 @@ export function uvRect(tile: number): [number, number, number, number] {
   const u0 = tx / ATLAS_TILES + UV_EPSILON
   const u1 = (tx + 1) / ATLAS_TILES - UV_EPSILON
   // Canvas y grows downward; Three.js v grows upward.
-  const v1 = 1 - ty / ATLAS_TILES - UV_EPSILON
-  const v0 = 1 - (ty + 1) / ATLAS_TILES + UV_EPSILON
+  const v1 = 1 - ty / ATLAS_ROWS - UV_EPSILON
+  const v0 = 1 - (ty + 1) / ATLAS_ROWS + UV_EPSILON
   return [u0, v0, u1, v1]
 }

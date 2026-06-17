@@ -8,6 +8,10 @@ const TREE_PROB = 0.008
 const CHEST_PROB = 0.0006
 const TREE_SEED = 0x7ee5
 const CHEST_SEED = 0xc4e5
+const MYSTERY_BOX_PROB = 0.0002
+const MYSTERY_RARE_PROB = 0.00008
+const MYSTERY_EPIC_PROB = 0.00002
+const MYSTERY_SEED = 0xb05e
 const MIN_TRUNK = 4
 const MAX_TRUNK = 6
 /** Max horizontal distance a tree canopy reaches from its trunk. */
@@ -49,6 +53,19 @@ export class Terrain {
     return this.heightAt(x, z) > WATER_LEVEL + 1
   }
 
+  /** Deterministic naturally generated mystery box (sits at heightAt + 1). */
+  mysteryBoxAt(x: number, z: number): BlockId | null {
+    if (this.chestAt(x, z)) return null
+    if (this.treeAt(x, z)) return null
+    const h = this.heightAt(x, z)
+    if (h <= WATER_LEVEL + 1) return null
+    const r = hash2D(this.seed ^ MYSTERY_SEED, x, z)
+    if (r < MYSTERY_EPIC_PROB) return BlockId.MysteryBoxEpic
+    if (r < MYSTERY_RARE_PROB) return BlockId.MysteryBoxRare
+    if (r < MYSTERY_BOX_PROB) return BlockId.MysteryBox
+    return null
+  }
+
   /**
    * The generated (pre-edit) block at a world position. Pure and usable for
    * any coordinate; chunk filling uses the faster generateChunkData.
@@ -63,6 +80,8 @@ export class Terrain {
       return BlockId.Stone
     }
     if (this.chestAt(x, z) && y === h + 1) return BlockId.Chest
+    const mbox = this.mysteryBoxAt(x, z)
+    if (mbox !== null && y === h + 1) return mbox
     // Trunk of a tree rooted in this column.
     const own = this.treeAt(x, z)
     if (own && y <= h + own.trunkHeight) return BlockId.Wood
@@ -110,6 +129,10 @@ export class Terrain {
         }
         if (this.chestAt(wx, wz) && h + 1 < WORLD_HEIGHT) {
           data[localIndex(lx, h + 1, lz)] = BlockId.Chest
+        }
+        const mbox = this.mysteryBoxAt(wx, wz)
+        if (mbox !== null && h + 1 < WORLD_HEIGHT) {
+          data[localIndex(lx, h + 1, lz)] = mbox
         }
       }
     }

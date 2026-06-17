@@ -270,12 +270,17 @@ export class Game {
       this.mobileControls.onMineStart = () => interaction.startMining()
       this.mobileControls.onMineStop = () => interaction.stopMining()
       this.mobileControls.onUse = () => interaction.triggerRightClick()
+      // Single tap the look area to trigger right-click (feed/tame).
+      this.mobileControls.onTap = () => {
+        interaction.triggerRightClick()
+      }
       // Double-tap the look area to store the targeted tamed animal in the bag.
       this.mobileControls.onDoubleTap = () => {
         if (interaction.captureTargetAnimal()) this.hud.showToast('Stored animal in bag')
       }
     }
     interaction.onFish = () => this.hud.showToast('Caught a fish!')
+    interaction.onMysteryBoxOpen = (rarity) => this.hud.showToast(`Opened a ${rarity} Mystery Box!`)
 
     interaction.onOpenChest = (x, y, z) => {
       if (world.isTreasureChest(x, y, z)) {
