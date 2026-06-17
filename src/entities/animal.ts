@@ -28,6 +28,7 @@ export const ANIMAL_DIMS: Record<AnimalKind, BoxDims> = {
   rabbit: { width: 0.4, height: 0.4 },
   cat: { width: 0.4, height: 0.55 },
   dog: { width: 0.65, height: 0.75 },
+  villager: { width: 0.5, height: 1.8 },
 }
 
 export const ANIMAL_SPEED: Record<AnimalKind, number> = {
@@ -37,6 +38,7 @@ export const ANIMAL_SPEED: Record<AnimalKind, number> = {
   rabbit: 2.6,
   cat: 2.1,
   dog: 1.9,
+  villager: 0.9,
 }
 
 const SPAWN_SEED = 0xa21

@@ -2,7 +2,7 @@ import { MAX_STACK } from '../constants'
 import { BlockId, blockDef, type ToolType } from '../core/blocks'
 import type { FurnitureKind } from '../entities/furniture'
 
-export type AnimalKind = 'pig' | 'chicken' | 'sheep' | 'rabbit' | 'cat' | 'dog'
+export type AnimalKind = 'pig' | 'chicken' | 'sheep' | 'rabbit' | 'cat' | 'dog' | 'villager'
 
 export const ItemId = {
   // Items 1..99 are placeable blocks and share BlockId values.
@@ -94,7 +94,7 @@ ITEMS.set(ItemId.Bed, { name: 'Bed', kind: 'furniture', furniture: 'bed', maxSta
 ITEMS.set(ItemId.Sofa, { name: 'Sofa', kind: 'furniture', furniture: 'sofa', maxStack: 16 })
 ITEMS.set(ItemId.Net, { name: 'Fishing Net', kind: 'net', maxStack: 1 })
 
-const FURNITURE_ITEM: Record<FurnitureKind, number> = {
+const FURNITURE_ITEM: Partial<Record<FurnitureKind, number>> = {
   door: ItemId.Door,
   window: ItemId.Window,
   desk: ItemId.Desk,
@@ -103,8 +103,8 @@ const FURNITURE_ITEM: Record<FurnitureKind, number> = {
   sofa: ItemId.Sofa,
 }
 
-/** The hotbar item that places a given furniture piece. */
-export function furnitureItemFor(kind: FurnitureKind): number {
+/** The hotbar item that places a given furniture piece; undefined for non-placeable kinds like campfire. */
+export function furnitureItemFor(kind: FurnitureKind): number | undefined {
   return FURNITURE_ITEM[kind]
 }
 

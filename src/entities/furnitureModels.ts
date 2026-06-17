@@ -106,6 +106,36 @@ function buildDoor(): FurnitureModel {
   return { group: g, pivot }
 }
 
+function buildCampfire(): FurnitureModel {
+  const g = new THREE.Group()
+  const log = 0x6b3a1a
+  const coal = 0x222222
+  const ember = 0xff6600
+  const flame = 0xff4400
+  // Two crossed logs
+  const log1 = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.1, 0.18), new THREE.MeshLambertMaterial({ color: log }))
+  log1.position.set(0, 0.05, 0)
+  log1.rotation.y = Math.PI / 4
+  g.add(log1)
+  const log2 = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.1, 0.18), new THREE.MeshLambertMaterial({ color: log }))
+  log2.position.set(0, 0.05, 0)
+  log2.rotation.y = -Math.PI / 4
+  g.add(log2)
+  // Coal base
+  part(g, 0.3, 0.06, 0.3, 0, 0.03, 0, coal)
+  // Ember glow layer
+  const emberMat = new THREE.MeshLambertMaterial({ color: ember, emissive: new THREE.Color(0.4, 0.1, 0) })
+  const emberMesh = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.08, 0.18), emberMat)
+  emberMesh.position.set(0, 0.1, 0)
+  g.add(emberMesh)
+  // Flame cone (tapered box)
+  const flameMat = new THREE.MeshLambertMaterial({ color: flame, emissive: new THREE.Color(0.6, 0.1, 0), transparent: true, opacity: 0.85 })
+  const flameMesh = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.36, 6), flameMat)
+  flameMesh.position.set(0, 0.36, 0)
+  g.add(flameMesh)
+  return { group: g, pivot: null }
+}
+
 export function buildFurnitureModel(kind: FurnitureKind): FurnitureModel {
   switch (kind) {
     case 'chair':
@@ -120,6 +150,8 @@ export function buildFurnitureModel(kind: FurnitureKind): FurnitureModel {
       return buildWindow()
     case 'door':
       return buildDoor()
+    case 'campfire':
+      return buildCampfire()
   }
 }
 

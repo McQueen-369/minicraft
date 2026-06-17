@@ -683,7 +683,7 @@ export class Game {
         name = animal.kind.charAt(0).toUpperCase() + animal.kind.slice(1)
         info = animalInfo(animal.kind)
       } else if (furn) {
-        const itemId = furnitureItemFor(furn.kind)
+        const itemId = furnitureItemFor(furn.kind) ?? 0
         key = `f:${furn.kind}`
         name = FURNITURE_LABEL[furn.kind]
         info = itemInfo(itemId)
