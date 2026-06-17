@@ -4,7 +4,7 @@ import type { AnimalKind } from '../items/items'
 import type { BoxDims, PhysicsState } from '../player/physics'
 import type { Terrain } from '../world/terrain'
 
-export type AnimalMode = 'wander' | 'follow' | 'stay'
+export type AnimalMode = 'wander' | 'follow' | 'stay' | 'ridden'
 
 export interface Animal extends PhysicsState {
   id: string
@@ -19,6 +19,10 @@ export interface Animal extends PhysicsState {
   walking: boolean
   /** Walk-cycle phase for leg animation. */
   walkPhase: number
+  /** For horses in 'ridden' mode: horizontal velocity set by the rider. */
+  riderVel?: { x: number; z: number }
+  /** For horses in 'ridden' mode: whether the rider is pressing jump this frame. */
+  riderJump?: boolean
 }
 
 export const ANIMAL_DIMS: Record<AnimalKind, BoxDims> = {
@@ -29,6 +33,7 @@ export const ANIMAL_DIMS: Record<AnimalKind, BoxDims> = {
   cat: { width: 0.4, height: 0.55 },
   dog: { width: 0.65, height: 0.75 },
   villager: { width: 0.5, height: 1.8 },
+  horse: { width: 1.0, height: 1.7 },
 }
 
 export const ANIMAL_SPEED: Record<AnimalKind, number> = {
@@ -39,10 +44,11 @@ export const ANIMAL_SPEED: Record<AnimalKind, number> = {
   cat: 2.1,
   dog: 1.9,
   villager: 0.9,
+  horse: 2.5,
 }
 
 const SPAWN_SEED = 0xa21
-const KINDS: AnimalKind[] = ['pig', 'chicken', 'sheep', 'rabbit', 'cat', 'dog']
+const KINDS: AnimalKind[] = ['pig', 'chicken', 'sheep', 'rabbit', 'cat', 'dog', 'horse']
 
 /**
  * Deterministic wild animals for a chunk (so every client agrees on initial

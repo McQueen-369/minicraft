@@ -23,7 +23,7 @@ const POOL: MarketEntry[] = [
   { itemId: ItemId.Glass, name: 'Glass', desc: 'Lets light through walls. Craft from sand.', price: 15, qty: 6 },
   { itemId: ItemId.Apple, name: 'Apple', desc: 'Tames pigs when fed. Fall from leaf trees.', price: 5, qty: 10 },
   { itemId: ItemId.Fish, name: 'Fish', desc: 'Tames cats when fed. Catch with a net.', price: 8, qty: 8 },
-  { itemId: ItemId.Wheat, name: 'Wheat', desc: 'Tames sheep when fed. Found in fields.', price: 6, qty: 10 },
+  { itemId: ItemId.Wheat, name: 'Wheat', desc: 'Tames sheep and horses when fed.', price: 6, qty: 10 },
   { itemId: ItemId.Carrot, name: 'Carrot', desc: 'Tames rabbits when fed.', price: 6, qty: 10 },
   { itemId: ItemId.Seeds, name: 'Seeds', desc: 'Tames chickens when fed.', price: 4, qty: 12 },
   { itemId: ItemId.Bone, name: 'Bone', desc: 'Tames dogs when fed. Found by mining leaves.', price: 10, qty: 8 },
@@ -40,6 +40,7 @@ const POOL: MarketEntry[] = [
   { itemId: ItemId.Window, name: 'Window', desc: 'See through walls in your home.', price: 22, qty: 4 },
   { itemId: ItemId.Chest, name: 'Chest', desc: 'Store up to 27 extra items.', price: 15, qty: 3 },
   { itemId: ItemId.Ladder, name: 'Ladder', desc: 'Climb vertical walls. Place on block faces.', price: 8, qty: 10 },
+  { itemId: ItemId.CapturedHorse, name: 'Horse', desc: 'Release and right-click to ride. Fastest travel. Feed wheat to keep tamed.', price: 80, qty: 1 },
 ]
 
 const STYLE = `

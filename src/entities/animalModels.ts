@@ -178,6 +178,35 @@ function buildVillager(): AnimalModel {
   return { group, legs }
 }
 
+function buildHorse(): AnimalModel {
+  const group = new THREE.Group()
+  // Body (bay brown)
+  const body = box(0.65, 0.6, 1.3, 0x8b5a2b)
+  body.position.y = 1.05
+  // Neck
+  const neck = box(0.28, 0.5, 0.28, 0x8b5a2b)
+  neck.position.set(0, 1.42, 0.55)
+  // Head
+  const head = box(0.28, 0.32, 0.6, 0x8b5a2b)
+  head.position.set(0, 1.52, 0.88)
+  // Mane (dark strip on neck/head)
+  const mane = box(0.1, 0.44, 0.22, 0x5a3019)
+  mane.position.set(0, 1.64, 0.5)
+  // Tail
+  const tail = box(0.12, 0.45, 0.14, 0x5a3019)
+  tail.position.set(0, 1.0, -0.72)
+  tail.rotation.x = 0.45
+  group.add(body, neck, head, mane, tail)
+  const legs = [
+    leg(0.2, 0.72, 0x7a4a22, -0.2, 0.42, 0.72),
+    leg(0.2, 0.72, 0x7a4a22, 0.2, 0.42, 0.72),
+    leg(0.2, 0.72, 0x7a4a22, -0.2, -0.42, 0.72),
+    leg(0.2, 0.72, 0x7a4a22, 0.2, -0.42, 0.72),
+  ]
+  group.add(...legs)
+  return { group, legs }
+}
+
 export function buildAnimalModel(kind: AnimalKind): AnimalModel {
   if (kind === 'pig') return buildPig()
   if (kind === 'sheep') return buildSheep()
@@ -185,6 +214,7 @@ export function buildAnimalModel(kind: AnimalKind): AnimalModel {
   if (kind === 'cat') return buildCat()
   if (kind === 'dog') return buildDog()
   if (kind === 'villager') return buildVillager()
+  if (kind === 'horse') return buildHorse()
   return buildChicken()
 }
 

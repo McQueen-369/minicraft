@@ -8,6 +8,8 @@ const TREE_PROB = 0.008
 const CHEST_PROB = 0.0006
 const TREE_SEED = 0x7ee5
 const CHEST_SEED = 0xc4e5
+const APPLE_TREE_SEED = 0x3e7a1b
+const APPLE_TREE_PROB = 0.30
 const MYSTERY_BOX_PROB = 0.0002
 const MYSTERY_RARE_PROB = 0.00008
 const MYSTERY_EPIC_PROB = 0.00002
@@ -48,6 +50,11 @@ export class Terrain {
     if (this.chestAt(x, z)) return null
     const trunkHeight = MIN_TRUNK + Math.floor((r / TREE_PROB) * (MAX_TRUNK - MIN_TRUNK + 1))
     return { trunkHeight: Math.min(trunkHeight, MAX_TRUNK) }
+  }
+
+  /** Returns true if the tree at (x,z) is an apple tree (~30% of trees). */
+  isAppleTree(x: number, z: number): boolean {
+    return this.treeAt(x, z) !== null && hash2D(this.seed ^ APPLE_TREE_SEED, x, z) < APPLE_TREE_PROB
   }
 
   /** Deterministic naturally generated chest (sits at heightAt + 1). */
@@ -100,7 +107,9 @@ export class Terrain {
         const tree = this.treeAt(x + dx, z + dz)
         if (!tree) continue
         const top = this.heightAt(x + dx, z + dz) + tree.trunkHeight
-        if (leafAt(-dx, y - top, -dz)) return BlockId.Leaves
+        if (leafAt(-dx, y - top, -dz)) {
+          return this.isAppleTree(x + dx, z + dz) ? BlockId.AppleLeaves : BlockId.Leaves
+        }
       }
     }
     return BlockId.Air
@@ -168,7 +177,9 @@ export class Terrain {
               const y = top + dy
               if (y < 0 || y >= WORLD_HEIGHT) continue
               const idx = localIndex(lx, y, lz)
-              if (leafAt(ox, dy, oz) && data[idx] === BlockId.Air) data[idx] = BlockId.Leaves
+              if (leafAt(ox, dy, oz) && data[idx] === BlockId.Air) {
+                data[idx] = this.isAppleTree(wx, wz) ? BlockId.AppleLeaves : BlockId.Leaves
+              }
             }
           }
         }

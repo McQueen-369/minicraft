@@ -51,6 +51,8 @@ export class BlockInteraction {
   onMysteryBoxOpen: (rarity: string) => void = () => {}
   /** Called when the player right-clicks a market stall. */
   onOpenMarket: () => void = () => {}
+  /** Called when the player mounts a horse. */
+  onMount: (animalId: string) => void = () => {}
 
   private leftDown = false
   private mining: { x: number; y: number; z: number; elapsed: number; total: number } | null = null
@@ -223,11 +225,13 @@ export class BlockInteraction {
       }
     }
     this.inventory.add(def.drops, 1)
-    // Mining leaves from trees: chance to find apples (tame pigs) or bones (tame dogs).
+    // Regular leaves: chance to drop bone (no apples — those are only from apple trees).
     if (id === BlockId.Leaves) {
-      const r = Math.random()
-      if (r < 0.2) this.inventory.add(ItemId.Apple, 1)
-      else if (r < 0.4) this.inventory.add(ItemId.Bone, 1)
+      if (Math.random() < 0.3) this.inventory.add(ItemId.Bone, 1)
+    }
+    // Apple leaves: def.drops = Apple already; small extra chance of bone.
+    if (id === BlockId.AppleLeaves) {
+      if (Math.random() < 0.1) this.inventory.add(ItemId.Bone, 1)
     }
     this.world.setBlock(x, y, z, BlockId.Air)
     this.onBlockEdit(x, y, z, BlockId.Air)
@@ -354,7 +358,9 @@ export class BlockInteraction {
     const heldDef = held ? itemDef(held.itemId) : null
 
     // Feed matching food -> tame.
-    if (heldDef?.kind === 'food' && heldDef.food === animal.kind) {
+    const foodFor = heldDef?.food
+    const feedsThis = Array.isArray(foodFor) ? foodFor.includes(animal.kind) : foodFor === animal.kind
+    if (heldDef?.kind === 'food' && feedsThis) {
       if (animal.owner === this.playerId && animal.mode !== 'wander') return
       this.inventory.removeFrom(this.inventory.selected)
       this.entities.tame(animalId, this.playerId)
@@ -370,6 +376,12 @@ export class BlockInteraction {
       if (this.inventory.add(captureItem, 1) > 0) return // inventory full
       this.entities.capture(animalId)
       this.onAnimalEvent({ type: 'capture', animalId })
+      return
+    }
+
+    // Horse: mount instead of toggle stay.
+    if (animal.kind === 'horse') {
+      this.onMount(animalId)
       return
     }
 

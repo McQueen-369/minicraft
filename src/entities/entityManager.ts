@@ -168,7 +168,7 @@ export class EntityManager {
         kind: a.kind,
         pos: { ...a.pos },
         yaw: a.yaw,
-        mode: a.mode,
+        mode: a.mode === 'ridden' ? 'follow' : a.mode,
         owner: a.owner,
       })),
       spawnedChunks: [...this.spawnedChunks],

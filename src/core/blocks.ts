@@ -15,6 +15,7 @@ export const BlockId = {
   MysteryBoxEpic: 13,
   Ladder: 14,
   GoldOre: 15,
+  AppleLeaves: 16,
 } as const
 
 export type BlockId = (typeof BlockId)[keyof typeof BlockId]
@@ -43,6 +44,7 @@ export const Tile = {
   MysteryBoxEpicTop: 19,
   LadderSide: 20,
   GoldOreSide: 21,
+  AppleLeaves: 22,
 } as const
 
 export type ToolType = 'pickaxe' | 'axe' | 'shears'
@@ -108,6 +110,11 @@ export const BLOCKS: Record<BlockId, BlockDef | null> = {
   [BlockId.GoldOre]: def('Gold Ore', { top: Tile.GoldOreSide, side: Tile.GoldOreSide, bottom: Tile.GoldOreSide }, 6, 'pickaxe', {
     id: BlockId.GoldOre,
     drops: 200, // ItemId.Gold — drops raw gold, not the ore block itself
+  }),
+  [BlockId.AppleLeaves]: def('Apple Leaves', { top: Tile.AppleLeaves, side: Tile.AppleLeaves, bottom: Tile.AppleLeaves }, 0.4, 'shears', {
+    id: BlockId.AppleLeaves,
+    opaque: false,
+    drops: 113, // ItemId.Apple
   }),
 }
 

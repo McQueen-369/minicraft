@@ -96,17 +96,6 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
     }
     case Tile.Leaves: {
       speckle(ctx, x0, y0, '#3e7d2e', ['#346c26', '#488f37', '#2d5c1e', '#52a040'], 0.8, 9)
-      // Hint at hidden apples: small red berries scattered in the foliage.
-      ctx.fillStyle = '#c0281a'
-      ctx.fillRect(x0 + 3, y0 + 4, 2, 2)
-      ctx.fillRect(x0 + 11, y0 + 8, 2, 2)
-      ctx.fillStyle = '#8a1c10'
-      ctx.fillRect(x0 + 3, y0 + 5, 2, 1)
-      ctx.fillRect(x0 + 11, y0 + 9, 2, 1)
-      // Tiny stem
-      ctx.fillStyle = '#5a3e1a'
-      ctx.fillRect(x0 + 4, y0 + 3, 1, 1)
-      ctx.fillRect(x0 + 12, y0 + 7, 1, 1)
       break
     }
     case Tile.Plank: {
@@ -233,6 +222,31 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
       for (const ry of [2, 6, 10, 14]) {
         ctx.fillRect(x0 + 3, y0 + ry, TILE_PX - 6, 2)
       }
+      break
+    }
+    case Tile.AppleLeaves: {
+      // Bright green leaves with prominent red apples
+      speckle(ctx, x0, y0, '#2e6e1e', ['#257016', '#377a28', '#1d5412', '#42882e'], 0.8, 23)
+      // Large red apples (3 visible)
+      ctx.fillStyle = '#cc2214'
+      ctx.fillRect(x0 + 2, y0 + 3, 3, 3)
+      ctx.fillRect(x0 + 10, y0 + 7, 3, 3)
+      ctx.fillRect(x0 + 6, y0 + 11, 3, 3)
+      // Apple highlights
+      ctx.fillStyle = '#ee4433'
+      ctx.fillRect(x0 + 2, y0 + 3, 2, 1)
+      ctx.fillRect(x0 + 10, y0 + 7, 2, 1)
+      ctx.fillRect(x0 + 6, y0 + 11, 2, 1)
+      // Apple shadows
+      ctx.fillStyle = '#882010'
+      ctx.fillRect(x0 + 3, y0 + 5, 2, 1)
+      ctx.fillRect(x0 + 11, y0 + 9, 2, 1)
+      ctx.fillRect(x0 + 7, y0 + 13, 2, 1)
+      // Stems
+      ctx.fillStyle = '#5a3e1a'
+      ctx.fillRect(x0 + 3, y0 + 2, 1, 1)
+      ctx.fillRect(x0 + 11, y0 + 6, 1, 1)
+      ctx.fillRect(x0 + 7, y0 + 10, 1, 1)
       break
     }
     case Tile.GoldOreSide: {

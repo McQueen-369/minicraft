@@ -37,6 +37,7 @@ import { CraftingPanel } from './ui/crafting'
 import { MarketPanel } from './ui/market'
 import { playAnimalSound } from './audio/sounds'
 import { FishSchool } from './render/fish'
+import { BirdFlock } from './render/birds'
 import { Terrain } from './world/terrain'
 import { World } from './world/world'
 
@@ -54,6 +55,7 @@ interface Session {
   sky: Sky
   water: THREE.Mesh
   fish: FishSchool
+  birds: BirdFlock
   seed: number
   spawn: { x: number; z: number }
   builtVillages: Set<string>
@@ -73,6 +75,7 @@ export class Game {
   private readonly crafting: CraftingPanel
   private readonly market: MarketPanel
   private readonly music = new Music()
+  private mountedHorseId: string | null = null
   private handGroup: THREE.Group | null = null
   private readonly worldStore = new MultiWorldStore(localStorage)
   private readonly playerId = crypto.randomUUID().slice(0, 8)
@@ -236,6 +239,11 @@ export class Game {
     })
     document.addEventListener('keydown', (e) => {
       if (!this.playing) return
+      if (e.code === 'KeyF' && this.mountedHorseId && !this.menu.isOpen) {
+        // Undo the fly toggle Controls just made, and dismount instead.
+        this.controls.fly = !this.controls.fly
+        this.dismountHorse()
+      }
       if (e.code === 'KeyE' && !this.menu.isOpen) openInventory()
       if (e.code === 'KeyI' && !this.menu.isOpen && !this.panels.isOpen) {
         // I with a named target → open target info; otherwise open instructions.
@@ -358,6 +366,14 @@ export class Game {
       this.market.open(seed)
       this.updateInputState()
     }
+    interaction.onMount = (animalId) => {
+      const horse = entities.animals.get(animalId)
+      if (!horse) return
+      horse.mode = 'ridden'
+      this.mountedHorseId = animalId
+      this.controls.fly = false
+      this.hud.showToast('Riding horse — press F to dismount')
+    }
 
     this.chat.onSend = (text) => {
       const name = this.mp?.selfName ?? 'Player'
@@ -416,7 +432,8 @@ export class Game {
     this.handGroup = handGroup
 
     const fish = new FishSchool(scene, seed)
-    this.session = { world, scene, player, chunkRenderer, entities, furniture, decorations, interaction, sky, water, fish, seed, spawn, builtVillages: new Set() }
+    const birds = new BirdFlock(scene, seed)
+    this.session = { world, scene, player, chunkRenderer, entities, furniture, decorations, interaction, sky, water, fish, birds, seed, spawn, builtVillages: new Set() }
     this.worldReady = false
     this.saveTimer = 0
   }
@@ -681,6 +698,7 @@ export class Game {
     this.mp = null
     this.playing = false
     this.cloudWorld = null
+    this.mountedHorseId = null
     this.panels.close()
     this.crafting.close()
     this.market.close()
@@ -695,6 +713,14 @@ export class Game {
 
   private updateInputState(): void {
     this.controls.gameplayInput = !this.panels.isOpen && !this.menu.isOpen && !this.chat.isOpen && !this.crafting.isOpen && !this.market.isOpen
+  }
+
+  private dismountHorse(): void {
+    if (!this.session || !this.mountedHorseId) return
+    const horse = this.session.entities.animals.get(this.mountedHorseId)
+    if (horse && horse.mode === 'ridden') horse.mode = 'follow'
+    this.mountedHorseId = null
+    this.hud.showToast('Dismounted horse')
   }
 
   /**
@@ -727,6 +753,20 @@ export class Game {
     const s = this.session
     if (!s) return
 
+    // Horse riding: push rider controls into the horse before entities update.
+    const HORSE_RIDE_SPEED = 5.5
+    if (this.mountedHorseId) {
+      const horse = s.entities.animals.get(this.mountedHorseId)
+      if (horse && horse.mode === 'ridden') {
+        const dir = this.controls.moveDirection()
+        horse.riderVel = { x: dir.x * HORSE_RIDE_SPEED, z: dir.z * HORSE_RIDE_SPEED }
+        horse.riderJump = this.controls.keys.has('Space')
+        horse.yaw = this.controls.yaw + Math.PI
+      } else {
+        this.mountedHorseId = null
+      }
+    }
+
     const pos = s.player.state.pos
     if (!this.worldReady) {
       // Stream aggressively until the area around the spawn point is meshed.
@@ -737,7 +777,7 @@ export class Game {
     }
 
     if (this.playing && this.worldReady) {
-      s.player.update(dt, this.controls)
+      if (!this.mountedHorseId) s.player.update(dt, this.controls)
       s.interaction.update(dt)
     }
 
@@ -766,8 +806,25 @@ export class Game {
       }
     }
     s.entities.update(dt, pos, owners, this.mode !== 'guest')
+
+    // After horse physics, sync player position onto the horse.
+    if (this.mountedHorseId) {
+      const horse = s.entities.animals.get(this.mountedHorseId)
+      if (horse && horse.mode === 'ridden') {
+        s.player.state.pos.x = horse.pos.x
+        s.player.state.pos.y = horse.pos.y + 1.4
+        s.player.state.pos.z = horse.pos.z
+        s.player.state.vel.x = 0
+        s.player.state.vel.y = 0
+        s.player.state.vel.z = 0
+      } else {
+        this.mountedHorseId = null
+      }
+    }
+
     s.furniture.update(pos, dt)
     s.fish.update(dt, pos.x, pos.z)
+    s.birds.update(dt, pos.x, pos.z)
     if (this.worldReady) s.decorations.update(s.world, pos, dt)
     s.sky.update(dt, this.camera.position)
     s.water.position.x = pos.x
