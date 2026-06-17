@@ -226,9 +226,32 @@ export class Game {
       if (!this.playing) return
       if (e.code === 'KeyE' && !this.menu.isOpen) openInventory()
       if (e.code === 'KeyI' && !this.menu.isOpen && !this.panels.isOpen) {
-        // Release the pointer so the info card is clickable on desktop; the
-        // pointerlockchange guard above keeps the pause menu from appearing.
+        // I with a named target → open target info; otherwise open instructions.
         if (this.hud.openTargetInfo()) this.controls.releaseLock()
+        else this.hud.showInstructions()
+      }
+      if (e.code === 'KeyC' && !this.panels.isOpen && !this.menu.isOpen && !this.chat.isOpen && !this.crafting.isOpen) {
+        e.preventDefault()
+        this.chat.openPanel()
+        this.hud.setChatOpen(true)
+      } else if (e.code === 'KeyC' && this.chat.isOpen) {
+        e.preventDefault()
+        this.chat.closePanel()
+      }
+      if (e.code === 'KeyZ' && !this.panels.isOpen && !this.menu.isOpen && !this.chat.isOpen) {
+        e.preventDefault()
+        if (this.crafting.isOpen) {
+          this.crafting.close()
+        } else {
+          this.controls.releaseLock()
+          this.crafting.open()
+          this.hud.setCraftOpen(true)
+          this.updateInputState()
+        }
+      }
+      if (e.code === 'KeyM' && !this.menu.isOpen) {
+        e.preventDefault()
+        this.minimap.toggleMap()
       }
       if (e.code === 'Enter' && this.mp && !this.panels.isOpen && !this.menu.isOpen && !this.chat.isOpen) {
         e.preventDefault()

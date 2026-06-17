@@ -335,8 +335,10 @@ export class HUD {
       <h3>Controls</h3>
       <p>WASD / Arrows — Move</p>
       <p>Space — Jump &nbsp; F — Toggle fly &nbsp; Shift (fly) — Down</p>
-      <p>E — Inventory &nbsp; 1–9 — Select hotbar &nbsp; Scroll — Cycle hotbar</p>
+      <p>E — Inventory &nbsp; C — Chat &nbsp; Z — Crafting &nbsp; M — Map</p>
+      <p>I — Instructions / Info &nbsp; 1–9 — Select hotbar &nbsp; Scroll — Cycle hotbar</p>
       <p>Left-click (hold) — Mine &nbsp; Right-click — Place / Use / Open chest</p>
+      <p>Climb Ladders: Space (up) &nbsp; Shift (down)</p>
       <h3>Mobile Controls</h3>
       <p>Joystick — Move</p>
       <p>Swipe right side — Look around</p>
@@ -360,10 +362,15 @@ export class HUD {
       <p>Shift + right-click your tamed animal — Capture it into the bag</p>
       <p>Select a captured-animal item and USE on open ground — Release the animal</p>
       <h3>Tips</h3>
+      <h3>Crafting</h3>
+      <p>Press Z or tap CRAFT to open the crafting panel — merge items to make tools, furniture, ladders, and more</p>
+      <p>Ladder: place on a wall and walk into it to climb; Space up, Shift down</p>
+      <h3>Tips</h3>
       <p>Look at an animal or block — its name shows up top; tap the ⓘ (or press I) for how to tame/use it</p>
       <p>Open a treasure box to auto-collect its loot — the box is used up, not kept</p>
       <p>Open the BAG to browse items by category (Blocks, Tools, Food, Animals, Furniture)</p>
       <p>In multiplayer each player shows up in a unique shirt colour</p>
+      <p>Villages appear across the world — explore to find houses, campfires, and friendly villagers</p>
     `
     const closeBtn = box.querySelector('.mc-instructions-close')!
     closeBtn.addEventListener('click', () => { overlay.style.display = 'none' })
@@ -450,7 +457,7 @@ export class HUD {
     }
   }
 
-  private showInstructions(): void {
+  showInstructions(): void {
     this.instructionsOverlay.style.display = 'flex'
   }
 

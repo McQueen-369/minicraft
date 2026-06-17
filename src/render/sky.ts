@@ -14,8 +14,9 @@ const STAR_COUNT = 1800
 function buildStarField(): THREE.Points {
   const pos = new Float32Array(STAR_COUNT * 3)
   for (let i = 0; i < STAR_COUNT; i++) {
-    // Uniform random points on sphere radius 190
-    const u = Math.random() * 2 - 1
+    // Uniform random points on the UPPER hemisphere only (y >= 0) — prevents
+    // stars showing underground or below the horizon when flying.
+    const u = Math.random()          // [0, 1] → upper half
     const theta = Math.random() * Math.PI * 2
     const r = Math.sqrt(1 - u * u)
     pos[i * 3] = r * Math.cos(theta) * 190
@@ -26,12 +27,12 @@ function buildStarField(): THREE.Points {
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
   const mat = new THREE.PointsMaterial({
     color: 0xddeeff,
-    size: 0.65,
+    size: 0.7,
     sizeAttenuation: true,
     transparent: true,
     opacity: 0,
     fog: false,
-    depthTest: false,
+    depthTest: true,   // terrain occludes stars naturally
     depthWrite: false,
   })
   return new THREE.Points(geo, mat)
@@ -59,7 +60,7 @@ export class Sky {
     const moonMat = new THREE.MeshBasicMaterial({
       color: 0xf2edd8,
       fog: false,
-      depthTest: false,
+      depthTest: true,
       depthWrite: false,
       transparent: true,
       opacity: 0,
@@ -69,7 +70,7 @@ export class Sky {
     const glowMat = new THREE.MeshBasicMaterial({
       color: 0xbbc8e8,
       fog: false,
-      depthTest: false,
+      depthTest: true,
       depthWrite: false,
       transparent: true,
       opacity: 0,
