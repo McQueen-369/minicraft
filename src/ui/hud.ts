@@ -94,6 +94,20 @@ const STYLE = `
 .mc-chat-btn:hover, .mc-chat-btn:active { border-color: #fff; background: rgba(60,60,60,0.85); }
 .mc-chat-btn.active { border-color: #7ec8e3; background: rgba(20,60,80,0.85); }
 .mc-chat-btn svg { width: 22px; height: 22px; }
+.mc-craft-btn-hud {
+  height: 52px; margin-left: 4px; padding: 0 10px; border-radius: 8px;
+  background: rgba(20,20,20,0.7); border: 2px solid #888; color: #fff;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px; font-size: 9px; font-weight: bold; cursor: pointer; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.mc-craft-btn-hud:hover, .mc-craft-btn-hud:active { border-color: #fff; background: rgba(60,60,60,0.85); }
+.mc-craft-btn-hud.active { border-color: #f4c060; background: rgba(60,40,0,0.85); }
+.mc-craft-btn-hud svg { width: 22px; height: 22px; }
+.mc-underwater {
+  position: absolute; inset: 0; pointer-events: none; z-index: 4;
+  background: rgba(0,60,180,0.22); opacity: 0; transition: opacity 0.3s;
+}
 .mc-nameplate {
   position: absolute; left: 50%; top: 40px; transform: translateX(-50%);
   z-index: 6; display: none; align-items: center; gap: 8px;
@@ -145,12 +159,16 @@ export class HUD {
   private readonly infoOverlay: HTMLDivElement
   private readonly infoBox: HTMLDivElement
   private readonly chatBtn: HTMLDivElement
+  private readonly craftBtnHud: HTMLDivElement
+  private readonly underwaterOverlay: HTMLDivElement
   private currentInfo: InfoContent | null = null
   private toastTimer = 0
   /** Called when the inventory quick-access button is clicked. */
   onInventory: () => void = () => {}
   /** Called when the chat button is tapped/clicked. */
   onChatToggle: () => void = () => {}
+  /** Called when the craft button is tapped/clicked. */
+  onCraftToggle: () => void = () => {}
   /** Called when a hotbar slot is tapped/clicked to select it. */
   onSelectHotbar: (index: number) => void = () => {}
   /** Called when the info card closes (so the game can re-lock the pointer). */
@@ -240,7 +258,36 @@ export class HUD {
     hotbar.appendChild(chatBtn)
     this.chatBtn = chatBtn
 
+    // Craft button
+    const craftBtnHud = document.createElement('div')
+    craftBtnHud.className = 'mc-craft-btn-hud'
+    craftBtnHud.title = 'Crafting'
+    const craftNS = 'http://www.w3.org/2000/svg'
+    const craftSvg = document.createElementNS(craftNS, 'svg')
+    craftSvg.setAttribute('viewBox', '0 0 24 24')
+    craftSvg.setAttribute('fill', 'none')
+    craftSvg.setAttribute('stroke', 'currentColor')
+    craftSvg.setAttribute('stroke-width', '2')
+    craftSvg.setAttribute('stroke-linecap', 'round')
+    craftSvg.setAttribute('stroke-linejoin', 'round')
+    // Wrench icon path
+    const wrenchPath = document.createElementNS(craftNS, 'path')
+    wrenchPath.setAttribute('d', 'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z')
+    craftSvg.appendChild(wrenchPath)
+    const craftLabel = document.createElement('span')
+    craftLabel.textContent = 'CRAFT'
+    craftBtnHud.append(craftSvg, craftLabel)
+    craftBtnHud.addEventListener('click', () => this.onCraftToggle())
+    craftBtnHud.addEventListener('touchstart', (e) => { e.preventDefault(); this.onCraftToggle() }, { passive: false })
+    hotbar.appendChild(craftBtnHud)
+    this.craftBtnHud = craftBtnHud
+
     root.appendChild(hotbar)
+
+    // Underwater tint overlay
+    this.underwaterOverlay = document.createElement('div')
+    this.underwaterOverlay.className = 'mc-underwater'
+    root.appendChild(this.underwaterOverlay)
 
     this.debug = document.createElement('div')
     this.debug.className = 'mc-debug'
@@ -464,5 +511,13 @@ export class HUD {
 
   setChatOpen(open: boolean): void {
     this.chatBtn.classList.toggle('active', open)
+  }
+
+  setCraftOpen(open: boolean): void {
+    this.craftBtnHud.classList.toggle('active', open)
+  }
+
+  setUnderwater(under: boolean): void {
+    this.underwaterOverlay.style.opacity = under ? '1' : '0'
   }
 }

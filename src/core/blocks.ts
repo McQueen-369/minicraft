@@ -13,6 +13,7 @@ export const BlockId = {
   MysteryBox: 11,
   MysteryBoxRare: 12,
   MysteryBoxEpic: 13,
+  Ladder: 14,
 } as const
 
 export type BlockId = (typeof BlockId)[keyof typeof BlockId]
@@ -39,6 +40,7 @@ export const Tile = {
   MysteryBoxRareTop: 17,
   MysteryBoxEpicSide: 18,
   MysteryBoxEpicTop: 19,
+  LadderSide: 20,
 } as const
 
 export type ToolType = 'pickaxe' | 'axe' | 'shears'
@@ -96,6 +98,11 @@ export const BLOCKS: Record<BlockId, BlockDef | null> = {
   [BlockId.MysteryBox]: def('Mystery Box', { top: Tile.MysteryBoxTop, side: Tile.MysteryBoxSide, bottom: Tile.MysteryBoxTop }, 1, null, { id: BlockId.MysteryBox }),
   [BlockId.MysteryBoxRare]: def('Rare Mystery Box', { top: Tile.MysteryBoxRareTop, side: Tile.MysteryBoxRareSide, bottom: Tile.MysteryBoxRareTop }, 1, null, { id: BlockId.MysteryBoxRare }),
   [BlockId.MysteryBoxEpic]: def('Epic Mystery Box', { top: Tile.MysteryBoxEpicTop, side: Tile.MysteryBoxEpicSide, bottom: Tile.MysteryBoxEpicTop }, 1, null, { id: BlockId.MysteryBoxEpic }),
+  [BlockId.Ladder]: def('Ladder', { top: Tile.LadderSide, side: Tile.LadderSide, bottom: Tile.LadderSide }, 0.5, 'axe', {
+    id: BlockId.Ladder,
+    solid: false,
+    opaque: false,
+  }),
 }
 
 export function isOpaque(id: number): boolean {

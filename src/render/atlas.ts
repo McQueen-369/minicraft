@@ -5,7 +5,7 @@ import { mulberry32 } from '../core/rng'
 export const TILE_PX = 16
 export const ATLAS_TILES = 4 // 4x4 grid
 export const ATLAS_PX = TILE_PX * ATLAS_TILES
-export const ATLAS_ROWS = 5
+export const ATLAS_ROWS = 6
 
 /** Half-texel inset keeps neighboring tiles from bleeding at quad edges. */
 export const UV_EPSILON = 0.5 / ATLAS_PX
@@ -220,6 +220,21 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
       ctx.strokeStyle = '#b07800'
       ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE_PX - 1, TILE_PX - 1)
       break
+    case Tile.LadderSide: {
+      // Light wooden background
+      ctx.fillStyle = '#c8a060'
+      ctx.fillRect(x0, y0, TILE_PX, TILE_PX)
+      // Two vertical side rails (dark brown)
+      ctx.fillStyle = '#6b3e1a'
+      ctx.fillRect(x0, y0, 3, TILE_PX)
+      ctx.fillRect(x0 + TILE_PX - 3, y0, 3, TILE_PX)
+      // Horizontal rungs evenly spaced
+      ctx.fillStyle = '#8a5a28'
+      for (const ry of [2, 6, 10, 14]) {
+        ctx.fillRect(x0 + 3, y0 + ry, TILE_PX - 6, 2)
+      }
+      break
+    }
     default:
       ctx.fillStyle = '#ff00ff'
       ctx.fillRect(x0, y0, TILE_PX, TILE_PX)

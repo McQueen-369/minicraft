@@ -25,6 +25,9 @@ export interface PhysicsInput {
   flyMoveY: number
   /** In water: gravity is damped and jump paddles upward. */
   swim?: boolean
+  /** On a ladder: gravity disabled, move vertically with climbY. */
+  climb?: boolean
+  climbY?: number
 }
 
 export type SolidSampler = (x: number, y: number, z: number) => boolean
@@ -53,6 +56,10 @@ export function stepPhysics(
     p.vel.x = input.moveX
     p.vel.z = input.moveZ
     p.vel.y = input.flyMoveY
+  } else if (input.climb) {
+    p.vel.x = input.moveX
+    p.vel.z = input.moveZ
+    p.vel.y = input.climbY ?? 0
   } else if (input.swim) {
     p.vel.x = input.moveX
     p.vel.z = input.moveZ

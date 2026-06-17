@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { Music } from './audio/music'
-import { AUTOSAVE_INTERVAL_MS, CLOUD_AUTOSAVE_INTERVAL_MS, WATER_LEVEL } from './constants'
+import { AUTOSAVE_INTERVAL_MS, CLOUD_AUTOSAVE_INTERVAL_MS, PLAYER_EYE, WATER_LEVEL } from './constants'
 import { blockKey, chunkKey, worldToChunk } from './core/coords'
 import { hashString } from './core/rng'
 import { DecorationManager } from './entities/decorations'
@@ -33,6 +33,8 @@ import { Menu } from './ui/menu'
 import { MobileControls } from './ui/mobileControls'
 import { Panels } from './ui/panels'
 import { Chat } from './ui/chat'
+import { CraftingPanel } from './ui/crafting'
+import { playAnimalSound } from './audio/sounds'
 import { Terrain } from './world/terrain'
 import { World } from './world/world'
 
@@ -65,7 +67,9 @@ export class Game {
   private readonly menu: Menu
   private readonly minimap: Minimap
   private readonly chat: Chat
+  private readonly crafting: CraftingPanel
   private readonly music = new Music()
+  private handGroup: THREE.Group | null = null
   private readonly worldStore = new MultiWorldStore(localStorage)
   private readonly playerId = crypto.randomUUID().slice(0, 8)
   private readonly mobileControls: MobileControls | null = null
@@ -100,6 +104,7 @@ export class Game {
     this.panels = new Panels(root, this.inventory, this.atlas.canvas)
     this.minimap = new Minimap(root)
     this.chat = new Chat(root)
+    this.crafting = new CraftingPanel(root, this.inventory, this.atlas.canvas)
     this.menu = new Menu(root, {
       listLocalSlots: () => this.worldStore.listSlots(),
       onPlaySlot: (index) => this.startSlot(index),
@@ -145,6 +150,25 @@ export class Game {
     this.hud.onChatToggle = () => {
       if (!this.playing || this.menu.isOpen) return
       this.chat.togglePanel()
+    }
+    this.hud.onCraftToggle = () => {
+      if (!this.playing || this.menu.isOpen) return
+      if (this.crafting.isOpen) {
+        this.crafting.close()
+      } else {
+        this.controls.releaseLock()
+        this.crafting.open()
+        this.hud.setCraftOpen(true)
+        this.updateInputState()
+      }
+    }
+    this.crafting.onClose = () => {
+      this.hud.setCraftOpen(false)
+      this.updateInputState()
+      if (this.playing && !this.panels.isOpen && !this.menu.isOpen) this.controls.requestLock()
+    }
+    this.crafting.onCraft = () => {
+      this.hud.showToast('Crafted!')
     }
     this.hud.onInfoClose = () => {
       if (this.playing && !this.menu.isOpen && !this.panels.isOpen) this.controls.requestLock()
@@ -320,8 +344,12 @@ export class Game {
       this.updateInputState()
     }
     interaction.onBlockEdit = (x, y, z, id) => this.mp?.sendEdit(x, y, z, id)
-    interaction.onAnimalEvent = (ev) =>
+    interaction.onAnimalEvent = (ev) => {
+      if (ev.type === 'tame' && ev.kind) {
+        playAnimalSound(ev.kind as import('./items/items').AnimalKind)
+      }
       this.mp?.sendAnimalEvent({ ev: ev.type, animalId: ev.animalId ?? '', kind: ev.kind, pos: ev.pos, owner: ev.owner })
+    }
     interaction.onFurnitureEvent = (ev: FurnitureEvent) => this.mp?.sendFurniture({ ev: ev.type, item: ev.item, id: ev.id })
 
     const water = new THREE.Mesh(
@@ -332,6 +360,21 @@ export class Game {
     water.position.y = WATER_LEVEL + 0.35
     scene.add(water)
 
+    // First-person hand viewmodel
+    if (this.handGroup) this.camera.remove(this.handGroup)
+    const handGroup = new THREE.Group()
+    const handMat = new THREE.MeshLambertMaterial({ color: 0xffcc99, fog: false, depthTest: false })
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.28, 0.06), handMat)
+    arm.position.y = -0.14
+    arm.renderOrder = 100
+    const fist = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.09), handMat)
+    fist.position.y = -0.33
+    fist.renderOrder = 100
+    handGroup.add(arm, fist)
+    handGroup.position.set(0.2, -0.2, -0.38)
+    this.camera.add(handGroup)
+    this.handGroup = handGroup
+
     this.session = { world, scene, player, chunkRenderer, entities, furniture, decorations, interaction, sky, water, seed, spawn, builtVillages: new Set() }
     this.worldReady = false
     this.saveTimer = 0
@@ -339,6 +382,10 @@ export class Game {
 
   private teardownSession(): void {
     if (!this.session) return
+    if (this.handGroup) {
+      this.camera.remove(this.handGroup)
+      this.handGroup = null
+    }
     this.session.interaction.dispose()
     this.session.scene.traverse((obj) => {
       if (obj instanceof THREE.Mesh || obj instanceof THREE.LineSegments) {
@@ -594,6 +641,7 @@ export class Game {
     this.playing = false
     this.cloudWorld = null
     this.panels.close()
+    this.crafting.close()
     this.teardownSession()
     this.menu.showMain(showProfileCta)
     this.updateInputState()
@@ -604,7 +652,7 @@ export class Game {
   }
 
   private updateInputState(): void {
-    this.controls.gameplayInput = !this.panels.isOpen && !this.menu.isOpen && !this.chat.isOpen
+    this.controls.gameplayInput = !this.panels.isOpen && !this.menu.isOpen && !this.chat.isOpen && !this.crafting.isOpen
   }
 
   /**
@@ -681,6 +729,17 @@ export class Game {
     s.sky.update(dt, this.camera.position)
     s.water.position.x = pos.x
     s.water.position.z = pos.z
+
+    // Hand swing animation
+    if (this.handGroup) {
+      const prog = s.interaction.miningProgress
+      const targetX = prog !== null ? -Math.sin(prog * Math.PI) * 0.7 : 0
+      this.handGroup.rotation.x += (targetX - this.handGroup.rotation.x) * Math.min(dt * 14, 1)
+    }
+
+    // Underwater blue tint
+    const eyeY = pos.y + PLAYER_EYE
+    this.hud.setUnderwater(eyeY < WATER_LEVEL + 0.35)
 
     this.mp?.update(
       dt,
