@@ -14,6 +14,7 @@ import { Inventory } from './items/inventory'
 import { furnitureItemFor, ItemId } from './items/items'
 import type { ChestContents, Slot } from './items/items'
 import { buildStarterHouse } from './world/house'
+import { buildVillage, villageAnchorForChunk } from './world/village'
 import { Minimap, type MapMarker } from './ui/minimap'
 import * as cloud from './net/cloud'
 import { isSessionExpired, loadStoredProfile, storeProfile, type Profile, type WorldMeta } from './net/cloud'
@@ -31,6 +32,7 @@ import { animalInfo, itemInfo } from './ui/info'
 import { Menu } from './ui/menu'
 import { MobileControls } from './ui/mobileControls'
 import { Panels } from './ui/panels'
+import { Chat } from './ui/chat'
 import { Terrain } from './world/terrain'
 import { World } from './world/world'
 
@@ -49,6 +51,7 @@ interface Session {
   water: THREE.Mesh
   seed: number
   spawn: { x: number; z: number }
+  builtVillages: Set<string>
 }
 
 export class Game {
@@ -61,6 +64,7 @@ export class Game {
   private readonly panels: Panels
   private readonly menu: Menu
   private readonly minimap: Minimap
+  private readonly chat: Chat
   private readonly music = new Music()
   private readonly worldStore = new MultiWorldStore(localStorage)
   private readonly playerId = crypto.randomUUID().slice(0, 8)
@@ -95,6 +99,7 @@ export class Game {
     this.hud = new HUD(root, this.inventory, this.atlas.canvas)
     this.panels = new Panels(root, this.inventory, this.atlas.canvas)
     this.minimap = new Minimap(root)
+    this.chat = new Chat(root)
     this.menu = new Menu(root, {
       listLocalSlots: () => this.worldStore.listSlots(),
       onPlaySlot: (index) => this.startSlot(index),
@@ -197,6 +202,10 @@ export class Game {
         // pointerlockchange guard above keeps the pause menu from appearing.
         if (this.hud.openTargetInfo()) this.controls.releaseLock()
       }
+      if (e.code === 'Enter' && this.mp && !this.panels.isOpen && !this.menu.isOpen && !this.chat.isInputOpen) {
+        e.preventDefault()
+        this.chat.openInput()
+      }
       if (this.controls.gameplayInput && e.code.startsWith('Digit')) {
         const n = Number(e.code.slice(5))
         if (n >= 1 && n <= 9) this.inventory.selectHotbar(n - 1)
@@ -282,6 +291,14 @@ export class Game {
     interaction.onFish = () => this.hud.showToast('Caught a fish!')
     interaction.onMysteryBoxOpen = (rarity) => this.hud.showToast(`Opened a ${rarity} Mystery Box!`)
 
+    this.chat.onSend = (text) => {
+      const name = this.mp?.selfName ?? 'Player'
+      this.chat.showMessage(name, text)
+      this.mp?.sendChat(text)
+    }
+    this.chat.onInputOpen = () => { this.controls.gameplayInput = false }
+    this.chat.onInputClose = () => { this.updateInputState() }
+
     interaction.onOpenChest = (x, y, z) => {
       if (world.isTreasureChest(x, y, z)) {
         this.openTreasureBox(x, y, z)
@@ -305,7 +322,7 @@ export class Game {
     water.position.y = WATER_LEVEL + 0.35
     scene.add(water)
 
-    this.session = { world, scene, player, chunkRenderer, entities, furniture, decorations, interaction, sky, water, seed, spawn }
+    this.session = { world, scene, player, chunkRenderer, entities, furniture, decorations, interaction, sky, water, seed, spawn, builtVillages: new Set() }
     this.worldReady = false
     this.saveTimer = 0
   }
@@ -518,6 +535,10 @@ export class Game {
           fm.toggleDoor(msg.id)
         }
       },
+      onChat: (playerId: string, name: string, text: string) => {
+        void playerId
+        this.chat.showMessage(name, text)
+      },
     }
   }
 
@@ -529,6 +550,7 @@ export class Game {
     this.controls.requestLock()
     this.mobileControls?.show()
     this.minimap.show()
+    this.chat.show()
     if (this.session) this.minimap.setHome(this.session.spawn.x, this.session.spawn.z)
   }
 
@@ -568,6 +590,7 @@ export class Game {
     this.updateMusic()
     this.mobileControls?.hide()
     this.minimap.hide()
+    this.chat.hide()
   }
 
   private updateInputState(): void {
@@ -616,6 +639,20 @@ export class Game {
     if (this.playing && this.worldReady) {
       s.player.update(dt, this.controls)
       s.interaction.update(dt)
+    }
+
+    // Build villages when their anchor chunk loads (host/singleplayer only).
+    if (this.mode !== 'guest') {
+      for (const key of s.world.chunks.keys()) {
+        if (s.builtVillages.has(key)) continue
+        const [cx, cz] = key.split(',').map(Number)
+        if (villageAnchorForChunk(s.seed, cx, cz)) {
+          s.builtVillages.add(key)
+          buildVillage(s.world, s.furniture, s.entities, cx, cz)
+        } else {
+          s.builtVillages.add(key)
+        }
+      }
     }
     s.player.applyCamera(this.camera, this.controls)
     this.updateNameplate(s)

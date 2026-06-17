@@ -30,6 +30,8 @@ export interface MultiplayerHooks {
   applyAnimals(list: SavedAnimal[], skyTime?: number): void
   applyAnimalEvent(msg: AnimalEventMsg): void
   applyFurnitureEvent(msg: FurnitureMsg): void
+  /** Incoming chat message from a peer. */
+  onChat?(playerId: string, name: string, text: string): void
   /** Guest: called when the host disconnects. */
   onHostLeft?(): void
 }
@@ -102,6 +104,10 @@ export class Multiplayer {
 
   sendFurniture(msg: Omit<FurnitureMsg, 't'>): void {
     this.transport.send({ t: 'furniture', ...msg })
+  }
+
+  sendChat(text: string): void {
+    this.transport.send({ t: 'chat', playerId: this.selfId, name: this.name, text })
   }
 
   /** Per-frame: throttled state broadcasts + remote avatar smoothing. */
@@ -181,6 +187,9 @@ export class Multiplayer {
         break
       case 'leave':
         this.removePeer(msg.id)
+        break
+      case 'chat':
+        if (msg.playerId !== this.selfId) this.hooks.onChat?.(msg.playerId, msg.name, msg.text)
         break
     }
   }

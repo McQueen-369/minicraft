@@ -78,6 +78,13 @@ export interface LeaveMsg {
   id: string
 }
 
+export interface ChatMsg {
+  t: 'chat'
+  playerId: string
+  name: string
+  text: string
+}
+
 export type GameMessage =
   | PlayerStateMsg
   | HelloMsg
@@ -88,6 +95,7 @@ export type GameMessage =
   | AnimalEventMsg
   | FurnitureMsg
   | LeaveMsg
+  | ChatMsg
 
 interface Envelope {
   v: number
@@ -124,6 +132,8 @@ export function decodeMessage(payload: unknown): GameMessage | null {
       return m.ev === 'place' || m.ev === 'remove' || m.ev === 'toggle' ? m : null
     case 'leave':
       return typeof m.id === 'string' ? m : null
+    case 'chat':
+      return typeof m.playerId === 'string' && typeof m.text === 'string' ? m : null
     default:
       return null
   }
