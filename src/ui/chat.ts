@@ -147,13 +147,13 @@ export class Chat {
   /** Also support the old keyboard-driven open (Enter key in game.ts). */
   get isInputOpen(): boolean { return this.open }
 
-  openPanel(): void {
+  openPanel(focusInput = false): void {
     if (this.open) return
     this.open = true
     this.panel.style.display = 'flex'
     this.renderHistory()
     this.panelInput.value = ''
-    this.panelInput.focus()
+    if (focusInput) this.panelInput.focus()
     this.onOpen()
   }
 

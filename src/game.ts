@@ -275,7 +275,7 @@ export class Game {
       }
       if (e.code === 'Enter' && this.mp && !this.panels.isOpen && !this.menu.isOpen && !this.chat.isOpen) {
         e.preventDefault()
-        this.chat.openPanel()
+        this.chat.openPanel(true)
       }
       if (this.controls.gameplayInput && e.code.startsWith('Digit')) {
         const n = Number(e.code.slice(5))
@@ -712,7 +712,7 @@ export class Game {
   }
 
   private updateInputState(): void {
-    this.controls.gameplayInput = !this.panels.isOpen && !this.menu.isOpen && !this.chat.isOpen && !this.crafting.isOpen && !this.market.isOpen
+    this.controls.gameplayInput = !this.panels.isOpen && !this.menu.isOpen && !this.chat.isOpen && !this.market.isOpen
   }
 
   private dismountHorse(): void {
@@ -760,7 +760,7 @@ export class Game {
       if (horse && horse.mode === 'ridden') {
         const dir = this.controls.moveDirection()
         horse.riderVel = { x: dir.x * HORSE_RIDE_SPEED, z: dir.z * HORSE_RIDE_SPEED }
-        horse.riderJump = this.controls.keys.has('Space')
+        horse.riderJump = this.controls.keys.has('Space') && this.controls.gameplayInput
         horse.yaw = this.controls.yaw + Math.PI
       } else {
         this.mountedHorseId = null
