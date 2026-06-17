@@ -34,7 +34,9 @@ import { MobileControls } from './ui/mobileControls'
 import { Panels } from './ui/panels'
 import { Chat } from './ui/chat'
 import { CraftingPanel } from './ui/crafting'
+import { MarketPanel } from './ui/market'
 import { playAnimalSound } from './audio/sounds'
+import { FishSchool } from './render/fish'
 import { Terrain } from './world/terrain'
 import { World } from './world/world'
 
@@ -51,6 +53,7 @@ interface Session {
   interaction: BlockInteraction
   sky: Sky
   water: THREE.Mesh
+  fish: FishSchool
   seed: number
   spawn: { x: number; z: number }
   builtVillages: Set<string>
@@ -68,6 +71,7 @@ export class Game {
   private readonly minimap: Minimap
   private readonly chat: Chat
   private readonly crafting: CraftingPanel
+  private readonly market: MarketPanel
   private readonly music = new Music()
   private handGroup: THREE.Group | null = null
   private readonly worldStore = new MultiWorldStore(localStorage)
@@ -105,6 +109,7 @@ export class Game {
     this.minimap = new Minimap(root)
     this.chat = new Chat(root)
     this.crafting = new CraftingPanel(root, this.inventory, this.atlas.canvas)
+    this.market = new MarketPanel(root, this.inventory, this.atlas.canvas)
     this.menu = new Menu(root, {
       listLocalSlots: () => this.worldStore.listSlots(),
       onPlaySlot: (index) => this.startSlot(index),
@@ -169,6 +174,13 @@ export class Game {
     }
     this.crafting.onCraft = () => {
       this.hud.showToast('Crafted!')
+    }
+    this.market.onClose = () => {
+      this.updateInputState()
+      if (this.playing && !this.panels.isOpen && !this.menu.isOpen) this.controls.requestLock()
+    }
+    this.market.onTrade = (name) => {
+      this.hud.showToast(`Traded for ${name}!`)
     }
     this.hud.onInfoClose = () => {
       if (this.playing && !this.menu.isOpen && !this.panels.isOpen) this.controls.requestLock()
@@ -341,6 +353,11 @@ export class Game {
     }
     interaction.onFish = () => this.hud.showToast('Caught a fish!')
     interaction.onMysteryBoxOpen = (rarity) => this.hud.showToast(`Opened a ${rarity} Mystery Box!`)
+    interaction.onOpenMarket = () => {
+      this.controls.releaseLock()
+      this.market.open(seed)
+      this.updateInputState()
+    }
 
     this.chat.onSend = (text) => {
       const name = this.mp?.selfName ?? 'Player'
@@ -398,7 +415,8 @@ export class Game {
     this.camera.add(handGroup)
     this.handGroup = handGroup
 
-    this.session = { world, scene, player, chunkRenderer, entities, furniture, decorations, interaction, sky, water, seed, spawn, builtVillages: new Set() }
+    const fish = new FishSchool(scene, seed)
+    this.session = { world, scene, player, chunkRenderer, entities, furniture, decorations, interaction, sky, water, fish, seed, spawn, builtVillages: new Set() }
     this.worldReady = false
     this.saveTimer = 0
   }
@@ -665,6 +683,7 @@ export class Game {
     this.cloudWorld = null
     this.panels.close()
     this.crafting.close()
+    this.market.close()
     this.teardownSession()
     this.menu.showMain(showProfileCta)
     this.updateInputState()
@@ -675,7 +694,7 @@ export class Game {
   }
 
   private updateInputState(): void {
-    this.controls.gameplayInput = !this.panels.isOpen && !this.menu.isOpen && !this.chat.isOpen && !this.crafting.isOpen
+    this.controls.gameplayInput = !this.panels.isOpen && !this.menu.isOpen && !this.chat.isOpen && !this.crafting.isOpen && !this.market.isOpen
   }
 
   /**
@@ -748,6 +767,7 @@ export class Game {
     }
     s.entities.update(dt, pos, owners, this.mode !== 'guest')
     s.furniture.update(pos, dt)
+    s.fish.update(dt, pos.x, pos.z)
     if (this.worldReady) s.decorations.update(s.world, pos, dt)
     s.sky.update(dt, this.camera.position)
     s.water.position.x = pos.x

@@ -1,6 +1,6 @@
-export type FurnitureKind = 'door' | 'window' | 'desk' | 'chair' | 'bed' | 'sofa' | 'campfire'
+export type FurnitureKind = 'door' | 'window' | 'desk' | 'chair' | 'bed' | 'sofa' | 'campfire' | 'market'
 
-export const FURNITURE_KINDS: FurnitureKind[] = ['door', 'window', 'desk', 'chair', 'bed', 'sofa', 'campfire']
+export const FURNITURE_KINDS: FurnitureKind[] = ['door', 'window', 'desk', 'chair', 'bed', 'sofa', 'campfire', 'market']
 
 export interface Furniture {
   id: string
@@ -26,6 +26,7 @@ export const FURNITURE_HEIGHT: Record<FurnitureKind, number> = {
   bed: 0.8,
   sofa: 0.9,
   campfire: 0.4,
+  market: 2.5,
 }
 
 export const FURNITURE_LABEL: Record<FurnitureKind, string> = {
@@ -36,4 +37,5 @@ export const FURNITURE_LABEL: Record<FurnitureKind, string> = {
   bed: 'Bed',
   sofa: 'Sofa',
   campfire: 'Campfire',
+  market: 'Market',
 }

@@ -40,6 +40,7 @@ export const ItemId = {
   Bed: 134,
   Sofa: 135,
   Net: 140,
+  Gold: 200,
 } as const
 
 export type ItemId = (typeof ItemId)[keyof typeof ItemId]
@@ -94,6 +95,7 @@ ITEMS.set(ItemId.Chair, { name: 'Chair', kind: 'furniture', furniture: 'chair', 
 ITEMS.set(ItemId.Bed, { name: 'Bed', kind: 'furniture', furniture: 'bed', maxStack: 16 })
 ITEMS.set(ItemId.Sofa, { name: 'Sofa', kind: 'furniture', furniture: 'sofa', maxStack: 16 })
 ITEMS.set(ItemId.Net, { name: 'Fishing Net', kind: 'net', maxStack: 1 })
+ITEMS.set(ItemId.Gold, { name: 'Gold', kind: 'block', maxStack: MAX_STACK })
 
 const FURNITURE_ITEM: Partial<Record<FurnitureKind, number>> = {
   door: ItemId.Door,

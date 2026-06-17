@@ -49,6 +49,8 @@ export class BlockInteraction {
   onFish: () => void = () => {}
   /** Called when a mystery box is opened, with its rarity tier. */
   onMysteryBoxOpen: (rarity: string) => void = () => {}
+  /** Called when the player right-clicks a market stall. */
+  onOpenMarket: () => void = () => {}
 
   private leftDown = false
   private mining: { x: number; y: number; z: number; elapsed: number; total: number } | null = null
@@ -261,6 +263,8 @@ export class BlockInteraction {
       if (f.kind === 'door') {
         this.furniture.toggleDoor(f.id)
         this.onFurnitureEvent({ type: 'toggle', id: f.id })
+      } else if (f.kind === 'market') {
+        this.onOpenMarket()
       }
       return
     }

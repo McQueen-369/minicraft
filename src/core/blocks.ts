@@ -14,6 +14,7 @@ export const BlockId = {
   MysteryBoxRare: 12,
   MysteryBoxEpic: 13,
   Ladder: 14,
+  GoldOre: 15,
 } as const
 
 export type BlockId = (typeof BlockId)[keyof typeof BlockId]
@@ -41,6 +42,7 @@ export const Tile = {
   MysteryBoxEpicSide: 18,
   MysteryBoxEpicTop: 19,
   LadderSide: 20,
+  GoldOreSide: 21,
 } as const
 
 export type ToolType = 'pickaxe' | 'axe' | 'shears'
@@ -54,8 +56,8 @@ export interface BlockDef {
   hardness: number
   /** Tool type that speeds up mining this block. */
   tool: ToolType | null
-  /** BlockId of what is collected when broken (defaults to self). */
-  drops: BlockId
+  /** Item ID of what is collected when broken (defaults to self). */
+  drops: number
 }
 
 const def = (
@@ -102,6 +104,10 @@ export const BLOCKS: Record<BlockId, BlockDef | null> = {
     id: BlockId.Ladder,
     solid: false,
     opaque: false,
+  }),
+  [BlockId.GoldOre]: def('Gold Ore', { top: Tile.GoldOreSide, side: Tile.GoldOreSide, bottom: Tile.GoldOreSide }, 6, 'pickaxe', {
+    id: BlockId.GoldOre,
+    drops: 200, // ItemId.Gold — drops raw gold, not the ore block itself
   }),
 }
 

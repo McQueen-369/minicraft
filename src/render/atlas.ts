@@ -235,6 +235,30 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
       }
       break
     }
+    case Tile.GoldOreSide: {
+      // Stone base with bright gold vein clusters
+      speckle(ctx, x0, y0, '#8a8a8a', ['#7d7d7d', '#979797', '#6f6f6f'], 0.55, 22)
+      // Gold cluster 1 (top-left area)
+      ctx.fillStyle = '#e8a400'
+      ctx.fillRect(x0 + 2, y0 + 2, 3, 2)
+      ctx.fillRect(x0 + 3, y0 + 4, 2, 2)
+      ctx.fillStyle = '#ffd040'
+      ctx.fillRect(x0 + 2, y0 + 2, 2, 1)
+      ctx.fillRect(x0 + 3, y0 + 4, 1, 1)
+      // Gold cluster 2 (bottom-right area)
+      ctx.fillStyle = '#e8a400'
+      ctx.fillRect(x0 + 10, y0 + 9, 4, 2)
+      ctx.fillRect(x0 + 11, y0 + 11, 3, 2)
+      ctx.fillStyle = '#ffd040'
+      ctx.fillRect(x0 + 10, y0 + 9, 3, 1)
+      ctx.fillRect(x0 + 11, y0 + 11, 2, 1)
+      // Small gold speck (middle)
+      ctx.fillStyle = '#e8a400'
+      ctx.fillRect(x0 + 7, y0 + 6, 2, 1)
+      ctx.fillStyle = '#ffd040'
+      ctx.fillRect(x0 + 7, y0 + 6, 1, 1)
+      break
+    }
     default:
       ctx.fillStyle = '#ff00ff'
       ctx.fillRect(x0, y0, TILE_PX, TILE_PX)

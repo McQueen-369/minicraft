@@ -136,6 +136,46 @@ function buildCampfire(): FurnitureModel {
   return { group: g, pivot: null }
 }
 
+function buildMarket(): FurnitureModel {
+  const g = new THREE.Group()
+  const wood = 0x7a5326
+  const darkWood = 0x5a3c1a
+  const awningColor = 0xcc3333 // red awning
+
+  // Four corner posts
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) {
+      part(g, 0.1, 2.2, 0.1, sx * 0.9, 1.1, sz * 0.45, darkWood)
+    }
+  }
+  // Counter / table top
+  part(g, 2.0, 0.1, 1.0, 0, 0.85, 0, 0x9a7136)
+  // Counter front panel
+  part(g, 2.0, 0.8, 0.08, 0, 0.45, 0.46, wood)
+  // Back wall shelf
+  part(g, 2.0, 1.2, 0.08, 0, 1.5, -0.46, darkWood)
+  // Small shelf on back wall
+  part(g, 1.8, 0.08, 0.2, 0, 1.2, -0.38, 0x8a6030)
+  // Awning / canopy
+  part(g, 2.2, 0.08, 1.3, 0, 2.2, 0, awningColor)
+  // Awning stripe detail (slightly darker bands)
+  for (let xi = -0.8; xi <= 0.8; xi += 0.4) {
+    part(g, 0.08, 0.09, 1.3, xi, 2.2, 0, 0x992222)
+  }
+  // A sign hanging below the awning
+  part(g, 0.8, 0.3, 0.04, 0, 1.95, 0.52, 0xf4d88a)
+  // Sign "M" decoration (dark marks)
+  part(g, 0.06, 0.18, 0.05, -0.25, 1.95, 0.55, darkWood)
+  part(g, 0.06, 0.18, 0.05, 0.25, 1.95, 0.55, darkWood)
+  part(g, 0.36, 0.06, 0.05, 0, 2.04, 0.55, darkWood)
+  // A few decorative item blocks on the counter
+  part(g, 0.18, 0.18, 0.18, -0.55, 0.99, -0.1, 0xe8a400) // gold nugget
+  part(g, 0.16, 0.16, 0.16, 0.4, 0.99, -0.05, 0x9b45d4)  // purple box
+  part(g, 0.14, 0.22, 0.14, -0.1, 1.01, -0.15, 0x4a8a3a) // green item
+
+  return { group: g, pivot: null }
+}
+
 export function buildFurnitureModel(kind: FurnitureKind): FurnitureModel {
   switch (kind) {
     case 'chair':
@@ -152,6 +192,8 @@ export function buildFurnitureModel(kind: FurnitureKind): FurnitureModel {
       return buildDoor()
     case 'campfire':
       return buildCampfire()
+    case 'market':
+      return buildMarket()
   }
 }
 

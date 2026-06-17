@@ -70,6 +70,9 @@ export function buildVillage(
     buildHouse(world, furniture, sx + ox, sz + oz, floorY, set, yaw)
   }
 
+  // Market stall south of the campfire, facing north
+  furniture.place('market', sx, floorY + 1, sz + 10, Math.PI)
+
   // Five villagers: 3 near campfire + 1 per east/west house
   const villagerSpots = [
     { dx:  2, dz:  1 },
