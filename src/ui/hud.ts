@@ -84,6 +84,16 @@ const STYLE = `
 }
 .mc-bag-slot:hover, .mc-bag-slot:active { border-color: #fff; background: rgba(60,60,60,0.85); }
 .mc-bag-slot svg { width: 22px; height: 22px; }
+.mc-chat-btn {
+  height: 52px; margin-left: 4px; padding: 0 10px; border-radius: 8px;
+  background: rgba(20,20,20,0.7); border: 2px solid #888; color: #fff;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px; font-size: 9px; font-weight: bold; cursor: pointer; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.mc-chat-btn:hover, .mc-chat-btn:active { border-color: #fff; background: rgba(60,60,60,0.85); }
+.mc-chat-btn.active { border-color: #7ec8e3; background: rgba(20,60,80,0.85); }
+.mc-chat-btn svg { width: 22px; height: 22px; }
 .mc-nameplate {
   position: absolute; left: 50%; top: 40px; transform: translateX(-50%);
   z-index: 6; display: none; align-items: center; gap: 8px;
@@ -134,10 +144,13 @@ export class HUD {
   private readonly nameplateName: HTMLSpanElement
   private readonly infoOverlay: HTMLDivElement
   private readonly infoBox: HTMLDivElement
+  private readonly chatBtn: HTMLDivElement
   private currentInfo: InfoContent | null = null
   private toastTimer = 0
   /** Called when the inventory quick-access button is clicked. */
   onInventory: () => void = () => {}
+  /** Called when the chat button is tapped/clicked. */
+  onChatToggle: () => void = () => {}
   /** Called when a hotbar slot is tapped/clicked to select it. */
   onSelectHotbar: (index: number) => void = () => {}
   /** Called when the info card closes (so the game can re-lock the pointer). */
@@ -203,6 +216,30 @@ export class HUD {
     bagSlot.addEventListener('click', () => this.onInventory())
     bagSlot.addEventListener('touchstart', (e) => { e.preventDefault(); this.onInventory() }, { passive: false })
     hotbar.appendChild(bagSlot)
+
+    // Chat button
+    const chatBtn = document.createElement('div')
+    chatBtn.className = 'mc-chat-btn'
+    chatBtn.title = 'Chat'
+    const chatSvgNS = 'http://www.w3.org/2000/svg'
+    const chatSvg = document.createElementNS(chatSvgNS, 'svg')
+    chatSvg.setAttribute('viewBox', '0 0 24 24')
+    chatSvg.setAttribute('fill', 'none')
+    chatSvg.setAttribute('stroke', 'currentColor')
+    chatSvg.setAttribute('stroke-width', '2')
+    chatSvg.setAttribute('stroke-linecap', 'round')
+    chatSvg.setAttribute('stroke-linejoin', 'round')
+    const chatBubble = document.createElementNS(chatSvgNS, 'path')
+    chatBubble.setAttribute('d', 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z')
+    chatSvg.appendChild(chatBubble)
+    const chatLabel = document.createElement('span')
+    chatLabel.textContent = 'CHAT'
+    chatBtn.append(chatSvg, chatLabel)
+    chatBtn.addEventListener('click', () => this.onChatToggle())
+    chatBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.onChatToggle() }, { passive: false })
+    hotbar.appendChild(chatBtn)
+    this.chatBtn = chatBtn
+
     root.appendChild(hotbar)
 
     this.debug = document.createElement('div')
@@ -423,5 +460,9 @@ export class HUD {
     }
     this.playerList.style.display = ''
     this.playerList.textContent = names.join('\n')
+  }
+
+  setChatOpen(open: boolean): void {
+    this.chatBtn.classList.toggle('active', open)
   }
 }

@@ -142,6 +142,10 @@ export class Game {
       }
     }
     this.hud.onInventory = openInventory
+    this.hud.onChatToggle = () => {
+      if (!this.playing || this.menu.isOpen) return
+      this.chat.togglePanel()
+    }
     this.hud.onInfoClose = () => {
       if (this.playing && !this.menu.isOpen && !this.panels.isOpen) this.controls.requestLock()
     }
@@ -202,9 +206,9 @@ export class Game {
         // pointerlockchange guard above keeps the pause menu from appearing.
         if (this.hud.openTargetInfo()) this.controls.releaseLock()
       }
-      if (e.code === 'Enter' && this.mp && !this.panels.isOpen && !this.menu.isOpen && !this.chat.isInputOpen) {
+      if (e.code === 'Enter' && this.mp && !this.panels.isOpen && !this.menu.isOpen && !this.chat.isOpen) {
         e.preventDefault()
-        this.chat.openInput()
+        this.chat.openPanel()
       }
       if (this.controls.gameplayInput && e.code.startsWith('Digit')) {
         const n = Number(e.code.slice(5))
@@ -293,11 +297,17 @@ export class Game {
 
     this.chat.onSend = (text) => {
       const name = this.mp?.selfName ?? 'Player'
-      this.chat.showMessage(name, text)
+      this.chat.showMessage(name, text, true)
       this.mp?.sendChat(text)
     }
-    this.chat.onInputOpen = () => { this.controls.gameplayInput = false }
-    this.chat.onInputClose = () => { this.updateInputState() }
+    this.chat.onOpen = () => {
+      this.controls.gameplayInput = false
+      this.hud.setChatOpen(true)
+    }
+    this.chat.onClose = () => {
+      this.updateInputState()
+      this.hud.setChatOpen(false)
+    }
 
     interaction.onOpenChest = (x, y, z) => {
       if (world.isTreasureChest(x, y, z)) {
@@ -594,7 +604,7 @@ export class Game {
   }
 
   private updateInputState(): void {
-    this.controls.gameplayInput = !this.panels.isOpen && !this.menu.isOpen
+    this.controls.gameplayInput = !this.panels.isOpen && !this.menu.isOpen && !this.chat.isOpen
   }
 
   /**
