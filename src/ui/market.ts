@@ -196,7 +196,6 @@ export class MarketPanel {
 
   private renderList(): void {
     const gold = this.goldCount()
-    const hour = Math.floor(Date.now() / 3600000)
     const minsLeft = 60 - (Math.floor(Date.now() / 60000) % 60)
     this.goldBar.innerHTML = `⬛ Gold: <strong>${gold}</strong><span class="mc-mkt-refresh"> — refreshes in ${minsLeft}m</span>`
     this.listEl.innerHTML = ''
