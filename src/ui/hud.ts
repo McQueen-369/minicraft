@@ -331,7 +331,7 @@ export class HUD {
       const count = el.querySelector('.count')!
       if (slot) {
         drawItemIcon(canvas, slot.itemId, this.atlasCanvas)
-        count.textContent = slot.count > 1 ? String(slot.count) : ''
+        count.textContent = String(slot.count)
         el.title = itemDef(slot.itemId)?.name ?? ''
       } else {
         canvas.getContext('2d')!.clearRect(0, 0, canvas.width, canvas.height)

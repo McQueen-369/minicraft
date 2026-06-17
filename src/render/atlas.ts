@@ -47,12 +47,31 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
       }
       break
     }
-    case Tile.Dirt:
+    case Tile.Dirt: {
       speckle(ctx, x0, y0, '#8a6244', ['#7a5538', '#96704e', '#6e4c32', '#9a7656'], 0.6, 4)
+      // Small embedded pebbles — visual cue that soil has buried materials.
+      ctx.fillStyle = '#6a6a6a'
+      ctx.fillRect(x0 + 5, y0 + 5, 2, 1)
+      ctx.fillRect(x0 + 5, y0 + 6, 1, 1)
+      ctx.fillStyle = '#777777'
+      ctx.fillRect(x0 + 12, y0 + 10, 2, 1)
+      ctx.fillRect(x0 + 12, y0 + 11, 1, 1)
       break
-    case Tile.Stone:
+    }
+    case Tile.Stone: {
       speckle(ctx, x0, y0, '#8a8a8a', ['#7d7d7d', '#979797', '#6f6f6f', '#a2a2a2'], 0.55, 5)
+      // Coal vein (dark cluster) — hints that stone is worth mining.
+      ctx.fillStyle = '#2e2e2e'
+      ctx.fillRect(x0 + 2, y0 + 3, 3, 1)
+      ctx.fillRect(x0 + 2, y0 + 4, 1, 2)
+      ctx.fillRect(x0 + 3, y0 + 4, 2, 1)
+      // Iron-ore speck (warm orange-brown) — signals mineral variety.
+      ctx.fillStyle = '#b06030'
+      ctx.fillRect(x0 + 10, y0 + 10, 3, 1)
+      ctx.fillRect(x0 + 11, y0 + 11, 2, 1)
+      ctx.fillRect(x0 + 10, y0 + 11, 1, 1)
       break
+    }
     case Tile.Sand:
       speckle(ctx, x0, y0, '#e0d6a4', ['#d6cb96', '#eae0b4', '#ccc08a'], 0.5, 6)
       break
@@ -75,9 +94,21 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
       ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE_PX - 1, TILE_PX - 1)
       break
     }
-    case Tile.Leaves:
+    case Tile.Leaves: {
       speckle(ctx, x0, y0, '#3e7d2e', ['#346c26', '#488f37', '#2d5c1e', '#52a040'], 0.8, 9)
+      // Hint at hidden apples: small red berries scattered in the foliage.
+      ctx.fillStyle = '#c0281a'
+      ctx.fillRect(x0 + 3, y0 + 4, 2, 2)
+      ctx.fillRect(x0 + 11, y0 + 8, 2, 2)
+      ctx.fillStyle = '#8a1c10'
+      ctx.fillRect(x0 + 3, y0 + 5, 2, 1)
+      ctx.fillRect(x0 + 11, y0 + 9, 2, 1)
+      // Tiny stem
+      ctx.fillStyle = '#5a3e1a'
+      ctx.fillRect(x0 + 4, y0 + 3, 1, 1)
+      ctx.fillRect(x0 + 12, y0 + 7, 1, 1)
       break
+    }
     case Tile.Plank: {
       speckle(ctx, x0, y0, '#b08d5a', ['#a5814e', '#bb9866'], 0.25, 10)
       ctx.fillStyle = '#8a6b3e'

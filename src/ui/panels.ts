@@ -1,6 +1,6 @@
 import type { Inventory } from '../items/inventory'
 import { Inventory as Inv } from '../items/inventory'
-import { itemDef, itemCategory, type ItemCategory, type Slot } from '../items/items'
+import { itemDef, itemCategory, itemIdsForCategory, type ItemCategory, type Slot } from '../items/items'
 import { drawItemIcon } from './icons'
 
 type Category = 'all' | ItemCategory
@@ -51,6 +51,7 @@ const STYLE = `
   border-color: #373737 #fff #fff #373737; position: relative; cursor: pointer;
 }
 .mc-pslot.picked { outline: 3px solid #ffd34d; }
+.mc-pslot.catalog-empty { opacity: 0.32; cursor: default; }
 .mc-pslot canvas { width: 100%; height: 100%; image-rendering: pixelated; }
 .mc-pslot .count {
   position: absolute; right: 2px; bottom: 0; color: #fff; font-size: 13px;
@@ -208,27 +209,62 @@ export class Panels {
   }
 
   private renderFiltered(main: HTMLElement, category: ItemCategory): void {
-    let any = false
+    // Chest contents (if open): show matching slots with drag-drop.
     if (this.chestSlots) {
       const grid = this.filteredGrid(this.chestSlots, category)
       if (grid.childElementCount > 0) {
         main.appendChild(this.title('Chest'))
         main.appendChild(grid)
-        any = true
       }
     }
-    const invGrid = this.filteredGrid(this.inventory.slots, category)
-    if (invGrid.childElementCount > 0) {
-      main.appendChild(this.title('Inventory'))
-      main.appendChild(invGrid)
-      any = true
+
+    // Build aggregated count per item type across the whole inventory.
+    const totals = new Map<number, number>()
+    for (const slot of this.inventory.slots) {
+      if (!slot) continue
+      if (itemCategory(slot.itemId) !== category) continue
+      totals.set(slot.itemId, (totals.get(slot.itemId) ?? 0) + slot.count)
     }
-    if (!any) {
+
+    // Show every known item in this category: owned items first, undiscovered dimmed below.
+    const allIds = itemIdsForCategory(category)
+    const owned = allIds.filter(id => totals.has(id))
+    const missing = allIds.filter(id => !totals.has(id))
+
+    main.appendChild(this.title('Inventory'))
+    const grid = document.createElement('div')
+    grid.className = 'mc-grid'
+    for (const id of owned) {
+      grid.appendChild(this.catalogCell(id, totals.get(id)!))
+    }
+    for (const id of missing) {
+      grid.appendChild(this.catalogCell(id, 0))
+    }
+    if (grid.childElementCount === 0) {
       const msg = document.createElement('p')
       msg.className = 'mc-empty'
       msg.textContent = 'No items in this category yet.'
       main.appendChild(msg)
+    } else {
+      main.appendChild(grid)
     }
+  }
+
+  /** Read-only catalog cell: owned items are full opacity with count; unowned are dimmed. */
+  private catalogCell(itemId: number, count: number): HTMLElement {
+    const el = document.createElement('div')
+    el.className = count > 0 ? 'mc-pslot' : 'mc-pslot catalog-empty'
+    const canvas = document.createElement('canvas')
+    canvas.width = 32
+    canvas.height = 32
+    drawItemIcon(canvas, itemId, this.atlasCanvas)
+    el.appendChild(canvas)
+    const countEl = document.createElement('span')
+    countEl.className = 'count'
+    countEl.textContent = count > 0 ? String(count) : ''
+    el.appendChild(countEl)
+    el.title = itemDef(itemId)?.name ?? ''
+    return el
   }
 
   private renderSummary(container: HTMLElement): void {
@@ -321,7 +357,7 @@ export class Panels {
     el.appendChild(canvas)
     const count = document.createElement('span')
     count.className = 'count'
-    count.textContent = slot.count > 1 ? String(slot.count) : ''
+    count.textContent = String(slot.count)
     el.appendChild(count)
     el.title = itemDef(slot.itemId)?.name ?? ''
   }

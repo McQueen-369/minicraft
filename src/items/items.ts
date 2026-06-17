@@ -131,6 +131,15 @@ export function itemCategory(id: number): ItemCategory {
   }
 }
 
+/** All registered item IDs belonging to a given inventory category, in insertion order. */
+export function itemIdsForCategory(category: ItemCategory): number[] {
+  const out: number[] = []
+  for (const id of ITEMS.keys()) {
+    if (itemCategory(id) === category) out.push(id)
+  }
+  return out
+}
+
 export function captureItemFor(kind: AnimalKind): ItemId {
   if (kind === 'pig') return ItemId.CapturedPig
   if (kind === 'chicken') return ItemId.CapturedChicken
