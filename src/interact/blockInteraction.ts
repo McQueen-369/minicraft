@@ -53,8 +53,12 @@ export class BlockInteraction {
   onOpenMarket: () => void = () => {}
   /** Called when the player mounts a horse. */
   onMount: (animalId: string) => void = () => {}
+  /** Called when the player picks up (true) or sets down (false) a carried NPC. */
+  onCarry: (carrying: boolean) => void = () => {}
 
   private leftDown = false
+  /** Id of the NPC the player is currently carrying (left-click to pick/drop). */
+  private carriedAnimalId: string | null = null
   private mining: { x: number; y: number; z: number; elapsed: number; total: number } | null = null
   private readonly highlight: THREE.LineSegments
   private readonly onMouseDown: (e: MouseEvent) => void
@@ -82,7 +86,9 @@ export class BlockInteraction {
     this.onMouseDown = (e) => {
       if (!this.active) return
       if (e.button === 0) {
+        if (this.carriedAnimalId) { this.dropCarried(); return }
         if (this.captureTargetAnimal()) return
+        if (this.tryCarryAnimal()) return
         if (this.tryPickupLadder()) return
         if (!this.tryPickupFurniture()) this.leftDown = true
       }
@@ -109,7 +115,9 @@ export class BlockInteraction {
 
   /** Called by mobile MINE button: pick up targeted furniture, else hold to mine. */
   startMining(): void {
+    if (this.carriedAnimalId) { this.dropCarried(); return }
     if (this.captureTargetAnimal()) return
+    if (this.tryCarryAnimal()) return
     if (this.tryPickupLadder()) return
     if (!this.tryPickupFurniture()) this.leftDown = true
   }
@@ -132,6 +140,44 @@ export class BlockInteraction {
     this.onAnimalEvent({ type: 'capture', animalId: animal.id })
     this.targetAnimal = null
     return true
+  }
+
+  /** Whether the player is currently carrying an NPC. */
+  get isCarrying(): boolean {
+    return this.carriedAnimalId !== null
+  }
+
+  /**
+   * Pick up the villager NPC under the crosshair to carry it. NPCs are never
+   * stored in the bag — they are only carried, then set back down.
+   */
+  tryCarryAnimal(): boolean {
+    const animal = this.targetAnimal
+    if (!animal || animal.kind !== 'villager') return false
+    this.carriedAnimalId = animal.id
+    animal.carried = true
+    animal.mode = 'stay'
+    this.targetAnimal = null
+    this.onCarry(true)
+    return true
+  }
+
+  /** Set the carried NPC back down on the ground in front of the player. */
+  dropCarried(): void {
+    const animal = this.carriedAnimalId ? this.entities.animals.get(this.carriedAnimalId) : null
+    this.carriedAnimalId = null
+    if (!animal) return
+    animal.carried = false
+    animal.mode = 'wander'
+    const dir = this.camera.getWorldDirection(new THREE.Vector3())
+    const feet = this.player.state.pos
+    const dropX = feet.x + dir.x * 1.2
+    const dropZ = feet.z + dir.z * 1.2
+    // Drop into open air; if that spot is blocked, set it down at the player's feet.
+    const clear = !isSolid(this.world.getBlock(Math.floor(dropX), Math.floor(feet.y), Math.floor(dropZ)))
+    animal.pos = clear ? { x: dropX, y: feet.y + 0.5, z: dropZ } : { x: feet.x, y: feet.y + 0.5, z: feet.z }
+    animal.vel = { x: 0, y: 0, z: 0 }
+    this.onCarry(false)
   }
 
   update(dt: number): void {
@@ -165,6 +211,19 @@ export class BlockInteraction {
       this.highlight.position.set(this.targetBlock.x + 0.5, this.targetBlock.y + 0.5, this.targetBlock.z + 0.5)
     } else {
       this.highlight.visible = false
+    }
+
+    // Carry a held NPC just in front of the player, facing the same way.
+    if (this.carriedAnimalId) {
+      const a = this.entities.animals.get(this.carriedAnimalId)
+      if (!a) {
+        this.carriedAnimalId = null
+      } else {
+        a.carried = true
+        a.pos = { x: eye.x + dir.x * 0.85, y: eye.y - 0.85, z: eye.z + dir.z * 0.85 }
+        a.vel = { x: 0, y: 0, z: 0 }
+        a.yaw = Math.atan2(dir.x, dir.z)
+      }
     }
 
     this.updateMining(dt)

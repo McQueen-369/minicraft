@@ -3,7 +3,7 @@ import { blockKey } from '../core/coords'
 import { hash2D } from '../core/rng'
 import type { EntityManager } from '../entities/entityManager'
 import type { FurnitureManager } from '../entities/furnitureManager'
-import { CHUNK_SIZE } from '../constants'
+import { CHUNK_SIZE, WATER_LEVEL } from '../constants'
 import type { World } from './world'
 
 /** Size of a village cell in chunks. ~20% of cells spawn a village. */
@@ -38,14 +38,18 @@ export function buildVillage(
 ): void {
   const sx = cx * CHUNK_SIZE + Math.floor(CHUNK_SIZE / 2)
   const sz = cz * CHUNK_SIZE + Math.floor(CHUNK_SIZE / 2)
-  const floorY = world.terrain.heightAt(sx, sz)
+  // Keep the village floor on dry land: if the centre sits in or near water,
+  // raise the whole platform above the waterline so houses stand on ground.
+  const floorY = Math.max(world.terrain.heightAt(sx, sz), WATER_LEVEL + 1)
   const set = (x: number, y: number, z: number, id: number) => world.edits.set(blockKey(x, y, z), id)
 
-  // Flatten a 26×26 area
+  // Flatten a 26×26 area to one grassy level, filling any gap underneath (e.g.
+  // over a pond) with solid dirt so the footprint reads as an island, not water.
   for (let x = sx - 13; x <= sx + 13; x++) {
     for (let z = sz - 13; z <= sz + 13; z++) {
       const h = world.terrain.heightAt(x, z)
-      set(x, floorY - 1, z, BlockId.Dirt)
+      const groundBottom = Math.max(Math.min(h, floorY) - 1, floorY - 5)
+      for (let y = groundBottom; y < floorY; y++) set(x, y, z, BlockId.Dirt)
       set(x, floorY, z, BlockId.Grass)
       for (let y = floorY + 1; y <= h + 2; y++) set(x, y, z, BlockId.Air)
     }

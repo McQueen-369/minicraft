@@ -54,15 +54,36 @@ const STYLE = `
 }
 .mc-craft-btn:hover { background: #3a7a4a; }
 .mc-craft-btn:disabled { background: #555; border-color: #666; cursor: default; opacity: 0.6; }
+.mc-craft-row.crafted {
+  background: #cdeccd; border-color: #8fe08f #2a5a2a #2a5a2a #8fe08f;
+  animation: mc-craft-pop 0.6s ease-out;
+}
+@keyframes mc-craft-pop {
+  0% { box-shadow: 0 0 0 0 rgba(70,190,70,0.85); }
+  100% { box-shadow: 0 0 0 12px rgba(70,190,70,0); }
+}
+.mc-craft-made {
+  flex: 0 0 auto; color: #1a6e1a; font-size: 11px; font-weight: bold;
+  margin-left: 4px; white-space: nowrap;
+}
+.mc-craft-icon.crafted-pop { animation: mc-craft-spin 0.5s ease; }
+@keyframes mc-craft-spin {
+  0% { transform: scale(0.6); }
+  60% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
 `
 
 export class CraftingPanel {
   private readonly backdrop: HTMLDivElement
   private readonly list: HTMLDivElement
   private _isOpen = false
+  /** Output item of the most recent craft, briefly highlighted as feedback. */
+  private flashItemId: number | null = null
+  private flashTimer: ReturnType<typeof setTimeout> | null = null
 
   onClose: () => void = () => {}
-  onCraft: () => void = () => {}
+  onCraft: (name: string, count: number) => void = () => {}
 
   get isOpen(): boolean { return this._isOpen }
 
@@ -135,8 +156,9 @@ export class CraftingPanel {
   }
 
   private buildRow(recipe: Recipe, canCraft: boolean): HTMLDivElement {
+    const justCrafted = this.flashItemId === recipe.output.itemId
     const row = document.createElement('div')
-    row.className = 'mc-craft-row' + (canCraft ? '' : ' unavailable')
+    row.className = 'mc-craft-row' + (canCraft ? '' : ' unavailable') + (justCrafted ? ' crafted' : '')
 
     // Input icons
     for (const inp of recipe.inputs) {
@@ -155,7 +177,9 @@ export class CraftingPanel {
     row.appendChild(arrow)
 
     // Output icon
-    row.appendChild(this.makeIcon(recipe.output.itemId, recipe.output.count))
+    const outIcon = this.makeIcon(recipe.output.itemId, recipe.output.count)
+    if (justCrafted) outIcon.classList.add('crafted-pop')
+    row.appendChild(outIcon)
 
     // Label
     const label = document.createElement('div')
@@ -163,6 +187,14 @@ export class CraftingPanel {
     const outputName = itemDef(recipe.output.itemId)?.name ?? ''
     label.innerHTML = `<strong>${outputName}</strong><br>×${recipe.output.count}`
     row.appendChild(label)
+
+    // Brief "Crafted!" confirmation shown in place of the button after a craft.
+    if (justCrafted) {
+      const made = document.createElement('span')
+      made.className = 'mc-craft-made'
+      made.textContent = '✓ Crafted!'
+      row.appendChild(made)
+    }
 
     // Craft button
     const btn = document.createElement('button')
@@ -210,7 +242,15 @@ export class CraftingPanel {
     }
     // Add output
     this.inventory.add(recipe.output.itemId, recipe.output.count)
-    this.onCraft()
+    this.onCraft(itemDef(recipe.output.itemId)?.name ?? 'item', recipe.output.count)
+    // Flash the crafted recipe as visual confirmation, then clear it.
+    this.flashItemId = recipe.output.itemId
+    if (this.flashTimer) clearTimeout(this.flashTimer)
+    this.flashTimer = setTimeout(() => {
+      this.flashItemId = null
+      this.flashTimer = null
+      this.refresh()
+    }, 1100)
     this.refresh()
   }
 }

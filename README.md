@@ -10,8 +10,9 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 ### World & Exploration
 - **Infinite procedural terrain** — seeded simplex-noise hills, rivers, lakes with sand beaches, streamed in chunks as you explore
 - **Expanded render distance** — 12-chunk view radius for wide-open exploration
-- **Day/night cycle** — sun, moon, and stars; live HUD timer shows current phase
-- **Villages** — procedurally placed settlements with houses, a campfire, a market stall, and villager NPCs
+- **Day/night cycle** — a bright sun disc and drifting clouds by day, moon and stars by night; live HUD timer shows the current phase
+- **Villages** — procedurally placed settlements with walled, gabled-roof houses, a campfire, a market stall, and villager NPCs. Villages always sit on solid ground, raising onto an island if the spot would otherwise be in water
+- **Carry villagers** — left-click a villager NPC to pick it up and carry it around; left-click again to set it back down (NPCs are never stored in your bag)
 - **Minimap** — press M to toggle; shows nearby animals and your home spawn
 
 ### Blocks & Resources
@@ -58,12 +59,14 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 
 ### Crafting
 - Press **Z** to open the crafting table — craft planks from wood, glass from sand, and more
+- Successful crafts give clear visual feedback — the recipe flashes green with a “✓ Crafted!” confirmation
 
 ### Building & Furniture
 - Place doors, windows, desks, chairs, beds, sofas, chests, and ladders
 - **Build skyward without a ceiling** — the world column is 256 blocks tall, leaving ~230 blocks of clear air above the terrain for towers and sky bases
 - **Left-click** on placed furniture to pick it back up; campfires and market stalls are fixed
 - Chests store up to 27 extra item stacks
+- Opening a chest pops up a brief on-screen overview of its contents (fades after 3 seconds, or click to dismiss)
 
 ### Ladders
 - **Stack ladders vertically** to build a climbable column as tall as you like — aim at the top of a ladder and right-click to add another above it
@@ -72,6 +75,7 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 - **Left-click** a placed ladder to remove it and store it straight back in your bag
 
 ### Atmosphere
+- **Sun & clouds** — a glowing sun arcs across a sky dotted with drifting white clouds that float high above the world
 - **Colorful birds** circle overhead in the sky
 - **Fish schools** swim in lakes and ponds
 - Underwater blue tint when submerged
@@ -140,6 +144,7 @@ Click **Create Profile** on the main menu to save worlds to the cloud (username 
 |-------|--------|
 | Hold left-click | Mine the targeted block |
 | Left-click furniture / ladder | Pick it back up into your bag |
+| Left-click villager | Pick up / set down to carry the NPC around |
 | Right-click | Place held block / open chest / feed or interact with animal |
 | Shift + right-click (animal) | Capture tamed animal into bag |
 | Right-click ground with capture item | Release animal |

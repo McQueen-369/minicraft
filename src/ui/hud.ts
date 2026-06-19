@@ -143,6 +143,21 @@ const STYLE = `
   color: #fff; font-size: 12px; text-shadow: 1px 1px 0 #000;
   pointer-events: none; text-align: right; line-height: 1.6; display: none;
 }
+.mc-chest-overlay {
+  position: absolute; left: 50%; top: 58px; transform: translateX(-50%);
+  z-index: 15; min-width: 220px; max-width: 320px; display: none; cursor: pointer;
+  background: rgba(18,22,28,0.92); border: 2px solid #6b6b6b; border-radius: 8px;
+  color: #fff; font-family: 'Courier New', monospace; padding: 10px 14px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.55); -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.3s; opacity: 0;
+}
+.mc-chest-overlay h4 { margin: 0 0 6px; font-size: 13px; color: #ffe39a; }
+.mc-chest-overlay-row { display: flex; align-items: center; gap: 8px; font-size: 12px; margin: 3px 0; }
+.mc-chest-overlay-row canvas {
+  width: 24px; height: 24px; image-rendering: pixelated; flex: 0 0 24px;
+  background: rgba(255,255,255,0.08); border: 1px solid #555;
+}
+.mc-chest-overlay-hint { font-size: 10px; color: #9aa; margin-top: 7px; }
 `
 
 export class HUD {
@@ -161,6 +176,8 @@ export class HUD {
   private readonly chatBtn: HTMLDivElement
   private readonly craftBtnHud: HTMLDivElement
   private readonly underwaterOverlay: HTMLDivElement
+  private readonly chestOverlay: HTMLDivElement
+  private chestOverlayTimer: ReturnType<typeof setTimeout> | null = null
   private currentInfo: InfoContent | null = null
   private toastTimer = 0
   /** Called when the inventory quick-access button is clicked. */
@@ -288,6 +305,14 @@ export class HUD {
     this.underwaterOverlay = document.createElement('div')
     this.underwaterOverlay.className = 'mc-underwater'
     root.appendChild(this.underwaterOverlay)
+
+    // Transient chest-contents overview (auto-dismiss after 3s or on click).
+    this.chestOverlay = document.createElement('div')
+    this.chestOverlay.className = 'mc-chest-overlay'
+    const dismissChest = (e: Event) => { e.preventDefault(); this.hideChestOverview() }
+    this.chestOverlay.addEventListener('click', dismissChest)
+    this.chestOverlay.addEventListener('touchstart', dismissChest, { passive: false })
+    root.appendChild(this.chestOverlay)
 
     this.debug = document.createElement('div')
     this.debug.className = 'mc-debug'
@@ -505,6 +530,64 @@ export class HUD {
     this.toast.textContent = text
     this.toast.style.opacity = '1'
     this.toastTimer = 3
+  }
+
+  /**
+   * Show a brief overview of a chest's contents as an on-screen overlay.
+   * Disappears after 3 seconds or as soon as the player clicks it.
+   */
+  showChestOverview(items: { itemId: number; count: number }[]): void {
+    this.chestOverlay.innerHTML = ''
+    const title = document.createElement('h4')
+    title.textContent = '📦 Chest contents'
+    this.chestOverlay.appendChild(title)
+    if (items.length === 0) {
+      const empty = document.createElement('div')
+      empty.className = 'mc-chest-overlay-row'
+      empty.textContent = 'Empty'
+      this.chestOverlay.appendChild(empty)
+    } else {
+      for (const item of items.slice(0, 8)) {
+        const row = document.createElement('div')
+        row.className = 'mc-chest-overlay-row'
+        const canvas = document.createElement('canvas')
+        canvas.width = 32
+        canvas.height = 32
+        drawItemIcon(canvas, item.itemId, this.atlasCanvas)
+        const label = document.createElement('span')
+        label.textContent = `${item.count} × ${itemDef(item.itemId)?.name ?? 'Item'}`
+        row.append(canvas, label)
+        this.chestOverlay.appendChild(row)
+      }
+      if (items.length > 8) {
+        const more = document.createElement('div')
+        more.className = 'mc-chest-overlay-row'
+        more.textContent = `…and ${items.length - 8} more`
+        this.chestOverlay.appendChild(more)
+      }
+    }
+    const hint = document.createElement('div')
+    hint.className = 'mc-chest-overlay-hint'
+    hint.textContent = 'Click to dismiss'
+    this.chestOverlay.appendChild(hint)
+
+    this.chestOverlay.style.display = 'block'
+    // Force reflow so the fade-in transition runs from opacity 0.
+    void this.chestOverlay.offsetWidth
+    this.chestOverlay.style.opacity = '1'
+    if (this.chestOverlayTimer) clearTimeout(this.chestOverlayTimer)
+    this.chestOverlayTimer = setTimeout(() => this.hideChestOverview(), 3000)
+  }
+
+  hideChestOverview(): void {
+    if (this.chestOverlayTimer) {
+      clearTimeout(this.chestOverlayTimer)
+      this.chestOverlayTimer = null
+    }
+    this.chestOverlay.style.opacity = '0'
+    setTimeout(() => {
+      if (this.chestOverlay.style.opacity === '0') this.chestOverlay.style.display = 'none'
+    }, 300)
   }
 
   setPlayerList(names: string[]): void {

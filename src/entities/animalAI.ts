@@ -15,6 +15,8 @@ const HOP_SPEED = 7
 
 /** Advance one animal by dt seconds. Pure given its context. */
 export function stepAnimal(a: Animal, dt: number, ctx: AnimalContext): void {
+  // Carried NPCs are positioned by the player each frame; skip AI and physics.
+  if (a.carried) return
   if (a.mode === 'ridden') {
     const rv = a.riderVel ?? { x: 0, z: 0 }
     const jump = a.riderJump ?? false

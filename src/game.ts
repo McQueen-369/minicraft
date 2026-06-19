@@ -182,8 +182,8 @@ export class Game {
       this.updateInputState()
       if (this.playing && !this.panels.isOpen && !this.menu.isOpen) this.controls.requestLock()
     }
-    this.crafting.onCraft = () => {
-      this.hud.showToast('Crafted!')
+    this.crafting.onCraft = (name, count) => {
+      this.hud.showToast(`✓ Crafted ${count > 1 ? `${count}× ` : ''}${name}!`)
     }
     this.market.onClose = () => {
       this.updateInputState()
@@ -373,6 +373,9 @@ export class Game {
       this.market.open(seed)
       this.updateInputState()
     }
+    interaction.onCarry = (carrying) => {
+      this.hud.showToast(carrying ? 'Carrying villager — left-click to set down' : 'Set the villager down')
+    }
     interaction.onMount = (animalId) => {
       const horse = entities.animals.get(animalId)
       if (!horse) return
@@ -401,10 +404,17 @@ export class Game {
         this.openTreasureBox(x, y, z)
         return
       }
+      const contents = world.getChestContents(x, y, z)
       this.openChestKey = blockKey(x, y, z)
       this.controls.releaseLock()
-      this.panels.openChest(world.getChestContents(x, y, z))
+      this.panels.openChest(contents)
       this.updateInputState()
+      // Brief on-screen overview of what the chest holds.
+      const totals = new Map<number, number>()
+      for (const slot of contents) {
+        if (slot) totals.set(slot.itemId, (totals.get(slot.itemId) ?? 0) + slot.count)
+      }
+      this.hud.showChestOverview([...totals].map(([itemId, count]) => ({ itemId, count })))
     }
     interaction.onBlockEdit = (x, y, z, id) => this.mp?.sendEdit(x, y, z, id)
     interaction.onAnimalEvent = (ev) => {

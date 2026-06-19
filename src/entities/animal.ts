@@ -23,6 +23,8 @@ export interface Animal extends PhysicsState {
   riderVel?: { x: number; z: number }
   /** For horses in 'ridden' mode: whether the rider is pressing jump this frame. */
   riderJump?: boolean
+  /** When true, the player is carrying this NPC; its AI/physics are suspended. */
+  carried?: boolean
 }
 
 export const ANIMAL_DIMS: Record<AnimalKind, BoxDims> = {

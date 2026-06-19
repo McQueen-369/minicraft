@@ -11,6 +11,58 @@ const NIGHT_DURATION = 1200
 
 const STAR_COUNT = 1800
 
+/** Clouds drift on a high horizontal layer, well above any terrain or builds. */
+const CLOUD_COUNT = 16
+const CLOUD_ALTITUDE = 150
+const CLOUD_RADIUS = 240
+
+interface Cloud {
+  group: THREE.Group
+  material: THREE.MeshLambertMaterial
+  ox: number
+  oz: number
+  speed: number
+}
+
+/**
+ * A handful of blocky white clouds spread over a high disc that follows the
+ * camera, so the sky always looks populated without the puffs ever dipping
+ * into the world below.
+ */
+function buildClouds(): Cloud[] {
+  const clouds: Cloud[] = []
+  const puff = new THREE.BoxGeometry(1, 1, 1)
+  for (let i = 0; i < CLOUD_COUNT; i++) {
+    const material = new THREE.MeshLambertMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0,
+      fog: false,
+      depthWrite: false,
+    })
+    const group = new THREE.Group()
+    const blocks = 3 + Math.floor(Math.random() * 4)
+    for (let b = 0; b < blocks; b++) {
+      const mesh = new THREE.Mesh(puff, material)
+      const w = 8 + Math.random() * 14
+      mesh.scale.set(w, 3 + Math.random() * 3, 7 + Math.random() * 10)
+      mesh.position.set((Math.random() - 0.5) * 22, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 16)
+      group.add(mesh)
+    }
+    // Spread clouds across the disc, biased away from the very centre.
+    const ang = Math.random() * Math.PI * 2
+    const rad = CLOUD_RADIUS * (0.25 + Math.random() * 0.75)
+    clouds.push({
+      group,
+      material,
+      ox: Math.cos(ang) * rad,
+      oz: Math.sin(ang) * rad,
+      speed: 2.5 + Math.random() * 3.5,
+    })
+  }
+  return clouds
+}
+
 function buildStarField(): THREE.Points {
   const pos = new Float32Array(STAR_COUNT * 3)
   for (let i = 0; i < STAR_COUNT; i++) {
@@ -45,6 +97,9 @@ export class Sky {
   private readonly stars: THREE.Points
   private readonly moon: THREE.Mesh
   private readonly moonGlow: THREE.Mesh
+  private readonly sunDisc: THREE.Mesh
+  private readonly sunGlow: THREE.Mesh
+  private readonly clouds: Cloud[]
   private readonly skyColor = new THREE.Color()
   /** 0..1 through the day; 0 = sunrise, 0.5 = sunset. */
   time = 0.25
@@ -77,7 +132,30 @@ export class Sky {
     })
     this.moonGlow = new THREE.Mesh(new THREE.SphereGeometry(7.5, 14, 14), glowMat)
 
-    scene.add(this.sun, this.ambient, this.moonLight, this.stars, this.moonGlow, this.moon)
+    // Visible daytime sun disc with a soft halo (mirrors the moon setup).
+    const sunMat = new THREE.MeshBasicMaterial({
+      color: 0xfff2c0,
+      fog: false,
+      depthTest: true,
+      depthWrite: false,
+      transparent: true,
+      opacity: 0,
+    })
+    this.sunDisc = new THREE.Mesh(new THREE.SphereGeometry(7, 16, 16), sunMat)
+    const sunGlowMat = new THREE.MeshBasicMaterial({
+      color: 0xffe39a,
+      fog: false,
+      depthTest: true,
+      depthWrite: false,
+      transparent: true,
+      opacity: 0,
+    })
+    this.sunGlow = new THREE.Mesh(new THREE.SphereGeometry(12, 16, 16), sunGlowMat)
+
+    this.clouds = buildClouds()
+
+    scene.add(this.sun, this.ambient, this.moonLight, this.stars, this.moonGlow, this.moon, this.sunGlow, this.sunDisc)
+    for (const c of this.clouds) scene.add(c.group)
     scene.fog = new THREE.Fog(DAY.getHex(), 60, 110)
   }
 
@@ -103,6 +181,30 @@ export class Sky {
     const sunsetness = THREE.MathUtils.clamp(1 - Math.abs(elevation) * 4, 0, 1) * daylight
     this.sun.intensity = 0.2 + daylight * 1.1
     this.ambient.intensity = 0.25 + daylight * 0.45
+
+    // Sun disc: sits in the sun's direction, fades out around dusk/dawn.
+    const sunDir = new THREE.Vector3(Math.cos(angle), elevation, 0.3).normalize()
+    this.sunDisc.position.copy(center).addScaledVector(sunDir, 185)
+    this.sunGlow.position.copy(this.sunDisc.position)
+    const sunVisible = elevation > -0.08
+    this.sunDisc.visible = sunVisible
+    this.sunGlow.visible = sunVisible
+    if (sunVisible) {
+      const sunAlpha = THREE.MathUtils.clamp(elevation * 6, 0, 1)
+      ;(this.sunDisc.material as THREE.MeshBasicMaterial).opacity = sunAlpha
+      ;(this.sunGlow.material as THREE.MeshBasicMaterial).opacity = sunAlpha * 0.35
+    }
+
+    // Clouds: drift along the high layer, recentred on the camera so the sky is
+    // always populated, and fade away at night.
+    const cloudAlpha = THREE.MathUtils.clamp(daylight * 1.1, 0, 1) * 0.9
+    for (const c of this.clouds) {
+      c.ox += c.speed * dt
+      if (c.ox > CLOUD_RADIUS) c.ox -= CLOUD_RADIUS * 2
+      c.group.position.set(center.x + c.ox, CLOUD_ALTITUDE, center.z + c.oz)
+      c.group.visible = cloudAlpha > 0.02
+      c.material.opacity = cloudAlpha
+    }
 
     // Moon sits diametrically opposite the sun.
     const moonAngle = angle + Math.PI
