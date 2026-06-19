@@ -94,6 +94,43 @@ returns void language sql security definer set search_path = public as $$
   delete from minicraft_sessions where token = p_token;
 $$;
 
+-- Account settings: rename the profile (password-confirmed). Worlds reference
+-- profile_id, so a username change leaves every saved world intact.
+create or replace function minicraft_change_username(p_token uuid, p_password text, p_new_username text)
+returns json language plpgsql security definer set search_path = public, extensions as $$
+declare v_profile_id uuid := minicraft_auth(p_token); v_profile minicraft_profiles;
+begin
+  select * into v_profile from minicraft_profiles where id = v_profile_id;
+  if v_profile.password_hash <> crypt(p_password, v_profile.password_hash) then
+    raise exception 'Wrong password';
+  end if;
+  update minicraft_profiles set username = p_new_username
+  where id = v_profile_id returning * into v_profile;
+  return json_build_object('token', p_token, 'username', v_profile.username);
+exception
+  when unique_violation then
+    raise exception 'That username is taken';
+  when check_violation then
+    raise exception 'Usernames are 3-16 letters, numbers, or underscores';
+end $$;
+
+-- Account settings: reset the profile password (current password required).
+-- The session token stays valid and saved worlds are untouched.
+create or replace function minicraft_change_password(p_token uuid, p_current_password text, p_new_password text)
+returns void language plpgsql security definer set search_path = public, extensions as $$
+declare v_profile_id uuid := minicraft_auth(p_token); v_profile minicraft_profiles;
+begin
+  select * into v_profile from minicraft_profiles where id = v_profile_id;
+  if v_profile.password_hash <> crypt(p_current_password, v_profile.password_hash) then
+    raise exception 'Wrong current password';
+  end if;
+  if p_new_password is null or char_length(p_new_password) < 4 then
+    raise exception 'Password must be at least 4 characters';
+  end if;
+  update minicraft_profiles set password_hash = crypt(p_new_password, gen_salt('bf'))
+  where id = v_profile_id;
+end $$;
+
 create function minicraft_list_worlds(p_token uuid)
 returns json language sql security definer set search_path = public as $$
   select coalesce(

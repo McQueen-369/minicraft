@@ -63,6 +63,8 @@ export interface MenuCallbacks {
   onSignIn: (username: string, password: string) => Promise<void>
   onSignUp: (username: string, password: string) => Promise<void>
   onSignOut: () => void
+  onChangeUsername: (password: string, newUsername: string) => Promise<void>
+  onChangePassword: (currentPassword: string, newPassword: string) => Promise<void>
   listWorlds: () => Promise<WorldMeta[]>
   onPlayCloud: (world: WorldMeta) => Promise<void>
   onHostCloud: (world: WorldMeta, roomCode: string) => Promise<void>
@@ -388,6 +390,10 @@ export class Menu {
     who.appendChild(el('span', 'Signed in as '))
     who.appendChild(el('b', profile.username))
     bar.appendChild(who)
+    const settings = document.createElement('button')
+    settings.textContent = '⚙ Settings'
+    settings.addEventListener('click', () => this.showSettings(profile))
+    bar.appendChild(settings)
     const out = document.createElement('button')
     out.textContent = 'Sign Out'
     out.addEventListener('click', () => {
@@ -467,6 +473,68 @@ export class Menu {
         error.textContent = e instanceof Error ? e.message : 'Could not load your worlds'
       },
     )
+  }
+
+  // --------------------------------------------------------------- settings
+
+  /** Account settings page: rename the profile and reset the password. */
+  private showSettings(profile: Profile): void {
+    this.mode = 'main'
+    this.mainRenderSeq++
+    this.el.style.display = 'flex'
+    this.box.innerHTML = ''
+    this.box.appendChild(el('h1', 'SETTINGS'))
+    this.box.appendChild(el('div', `Signed in as ${profile.username}`, 'sub'))
+    this.box.appendChild(
+      el('div', 'Changing your username or password keeps all your saved worlds intact.', 'save-notice'),
+    )
+
+    // Change username
+    const nameSection = el('div', '', 'section')
+    nameSection.appendChild(el('div', 'Change Username', 'section-title'))
+    const newName = input('New username (3-16 letters/numbers)', 16)
+    const namePw = input('Current password', 64)
+    namePw.type = 'password'
+    const nameError = el('div', '', 'error')
+    nameSection.appendChild(newName)
+    nameSection.appendChild(namePw)
+    this.asyncButton(nameSection, 'Update Username', nameError, async () => {
+      await this.cb.onChangeUsername(namePw.value, newName.value.trim())
+      this.showSettings(this.cb.profile() ?? profile)
+      this.flash('Username updated')
+    })
+    nameSection.appendChild(nameError)
+    this.box.appendChild(nameSection)
+
+    // Change password
+    const pwSection = el('div', '', 'section')
+    pwSection.appendChild(el('div', 'Reset Password', 'section-title'))
+    const curPw = input('Current password', 64)
+    curPw.type = 'password'
+    const newPw = input('New password (min 4 characters)', 64)
+    newPw.type = 'password'
+    const pwError = el('div', '', 'error')
+    pwSection.appendChild(curPw)
+    pwSection.appendChild(newPw)
+    this.asyncButton(pwSection, 'Update Password', pwError, async () => {
+      await this.cb.onChangePassword(curPw.value, newPw.value)
+      curPw.value = ''
+      newPw.value = ''
+      this.flash('Password updated')
+    })
+    pwSection.appendChild(pwError)
+    this.box.appendChild(pwSection)
+
+    const back = el('div', '', 'section')
+    this.button(back, '← Back to Menu', () => this.showMain())
+    this.box.appendChild(back)
+  }
+
+  /** Briefly show a green confirmation banner at the top of the menu box. */
+  private flash(message: string): void {
+    const notice = el('div', message, 'save-notice')
+    this.box.insertBefore(notice, this.box.children[2] ?? null)
+    setTimeout(() => notice.remove(), 2500)
   }
 
   private worldRow(w: WorldMeta, error: HTMLElement): HTMLElement {

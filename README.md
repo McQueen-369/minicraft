@@ -61,8 +61,15 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 
 ### Building & Furniture
 - Place doors, windows, desks, chairs, beds, sofas, chests, and ladders
+- **Build skyward without a ceiling** — the world column is 256 blocks tall, leaving ~230 blocks of clear air above the terrain for towers and sky bases
 - **Left-click** on placed furniture to pick it back up; campfires and market stalls are fixed
 - Chests store up to 27 extra item stacks
+
+### Ladders
+- **Stack ladders vertically** to build a climbable column as tall as you like — aim at the top of a ladder and right-click to add another above it
+- Ladders are walk-through, so you can stack them even while standing on them
+- Climb with **Space** (up) and **Shift** (down) while on a ladder
+- **Left-click** a placed ladder to remove it and store it straight back in your bag
 
 ### Atmosphere
 - **Colorful birds** circle overhead in the sky
@@ -102,6 +109,7 @@ Click **Create Profile** on the main menu to save worlds to the cloud (username 
 
 - Worlds autosave every 30 seconds and appear on any device you sign in from
 - Host a profile world online; the session saves back to your profile automatically
+- **Account settings** — once signed in, open **⚙ Settings** on the main menu to change your username or reset your password. Your saved worlds are keyed to your profile, so changing either leaves every world untouched
 
 ---
 
@@ -131,6 +139,7 @@ Click **Create Profile** on the main menu to save worlds to the cloud (username 
 | Input | Action |
 |-------|--------|
 | Hold left-click | Mine the targeted block |
+| Left-click furniture / ladder | Pick it back up into your bag |
 | Right-click | Place held block / open chest / feed or interact with animal |
 | Shift + right-click (animal) | Capture tamed animal into bag |
 | Right-click ground with capture item | Release animal |

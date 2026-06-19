@@ -21,6 +21,8 @@ function makeCallbacks(over: Partial<MenuCallbacks> = {}): MenuCallbacks {
     onSignIn: vi.fn(async () => {}),
     onSignUp: vi.fn(async () => {}),
     onSignOut: vi.fn(),
+    onChangeUsername: vi.fn(async () => {}),
+    onChangePassword: vi.fn(async () => {}),
     listWorlds: vi.fn(async () => [] as WorldMeta[]),
     onPlayCloud: vi.fn(async () => {}),
     onHostCloud: vi.fn(async () => {}),

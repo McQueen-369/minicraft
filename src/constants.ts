@@ -1,5 +1,8 @@
 export const CHUNK_SIZE = 16
-export const WORLD_HEIGHT = 96
+// Tall world column so players can build skyward with effectively no ceiling.
+// (Truly unbounded height would require Y-chunking; this raised cap gives ~230
+// blocks of clear air above the tallest terrain for vertical builds.)
+export const WORLD_HEIGHT = 256
 export const RENDER_DISTANCE = 12
 export const UNLOAD_DISTANCE = RENDER_DISTANCE + 1
 export const WATER_LEVEL = 24

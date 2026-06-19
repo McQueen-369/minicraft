@@ -137,6 +137,13 @@ export class Game {
         this.profile = null
         storeProfile(null)
       },
+      onChangeUsername: (password, newUsername) =>
+        this.guarded(async () => {
+          this.profile = await cloud.changeUsername(this.profile!.token, password, newUsername)
+          storeProfile(this.profile)
+        }),
+      onChangePassword: (currentPassword, newPassword) =>
+        this.guarded(() => cloud.changePassword(this.profile!.token, currentPassword, newPassword)),
       listWorlds: () => this.guarded(() => cloud.listWorlds(this.profile!.token)),
       onPlayCloud: (w) => this.guarded(() => this.startCloud(w, 'single')),
       onHostCloud: (w, roomCode) => this.guarded(() => this.startCloud(w, 'host', roomCode)),

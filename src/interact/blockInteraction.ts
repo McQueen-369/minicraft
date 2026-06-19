@@ -83,6 +83,7 @@ export class BlockInteraction {
       if (!this.active) return
       if (e.button === 0) {
         if (this.captureTargetAnimal()) return
+        if (this.tryPickupLadder()) return
         if (!this.tryPickupFurniture()) this.leftDown = true
       }
       if (e.button === 2) this.rightClick()
@@ -109,6 +110,7 @@ export class BlockInteraction {
   /** Called by mobile MINE button: pick up targeted furniture, else hold to mine. */
   startMining(): void {
     if (this.captureTargetAnimal()) return
+    if (this.tryPickupLadder()) return
     if (!this.tryPickupFurniture()) this.leftDown = true
   }
   stopMining(): void { this.leftDown = false }
@@ -144,7 +146,7 @@ export class BlockInteraction {
     const dir = this.camera.getWorldDirection(new THREE.Vector3())
     const eye = this.player.eyePosition
     const hit = raycastVoxels(eye.x, eye.y, eye.z, dir.x, dir.y, dir.z, REACH, (x, y, z) =>
-      isSolid(this.world.getBlock(x, y, z)),
+      this.targetable(x, y, z),
     )
     const animalHit = this.entities.raycastAnimal(eye, dir, REACH)
     const furnitureHit = this.furniture.raycast(eye, dir, REACH)
@@ -280,7 +282,7 @@ export class BlockInteraction {
     const dir = this.camera.getWorldDirection(new THREE.Vector3())
     const eye = this.player.eyePosition
     const hit = raycastVoxels(eye.x, eye.y, eye.z, dir.x, dir.y, dir.z, REACH, (x, y, z) =>
-      isSolid(this.world.getBlock(x, y, z)),
+      this.targetable(x, y, z),
     )
     const animalHit = this.entities.raycastAnimal(eye, dir, REACH)
     if (animalHit && (!hit || animalHit.distance < hit.distance)) {
@@ -327,14 +329,39 @@ export class BlockInteraction {
 
     if (def.kind !== 'block' || def.block === undefined) return
     if (hit.distance === 0) return // standing inside the targeted voxel
-    if (isSolid(this.world.getBlock(px, py, pz))) return
-    if (boxOverlapsVoxel(this.player.state.pos, px, py, pz)) return
-    for (const animal of this.entities.animals.values()) {
-      if (boxOverlapsVoxel(animal.pos, px, py, pz, ANIMAL_DIMS[animal.kind])) return
+    if (this.world.getBlock(px, py, pz) !== BlockId.Air) return
+    // Walk-through blocks (ladders) can be stacked freely — even where the
+    // player or animals stand — so you can build a climbable column upward.
+    if (isSolid(def.block)) {
+      if (boxOverlapsVoxel(this.player.state.pos, px, py, pz)) return
+      for (const animal of this.entities.animals.values()) {
+        if (boxOverlapsVoxel(animal.pos, px, py, pz, ANIMAL_DIMS[animal.kind])) return
+      }
     }
     this.inventory.removeFrom(this.inventory.selected)
     this.world.setBlock(px, py, pz, def.block)
     this.onBlockEdit(px, py, pz, def.block)
+  }
+
+  /**
+   * Blocks the crosshair can lock onto. Ladders are non-solid (you walk/climb
+   * through them) but must still be targetable so they can be stacked against
+   * and removed; everything else falls back to the physics solidity test.
+   */
+  private targetable(x: number, y: number, z: number): boolean {
+    const id = this.world.getBlock(x, y, z)
+    return isSolid(id) || id === BlockId.Ladder
+  }
+
+  /** Left-click on a placed ladder lifts it straight back into the bag. */
+  private tryPickupLadder(): boolean {
+    const t = this.targetBlock
+    if (!t || this.world.getBlock(t.x, t.y, t.z) !== BlockId.Ladder) return false
+    this.inventory.add(ItemId.Ladder, 1)
+    this.world.setBlock(t.x, t.y, t.z, BlockId.Air)
+    this.onBlockEdit(t.x, t.y, t.z, BlockId.Air)
+    this.targetBlock = null
+    return true
   }
 
   /** If furniture is under the crosshair, pick it back into the bag. */

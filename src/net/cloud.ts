@@ -66,6 +66,28 @@ export async function signOut(token: string): Promise<void> {
   await rpc<null>('minicraft_logout', { p_token: token })
 }
 
+/**
+ * Rename the signed-in profile (password-confirmed). Saved worlds are keyed by
+ * profile id, not username, so they are untouched. Returns the refreshed profile
+ * (same session token, new username).
+ */
+export async function changeUsername(token: string, password: string, newUsername: string): Promise<Profile> {
+  return rpc<Profile>('minicraft_change_username', {
+    p_token: token,
+    p_password: password,
+    p_new_username: newUsername,
+  })
+}
+
+/** Reset the signed-in profile's password (current password required). Worlds are untouched. */
+export async function changePassword(token: string, currentPassword: string, newPassword: string): Promise<void> {
+  await rpc<null>('minicraft_change_password', {
+    p_token: token,
+    p_current_password: currentPassword,
+    p_new_password: newPassword,
+  })
+}
+
 export async function listWorlds(token: string): Promise<WorldMeta[]> {
   return rpc<WorldMeta[]>('minicraft_list_worlds', { p_token: token })
 }
