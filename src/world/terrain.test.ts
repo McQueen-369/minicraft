@@ -70,7 +70,8 @@ describe('Terrain', () => {
         trees++
         const h = t.heightAt(x, z)
         expect(t.generateBlock(x, h + 1, z)).toBe(BlockId.Wood)
-        expect(t.generateBlock(x, h + tree.trunkHeight + 1, z)).toBe(BlockId.Leaves)
+        const canopy = t.generateBlock(x, h + tree.trunkHeight + 1, z)
+        expect([BlockId.Leaves, BlockId.AppleLeaves]).toContain(canopy)
         break
       }
     }
