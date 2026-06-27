@@ -65,6 +65,13 @@ const STYLE = `
   font-family: 'Courier New', monospace; font-size: 13px; font-weight: bold; color: #333;
   padding: 8px 16px; -webkit-tap-highlight-color: transparent;
 }
+.mc-take-all-btn {
+  cursor: pointer; background: #5a9a5a; border: 2px solid; border-color: #8fd48f #2a5a2a #2a5a2a #8fd48f;
+  font-family: 'Courier New', monospace; font-size: 13px; font-weight: bold; color: #fff;
+  padding: 6px 14px; margin-bottom: 8px; -webkit-tap-highlight-color: transparent;
+}
+.mc-take-all-btn:hover { background: #6ab46a; }
+.mc-take-all-btn:active { background: #4a8a4a; }
 `
 
 interface Picked {
@@ -84,6 +91,9 @@ export class Panels {
   private picked: Picked | null = null
   private chestSlots: (Slot | null)[] | null = null
   private summary: Slot[] | null = null
+  private summaryTitle = 'Treasure Box'
+  private summaryAutoClose = false
+  private summaryTimer: ReturnType<typeof setTimeout> | null = null
   private category: Category = 'all'
   /** Notified after any change while a chest is open (multiplayer sync). */
   onChestChange: () => void = () => {}
@@ -131,20 +141,34 @@ export class Panels {
     this.backdrop.style.display = 'flex'
   }
 
-  /** Show a read-only list of items collected from a treasure box. */
-  openSummary(items: Slot[]): void {
+  /** Show a read-only list of items collected from a box. Auto-closes after 3 s when autoClose is true. */
+  openSummary(items: Slot[], title = 'Treasure Box', autoClose = false): void {
     this.chestSlots = null
     this.summary = items
+    this.summaryTitle = title
+    this.summaryAutoClose = autoClose
     this.picked = null
+    if (this.summaryTimer) {
+      clearTimeout(this.summaryTimer)
+      this.summaryTimer = null
+    }
     this.render()
     this.backdrop.style.display = 'flex'
+    if (autoClose) {
+      this.summaryTimer = setTimeout(() => this.close(), 3000)
+    }
   }
 
   close(): void {
     if (!this.isOpen) return
+    if (this.summaryTimer) {
+      clearTimeout(this.summaryTimer)
+      this.summaryTimer = null
+    }
     this.backdrop.style.display = 'none'
     this.chestSlots = null
     this.summary = null
+    this.summaryAutoClose = false
     this.picked = null
     this.onClose()
   }
@@ -201,11 +225,30 @@ export class Panels {
   private renderAll(main: HTMLElement): void {
     if (this.chestSlots) {
       main.appendChild(this.title('Chest'))
+      const takeAllBtn = document.createElement('button')
+      takeAllBtn.className = 'mc-take-all-btn'
+      takeAllBtn.textContent = 'Take All'
+      takeAllBtn.addEventListener('click', () => this.takeAllFromChest())
+      takeAllBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.takeAllFromChest() }, { passive: false })
+      main.appendChild(takeAllBtn)
       main.appendChild(this.grid(this.chestSlots, 0, this.chestSlots.length))
     }
     main.appendChild(this.title('Inventory'))
     // Main inventory rows (slots 9+); hotbar is pinned in the sticky footer.
     main.appendChild(this.grid(this.inventory.slots, 9, this.inventory.slots.length))
+  }
+
+  private takeAllFromChest(): void {
+    if (!this.chestSlots) return
+    for (let i = 0; i < this.chestSlots.length; i++) {
+      const slot = this.chestSlots[i]
+      if (!slot) continue
+      this.inventory.add(slot.itemId, slot.count)
+      this.chestSlots[i] = null
+    }
+    this.inventory.onChange()
+    this.onChestChange()
+    this.render()
   }
 
   private renderFiltered(main: HTMLElement, category: ItemCategory): void {
@@ -268,7 +311,7 @@ export class Panels {
   }
 
   private renderSummary(container: HTMLElement): void {
-    container.appendChild(this.title('Treasure Box'))
+    container.appendChild(this.title(this.summaryTitle))
     const items = this.summary ?? []
     if (items.length === 0) {
       const msg = document.createElement('p')
@@ -295,12 +338,25 @@ export class Panels {
       container.appendChild(grid)
       container.appendChild(names)
     }
+    const closeRow = document.createElement('div')
+    closeRow.style.display = 'flex'
+    closeRow.style.alignItems = 'center'
+    closeRow.style.gap = '12px'
     const close = document.createElement('button')
     close.className = 'mc-summary-close'
     close.textContent = 'Close'
     close.addEventListener('click', () => this.close())
     close.addEventListener('touchstart', (e) => { e.preventDefault(); this.close() }, { passive: false })
-    container.appendChild(close)
+    closeRow.appendChild(close)
+    if (this.summaryAutoClose) {
+      const hint = document.createElement('span')
+      hint.className = 'mc-summary-msg'
+      hint.style.fontSize = '12px'
+      hint.style.color = '#666'
+      hint.textContent = 'Auto-closes in 3 s'
+      closeRow.appendChild(hint)
+    }
+    container.appendChild(closeRow)
   }
 
   private title(text: string): HTMLElement {

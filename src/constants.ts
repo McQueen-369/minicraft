@@ -1,3 +1,6 @@
+/** Bump this string whenever new features are pushed so players see the refresh banner. */
+export const APP_VERSION = '1.1'
+
 export const CHUNK_SIZE = 16
 // Tall world column so players can build skyward with effectively no ceiling.
 // (Truly unbounded height would require Y-chunking; this raised cap gives ~230

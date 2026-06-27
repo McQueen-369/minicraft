@@ -367,7 +367,12 @@ export class Game {
       }
     }
     interaction.onFish = () => this.hud.showToast('Caught a fish!')
-    interaction.onMysteryBoxOpen = (rarity) => this.hud.showToast(`Opened a ${rarity} Mystery Box!`)
+    interaction.onMysteryBoxOpen = (rarity, loot) => {
+      this.hud.showToast(`Opened a ${rarity} Mystery Box!`)
+      this.controls.releaseLock()
+      this.panels.openSummary(loot, `${rarity} Mystery Box`, true)
+      this.updateInputState()
+    }
     interaction.onOpenMarket = () => {
       this.controls.releaseLock()
       this.market.open(seed)

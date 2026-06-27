@@ -6,7 +6,7 @@ import type { FurnitureManager } from '../entities/furnitureManager'
 import type { Furniture, SavedFurniture } from '../entities/furniture'
 import type { Inventory } from '../items/inventory'
 import { mysteryBoxLoot } from '../items/chest'
-import { breakTime, captureItemFor, furnitureItemFor, itemDef, ItemId } from '../items/items'
+import { breakTime, captureItemFor, furnitureItemFor, itemDef, ItemId, type Slot } from '../items/items'
 import type { Controls } from '../player/controls'
 import { boxOverlapsVoxel, type Vec3 } from '../player/physics'
 import type { Player } from '../player/player'
@@ -47,8 +47,8 @@ export class BlockInteraction {
   onOpenChest: (x: number, y: number, z: number) => void = () => {}
   /** Called when the player successfully catches a fish. */
   onFish: () => void = () => {}
-  /** Called when a mystery box is opened, with its rarity tier. */
-  onMysteryBoxOpen: (rarity: string) => void = () => {}
+  /** Called when a mystery box is opened, with its rarity tier and the collected loot. */
+  onMysteryBoxOpen: (rarity: string, loot: Slot[]) => void = () => {}
   /** Called when the player right-clicks a market stall. */
   onOpenMarket: () => void = () => {}
   /** Called when the player mounts a horse. */
@@ -257,13 +257,17 @@ export class BlockInteraction {
 
   private collectMysteryBoxLoot(id: number, x: number, y: number, z: number): void {
     const loot = mysteryBoxLoot(id)
+    const collected: Slot[] = []
     for (const slot of loot) {
-      if (slot) this.inventory.add(slot.itemId, slot.count)
+      if (slot) {
+        this.inventory.add(slot.itemId, slot.count)
+        collected.push(slot)
+      }
     }
     this.world.setBlock(x, y, z, BlockId.Air)
     this.onBlockEdit(x, y, z, BlockId.Air)
     const rarity = id === BlockId.MysteryBoxEpic ? 'Epic' : id === BlockId.MysteryBoxRare ? 'Rare' : 'Common'
-    this.onMysteryBoxOpen(rarity)
+    this.onMysteryBoxOpen(rarity, collected)
   }
 
   private breakBlock(x: number, y: number, z: number): void {

@@ -1,8 +1,25 @@
 import type { LocalWorldMeta } from '../persist/storage'
 import type { Profile, WorldMeta } from '../net/cloud'
 import { generateRoomCode } from '../net/protocol'
+import { APP_VERSION } from '../constants'
+
+const VERSION_STORAGE_KEY = 'minicraft-seen-version'
 
 const STYLE = `
+.mc-update-banner {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 30;
+  background: #f4c030; color: #222; font-family: 'Courier New', monospace;
+  font-size: 13px; padding: 10px 16px;
+  display: flex; align-items: center; gap: 12px;
+  border-bottom: 2px solid #b89010; box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+.mc-update-banner .mc-update-msg { flex: 1; font-weight: bold; }
+.mc-update-banner .mc-update-dismiss {
+  background: #333; color: #fff; border: 2px solid #555;
+  padding: 5px 12px; font-family: 'Courier New', monospace;
+  font-size: 12px; cursor: pointer; white-space: nowrap; flex-shrink: 0;
+}
+.mc-update-banner .mc-update-dismiss:hover { background: #555; }
 .mc-menu {
   position: absolute; inset: 0; z-index: 20;
   background: linear-gradient(rgba(10,14,20,0.85), rgba(10,14,20,0.92));
@@ -75,6 +92,7 @@ export interface MenuCallbacks {
 export class Menu {
   private readonly el: HTMLDivElement
   private readonly box: HTMLDivElement
+  private readonly updateBanner: HTMLDivElement
   private mode: 'main' | 'pause' | 'hidden' = 'main'
   private mainRenderSeq = 0
 
@@ -87,6 +105,23 @@ export class Menu {
     document.head.appendChild(style)
     this.el = document.createElement('div')
     this.el.className = 'mc-menu'
+
+    this.updateBanner = document.createElement('div')
+    this.updateBanner.className = 'mc-update-banner'
+    this.updateBanner.style.display = 'none'
+    const msg = document.createElement('span')
+    msg.className = 'mc-update-msg'
+    msg.textContent = 'New features are available! Refresh your browser to get the latest updates.'
+    const dismiss = document.createElement('button')
+    dismiss.className = 'mc-update-dismiss'
+    dismiss.textContent = 'Dismiss'
+    dismiss.addEventListener('click', () => {
+      try { localStorage.setItem(VERSION_STORAGE_KEY, APP_VERSION) } catch { /* ignore */ }
+      this.updateBanner.style.display = 'none'
+    })
+    this.updateBanner.append(msg, dismiss)
+    this.el.appendChild(this.updateBanner)
+
     this.box = document.createElement('div')
     this.box.className = 'mc-menu-box'
     this.el.appendChild(this.box)
@@ -113,6 +148,13 @@ export class Menu {
     this.mainRenderSeq++
     this.el.style.display = 'flex'
     this.box.innerHTML = ''
+    // Show update banner if the player hasn't seen this version yet.
+    try {
+      const seen = localStorage.getItem(VERSION_STORAGE_KEY)
+      this.updateBanner.style.display = seen !== APP_VERSION ? 'flex' : 'none'
+    } catch {
+      this.updateBanner.style.display = 'none'
+    }
     this.box.appendChild(el('h1', 'MINICRAFT'))
     this.box.appendChild(el('div', 'a tiny voxel world', 'sub'))
 
