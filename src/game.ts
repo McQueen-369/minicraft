@@ -76,6 +76,8 @@ export class Game {
   private readonly market: MarketPanel
   private readonly music = new Music()
   private mountedHorseId: string | null = null
+  /** When the current horse was mounted; lets a mounting double-tap settle. */
+  private mountedAtMs = 0
   private handGroup: THREE.Group | null = null
   private readonly worldStore = new MultiWorldStore(localStorage)
   private readonly playerId = crypto.randomUUID().slice(0, 8)
@@ -363,8 +365,15 @@ export class Game {
       this.mobileControls.onTap = () => {
         interaction.triggerRightClick()
       }
-      // Double-tap the look area to store the targeted tamed animal in the bag.
+      // Double-tap the look area: on/off a horse, else store the targeted
+      // tamed animal in the bag.
       this.mobileControls.onDoubleTap = () => {
+        if (this.mountedHorseId) {
+          // The first tap of this double-tap may have just mounted the horse
+          // (tap = right-click = mount); only dismount once that has settled.
+          if (performance.now() - this.mountedAtMs > 500) this.dismountHorse()
+          return
+        }
         if (interaction.captureTargetAnimal()) this.hud.showToast('Stored animal in bag')
       }
     }
@@ -384,12 +393,16 @@ export class Game {
       this.hud.showToast(carrying ? 'Carrying villager — left-click to set down' : 'Set the villager down')
     }
     interaction.onMount = (animalId) => {
+      if (this.mountedHorseId === animalId) return // already riding this horse
       const horse = entities.animals.get(animalId)
       if (!horse) return
       horse.mode = 'ridden'
       this.mountedHorseId = animalId
+      this.mountedAtMs = performance.now()
       this.controls.fly = false
-      this.hud.showToast('Riding horse — press F to dismount')
+      this.hud.showToast(
+        this.controls.isTouchDevice ? 'Riding horse — double-tap to dismount' : 'Riding horse — press F to dismount',
+      )
     }
 
     this.chat.onSend = (text) => {

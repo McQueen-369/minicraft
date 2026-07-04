@@ -140,6 +140,7 @@ export class BlockInteraction {
     if (!this.active) return false
     const animal = this.targetAnimal
     if (!animal || animal.owner !== this.playerId) return false
+    if (animal.mode === 'ridden') return false // never bag a horse someone is riding
     const captureItem = captureItemFor(animal.kind)
     if (this.inventory.add(captureItem, 1) > 0) return false // bag full
     this.entities.capture(animal.id)

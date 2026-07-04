@@ -44,6 +44,24 @@ through the outbound proxy and the page never loads.
   { itemId, count }`), reload, and replay the slot — this exercises the real
   persistence path.
 
+## Touch / mobile controls
+
+- Emulate with a Playwright context `{ hasTouch: true }` — `isTouchDevice`
+  checks `maxTouchPoints`, which makes the mobile joystick/buttons appear and
+  bypasses pointer lock entirely.
+- `page.touchscreen.tap` twice is too slow for the game's 300ms double-tap
+  window (protocol round-trips add ~400ms). Dispatch both taps in one
+  `page.evaluate`: build `new Touch({identifier, target, clientX, clientY})`
+  and fire `touchstart`/`touchend` `TouchEvent`s on `.mc-look-zone`, ~120ms
+  apart.
+- Tap on the look zone = right-click (place/use/mount); double-tap =
+  dismount horse / store targeted animal.
+- To stage an animal, use the `window.__minicraft` handle:
+  `session.entities.release(kind, pos, playerId)` spawns it tamed; set
+  `mode = 'stay'` so it doesn't wander. Aim by setting `controls.yaw/pitch`
+  from the eye→animal vector (pitch negative = down), then confirm with
+  `session.interaction.targetAnimal?.kind` before tapping.
+
 ## Flows worth driving
 
 - Fresh world spawn (starter house), HUD, minimap.

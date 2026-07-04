@@ -14,6 +14,7 @@ const TAME_FOOD: Partial<Record<AnimalKind, string>> = {
   rabbit: 'Carrot',
   cat: 'Fish',
   dog: 'Bone',
+  horse: 'Wheat',
 }
 
 function capitalize(s: string): string {
@@ -29,6 +30,17 @@ export function animalInfo(kind: AnimalKind): InfoContent {
     }
   }
   const food = TAME_FOOD[kind]!
+  if (kind === 'horse') {
+    return {
+      title: 'Horse',
+      lines: [
+        `Tame: hold ${food} in your hand and USE (right-click) on the horse to feed it. Feed it to make it yours.`,
+        'Ride: USE (or tap) your tamed horse to mount it. Dismount with F — on mobile, double-tap the screen.',
+        'Capture: hold Shift + right-click — on mobile hold DOWN then tap USE — on your tamed horse to pack it into a carry item.',
+        'Release: select the captured horse item and USE on open ground to set it back down.',
+      ],
+    }
+  }
   return {
     title: capitalize(kind),
     lines: [
