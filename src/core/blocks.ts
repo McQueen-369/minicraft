@@ -16,6 +16,7 @@ export const BlockId = {
   Ladder: 14,
   GoldOre: 15,
   AppleLeaves: 16,
+  TNT: 17,
 } as const
 
 export type BlockId = (typeof BlockId)[keyof typeof BlockId]
@@ -45,6 +46,8 @@ export const Tile = {
   LadderSide: 20,
   GoldOreSide: 21,
   AppleLeaves: 22,
+  TNTSide: 23,
+  TNTTop: 24,
 } as const
 
 export type ToolType = 'pickaxe' | 'axe' | 'shears'
@@ -115,6 +118,9 @@ export const BLOCKS: Record<BlockId, BlockDef | null> = {
     id: BlockId.AppleLeaves,
     opaque: false,
     drops: 113, // ItemId.Apple
+  }),
+  [BlockId.TNT]: def('TNT', { top: Tile.TNTTop, side: Tile.TNTSide, bottom: Tile.TNTTop }, 0.3, null, {
+    id: BlockId.TNT,
   }),
 }
 

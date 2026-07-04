@@ -14,7 +14,9 @@ export class ChunkRenderer {
     private readonly world: World,
     atlas: Atlas,
   ) {
-    this.material = new THREE.MeshLambertMaterial({ map: atlas.texture })
+    // alphaTest discards the transparent pixels of cutout tiles (glass panes)
+    // without the sorting artifacts of a fully transparent material.
+    this.material = new THREE.MeshLambertMaterial({ map: atlas.texture, alphaTest: 0.5 })
   }
 
   get chunkCount(): number {

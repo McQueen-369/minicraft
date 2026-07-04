@@ -35,7 +35,7 @@ import { Panels } from './ui/panels'
 import { Chat } from './ui/chat'
 import { CraftingPanel } from './ui/crafting'
 import { MarketPanel } from './ui/market'
-import { playAnimalSound } from './audio/sounds'
+import { playAnimalSound, playExplosionSound } from './audio/sounds'
 import { FishSchool } from './render/fish'
 import { BirdFlock } from './render/birds'
 import { Terrain } from './world/terrain'
@@ -341,6 +341,8 @@ export class Game {
     this.inventory.load(save?.inventory ?? [])
     // Fresh world: give the player a fishing net to start with.
     if (!save) this.inventory.add(ItemId.Net, 1)
+    // TNT is a freebie, not a hunted resource: top the bag up whenever it runs dry.
+    if (this.inventory.countOf(ItemId.TNT) === 0) this.inventory.add(ItemId.TNT, 10)
 
     const interaction = new BlockInteraction(
       world,
@@ -367,6 +369,11 @@ export class Game {
       }
     }
     interaction.onFish = () => this.hud.showToast('Caught a fish!')
+    interaction.onTntPrimed = () => this.hud.showToast('TNT primed — stand back!')
+    interaction.onExplosion = () => {
+      playExplosionSound()
+      this.hud.showToast('💥 BOOM!')
+    }
     interaction.onMysteryBoxOpen = (rarity) => this.hud.showToast(`Opened a ${rarity} Mystery Box!`)
     interaction.onOpenMarket = () => {
       this.controls.releaseLock()
