@@ -5,7 +5,7 @@ import { mulberry32 } from '../core/rng'
 export const TILE_PX = 16
 export const ATLAS_TILES = 4 // 4x4 grid
 export const ATLAS_PX = TILE_PX * ATLAS_TILES
-export const ATLAS_ROWS = 6
+export const ATLAS_ROWS = 7
 
 /** Half-texel inset keeps neighboring tiles from bleeding at quad edges. */
 export const UV_EPSILON = 0.5 / ATLAS_PX
@@ -120,13 +120,24 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
       break
     }
     case Tile.Glass: {
+      // See-through pane: the tile is transparent except for a pale frame and
+      // a few shine streaks (the material discards pixels via alphaTest).
+      ctx.clearRect(x0, y0, TILE_PX, TILE_PX)
       ctx.fillStyle = '#cfeff4'
-      ctx.fillRect(x0, y0, TILE_PX, TILE_PX)
+      ctx.fillRect(x0, y0, TILE_PX, 1)
+      ctx.fillRect(x0, y0 + TILE_PX - 1, TILE_PX, 1)
+      ctx.fillRect(x0, y0, 1, TILE_PX)
+      ctx.fillRect(x0 + TILE_PX - 1, y0, 1, TILE_PX)
+      // Corner accents
+      ctx.fillStyle = '#9fc9d4'
+      ctx.fillRect(x0, y0, 2, 2)
+      ctx.fillRect(x0 + TILE_PX - 2, y0, 2, 2)
+      ctx.fillRect(x0, y0 + TILE_PX - 2, 2, 2)
+      ctx.fillRect(x0 + TILE_PX - 2, y0 + TILE_PX - 2, 2, 2)
+      // Diagonal shine streaks
       ctx.fillStyle = '#ffffff'
-      ctx.fillRect(x0 + 2, y0 + 2, 2, 6)
-      ctx.fillRect(x0 + 5, y0 + 2, 1, 3)
-      ctx.strokeStyle = '#9fc9d4'
-      ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE_PX - 1, TILE_PX - 1)
+      for (let i = 0; i < 5; i++) ctx.fillRect(x0 + 3 + i, y0 + 7 - i, 1, 2)
+      for (let i = 0; i < 3; i++) ctx.fillRect(x0 + 9 + i, y0 + 12 - i, 1, 2)
       break
     }
     case Tile.ChestSide:
@@ -271,6 +282,45 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
       ctx.fillRect(x0 + 7, y0 + 6, 2, 1)
       ctx.fillStyle = '#ffd040'
       ctx.fillRect(x0 + 7, y0 + 6, 1, 1)
+      break
+    }
+    case Tile.TNTSide: {
+      // Red sticks with a white "TNT" label band
+      speckle(ctx, x0, y0, '#c8301e', ['#b52a1a', '#d63c26', '#a02416'], 0.35, 24)
+      ctx.fillStyle = '#8a1c10'
+      ctx.fillRect(x0, y0, TILE_PX, 1)
+      ctx.fillRect(x0, y0 + TILE_PX - 1, TILE_PX, 1)
+      // Label band
+      ctx.fillStyle = '#efe6d5'
+      ctx.fillRect(x0, y0 + 5, TILE_PX, 6)
+      // "TNT" pixel letters in black
+      ctx.fillStyle = '#1a1a1a'
+      // T
+      ctx.fillRect(x0 + 1, y0 + 6, 3, 1)
+      ctx.fillRect(x0 + 2, y0 + 6, 1, 4)
+      // N
+      ctx.fillRect(x0 + 6, y0 + 6, 1, 4)
+      ctx.fillRect(x0 + 9, y0 + 6, 1, 4)
+      ctx.fillRect(x0 + 7, y0 + 7, 1, 1)
+      ctx.fillRect(x0 + 8, y0 + 8, 1, 1)
+      // T
+      ctx.fillRect(x0 + 12, y0 + 6, 3, 1)
+      ctx.fillRect(x0 + 13, y0 + 6, 1, 4)
+      break
+    }
+    case Tile.TNTTop: {
+      // Bundled stick ends with a central fuse
+      speckle(ctx, x0, y0, '#c8301e', ['#b52a1a', '#d63c26'], 0.3, 25)
+      ctx.strokeStyle = '#8a1c10'
+      ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE_PX - 1, TILE_PX - 1)
+      // Stick ends (lighter circles drawn as squares)
+      ctx.fillStyle = '#e06a50'
+      for (const [sx, sy] of [[2, 2], [9, 2], [2, 9], [9, 9]] as const) {
+        ctx.fillRect(x0 + sx, y0 + sy, 5, 5)
+      }
+      // Fuse
+      ctx.fillStyle = '#3a3a3a'
+      ctx.fillRect(x0 + 7, y0 + 7, 2, 2)
       break
     }
     default:

@@ -45,6 +45,36 @@ function click(freq: number, startTime: number): void {
   osc.stop(ac.currentTime + startTime + 0.04)
 }
 
+/** Deep rumbling boom for a TNT detonation: noise burst plus a low sine drop. */
+export function playExplosionSound(): void {
+  try {
+    const ac = getCtx()
+    // White-noise burst with a fast exponential decay
+    const duration = 0.8
+    const buffer = ac.createBuffer(1, ac.sampleRate * duration, ac.sampleRate)
+    const data = buffer.getChannelData(0)
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-4 * (i / data.length))
+    }
+    const noise = ac.createBufferSource()
+    noise.buffer = buffer
+    const noiseGain = ac.createGain()
+    noiseGain.gain.setValueAtTime(0.4, ac.currentTime)
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + duration)
+    const lowpass = ac.createBiquadFilter()
+    lowpass.type = 'lowpass'
+    lowpass.frequency.setValueAtTime(900, ac.currentTime)
+    noise.connect(lowpass)
+    lowpass.connect(noiseGain)
+    noiseGain.connect(ac.destination)
+    noise.start()
+    // Low body of the boom
+    tone('sine', 90, 30, 0.6, 0.35, 0)
+  } catch {
+    // AudioContext unavailable
+  }
+}
+
 export function playAnimalSound(kind: AnimalKind): void {
   try {
     switch (kind) {

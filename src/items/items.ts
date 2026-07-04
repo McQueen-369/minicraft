@@ -17,6 +17,7 @@ export const ItemId = {
   Glass: BlockId.Glass,
   Chest: BlockId.Chest,
   Ladder: BlockId.Ladder,
+  TNT: BlockId.TNT,
   WoodPickaxe: 100,
   StonePickaxe: 101,
   Axe: 102,

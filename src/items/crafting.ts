@@ -13,6 +13,7 @@ export const RECIPES: Recipe[] = [
   { id: 'brick', inputs: [{ itemId: BlockId.Stone, count: 4 }], output: { itemId: BlockId.Brick, count: 4 } },
   { id: 'glass', inputs: [{ itemId: BlockId.Sand, count: 4 }], output: { itemId: BlockId.Glass, count: 3 } },
   { id: 'ladder', inputs: [{ itemId: BlockId.Wood, count: 2 }, { itemId: BlockId.Stone, count: 2 }], output: { itemId: BlockId.Ladder, count: 4 } },
+  { id: 'tnt', inputs: [{ itemId: BlockId.Sand, count: 2 }, { itemId: BlockId.Stone, count: 1 }], output: { itemId: BlockId.TNT, count: 2 } },
   // Tools
   { id: 'wood-pickaxe', inputs: [{ itemId: BlockId.Plank, count: 3 }, { itemId: BlockId.Stone, count: 2 }], output: { itemId: ItemId.WoodPickaxe, count: 1 } },
   { id: 'stone-pickaxe', inputs: [{ itemId: BlockId.Plank, count: 3 }, { itemId: BlockId.Stone, count: 4 }], output: { itemId: ItemId.StonePickaxe, count: 1 } },

@@ -1,4 +1,4 @@
-import { blockDef, type ToolType } from '../core/blocks'
+import { blockDef, BlockId, type ToolType } from '../core/blocks'
 import { itemDef, type AnimalKind } from '../items/items'
 
 /** A short, human-readable help card for an animal or item. */
@@ -57,6 +57,16 @@ function toolBestFor(tool: ToolType): string {
 export function itemInfo(itemId: number): InfoContent {
   const def = itemDef(itemId)
   if (!def) return { title: 'Unknown', lines: [] }
+  if (itemId === BlockId.TNT) {
+    return {
+      title: 'TNT',
+      lines: [
+        'Use: place it and step back — the fuse burns for a couple of seconds, then it blasts away every block around it.',
+        'USE (right-click) a placed TNT block to relight its fuse; mine it before it blows to defuse and pick it back up.',
+        'Get: starts in your bag (and refills when empty). Craft more from Sand and Stone.',
+      ],
+    }
+  }
   const lines: string[] = []
   if (def.kind === 'block') {
     lines.push('Use: select it on the hotbar and USE (right-click) on a surface to place the block.')

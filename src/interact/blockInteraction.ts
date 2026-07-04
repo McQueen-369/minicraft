@@ -55,8 +55,14 @@ export class BlockInteraction {
   onMount: (animalId: string) => void = () => {}
   /** Called when the player picks up (true) or sets down (false) a carried NPC. */
   onCarry: (carrying: boolean) => void = () => {}
+  /** Called when a TNT fuse is lit. */
+  onTntPrimed: () => void = () => {}
+  /** Called when a TNT block detonates, with the blast center. */
+  onExplosion: (x: number, y: number, z: number) => void = () => {}
 
   private leftDown = false
+  /** TNT blocks with a lit fuse, counting down to detonation. */
+  private readonly primedTnt: { x: number; y: number; z: number; timer: number }[] = []
   /** Id of the NPC the player is currently carrying (left-click to pick/drop). */
   private carriedAnimalId: string | null = null
   private mining: { x: number; y: number; z: number; elapsed: number; total: number } | null = null
@@ -181,6 +187,8 @@ export class BlockInteraction {
   }
 
   update(dt: number): void {
+    // Lit fuses keep burning even while menus are open or the pointer is free.
+    this.updateTnt(dt)
     if (!this.active) {
       this.highlight.visible = false
       this.mining = null
@@ -227,6 +235,50 @@ export class BlockInteraction {
     }
 
     this.updateMining(dt)
+  }
+
+  /** Light the fuse of a placed TNT block. */
+  private primeTnt(x: number, y: number, z: number, fuse = TNT_FUSE_SECONDS): void {
+    if (this.primedTnt.some((t) => t.x === x && t.y === y && t.z === z)) return
+    this.primedTnt.push({ x, y, z, timer: fuse })
+    this.onTntPrimed()
+  }
+
+  private updateTnt(dt: number): void {
+    for (let i = this.primedTnt.length - 1; i >= 0; i--) {
+      const tnt = this.primedTnt[i]
+      tnt.timer -= dt
+      if (tnt.timer > 0) continue
+      this.primedTnt.splice(i, 1)
+      // Mining the block before the fuse ran out defuses it.
+      if (this.world.getBlock(tnt.x, tnt.y, tnt.z) !== BlockId.TNT) continue
+      this.explode(tnt.x, tnt.y, tnt.z)
+    }
+  }
+
+  /** Blow a sphere of blocks out of the world around a detonating TNT block. */
+  private explode(x: number, y: number, z: number): void {
+    const r = TNT_BLAST_RADIUS
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dz = -r; dz <= r; dz++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (dx * dx + dy * dy + dz * dz > r * r + 1) continue
+          const bx = x + dx
+          const by = y + dy
+          const bz = z + dz
+          const id = this.world.getBlock(bx, by, bz)
+          if (id === BlockId.Air) continue
+          // Nearby TNT chain-reacts on a short random fuse instead of vanishing.
+          if (id === BlockId.TNT && !(dx === 0 && dy === 0 && dz === 0)) {
+            this.primeTnt(bx, by, bz, 0.2 + Math.random() * 0.4)
+            continue
+          }
+          this.world.setBlock(bx, by, bz, BlockId.Air)
+          this.onBlockEdit(bx, by, bz, BlockId.Air)
+        }
+      }
+    }
+    this.onExplosion(x, y, z)
   }
 
   private updateMining(dt: number): void {
@@ -359,6 +411,11 @@ export class BlockInteraction {
       this.collectMysteryBoxLoot(blockId, hit.x, hit.y, hit.z)
       return
     }
+    // Right-clicking placed TNT lights its fuse.
+    if (blockId === BlockId.TNT) {
+      this.primeTnt(hit.x, hit.y, hit.z)
+      return
+    }
 
     const held = this.inventory.heldSlot
     if (!held) return
@@ -400,6 +457,8 @@ export class BlockInteraction {
     this.inventory.removeFrom(this.inventory.selected)
     this.world.setBlock(px, py, pz, def.block)
     this.onBlockEdit(px, py, pz, def.block)
+    // Placing TNT lights its fuse immediately — step back!
+    if (def.block === BlockId.TNT) this.primeTnt(px, py, pz)
   }
 
   /**
@@ -476,6 +535,9 @@ export class BlockInteraction {
     this.onAnimalEvent({ type: 'toggleStay', animalId })
   }
 }
+
+const TNT_FUSE_SECONDS = 2
+const TNT_BLAST_RADIUS = 3
 
 /** Snap a yaw to the nearest quarter turn so furniture lines up with walls. */
 function snapYaw(yaw: number): number {
