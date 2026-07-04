@@ -128,7 +128,12 @@ export class MobileControls {
   onUse: () => void = () => {}
   /** Single tap on the look area — triggers right-click (feed/tame). */
   onTap: () => void = () => {}
-  /** Double-tap on the look area — used to store the targeted animal in the bag. */
+  /**
+   * Double-tap on the look area — dismounts a ridden horse, otherwise stores
+   * the targeted animal in the bag. (The first tap still fires onTap, so a
+   * double-tap on a tamed horse mounts on tap one; the handler ignores the
+   * immediate second tap instead of dismounting again.)
+   */
   onDoubleTap: () => void = () => {}
 
   constructor(
