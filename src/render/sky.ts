@@ -103,6 +103,8 @@ export class Sky {
   private readonly skyColor = new THREE.Color()
   /** 0..1 through the day; 0 = sunrise, 0.5 = sunset. */
   time = 0.25
+  /** Completed day/night cycles since the world began (drives egg laying etc.). */
+  day = 0
 
   constructor(private readonly scene: THREE.Scene) {
     this.sun = new THREE.DirectionalLight(0xffffff, 1)
@@ -159,16 +161,24 @@ export class Sky {
     scene.fog = new THREE.Fog(DAY.getHex(), 60, 110)
   }
 
-  get phaseInfo(): { phase: 'day' | 'night'; remainingSecs: number } {
+  get phaseInfo(): { phase: 'day' | 'night'; remainingSecs: number; day: number } {
     if (this.time < 0.5) {
-      return { phase: 'day', remainingSecs: (1 - this.time / 0.5) * DAY_DURATION }
+      return { phase: 'day', remainingSecs: (1 - this.time / 0.5) * DAY_DURATION, day: this.day }
     }
-    return { phase: 'night', remainingSecs: (1 - (this.time - 0.5) / 0.5) * NIGHT_DURATION }
+    return { phase: 'night', remainingSecs: (1 - (this.time - 0.5) / 0.5) * NIGHT_DURATION, day: this.day }
+  }
+
+  /** Jump to the next sunrise (used by sleeping in a bed). */
+  sleepToMorning(): void {
+    this.day++
+    this.time = 0.02
   }
 
   update(dt: number, center: THREE.Vector3): void {
     const rate = this.time < 0.5 ? 0.5 / DAY_DURATION : 0.5 / NIGHT_DURATION
-    this.time = (this.time + dt * rate) % 1
+    const advanced = this.time + dt * rate
+    if (advanced >= 1) this.day++
+    this.time = advanced % 1
     const angle = this.time * Math.PI * 2
 
     // Sun travels a vertical circle; elevation in [-1, 1].

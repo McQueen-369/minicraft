@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { Music } from './audio/music'
-import { AUTOSAVE_INTERVAL_MS, CLOUD_AUTOSAVE_INTERVAL_MS, PLAYER_EYE, WATER_LEVEL } from './constants'
+import { AUTOSAVE_INTERVAL_MS, CLOUD_AUTOSAVE_INTERVAL_MS, MAX_ENERGY, MINE_ENERGY_COST, PLAYER_EYE, WATER_LEVEL } from './constants'
 import { blockKey, chunkKey, worldToChunk } from './core/coords'
 import { hashString } from './core/rng'
 import { DecorationManager } from './entities/decorations'
@@ -11,9 +11,10 @@ import { BlockInteraction, type FurnitureEvent } from './interact/blockInteracti
 import { BlockId, blockDef } from './core/blocks'
 import { chestLoot } from './items/chest'
 import { Inventory } from './items/inventory'
-import { furnitureItemFor, ItemId } from './items/items'
+import { furnitureItemFor, itemDef, ItemId } from './items/items'
 import type { ChestContents, Slot } from './items/items'
 import { buildStarterHouse } from './world/house'
+import { buildIsland, isIslandAnchorChunk } from './world/island'
 import { buildVillage, villageAnchorForChunk } from './world/village'
 import { Minimap, type MapMarker } from './ui/minimap'
 import * as cloud from './net/cloud'
@@ -32,6 +33,7 @@ import { animalInfo, itemInfo } from './ui/info'
 import { Menu } from './ui/menu'
 import { MobileControls } from './ui/mobileControls'
 import { Panels } from './ui/panels'
+import { ArcadePanel } from './ui/arcade'
 import { Chat } from './ui/chat'
 import { CraftingPanel } from './ui/crafting'
 import { MarketPanel } from './ui/market'
@@ -74,7 +76,14 @@ export class Game {
   private readonly chat: Chat
   private readonly crafting: CraftingPanel
   private readonly market: MarketPanel
+  private readonly arcade: ArcadePanel
   private readonly music = new Music()
+  /** Player stamina 0–100: spent by mining, restored by food and sleep. */
+  private energy = MAX_ENERGY
+  /** Whether the secret mini-game island has been discovered (persisted). */
+  private islandFound = false
+  /** Throttles the "too tired" toast while grinding at 0 energy. */
+  private tiredToastAt = 0
   private mountedHorseId: string | null = null
   /** When the current horse was mounted; lets a mounting double-tap settle. */
   private mountedAtMs = 0
@@ -115,6 +124,12 @@ export class Game {
     this.chat = new Chat(root)
     this.crafting = new CraftingPanel(root, this.inventory, this.atlas.canvas)
     this.market = new MarketPanel(root, this.inventory, this.atlas.canvas)
+    this.arcade = new ArcadePanel(root, this.inventory)
+    this.arcade.onClose = () => {
+      this.updateInputState()
+      if (this.playing && !this.panels.isOpen && !this.menu.isOpen) this.controls.requestLock()
+    }
+    this.arcade.onPrize = (summary) => this.hud.showToast(`🏆 You won ${summary}!`)
     this.menu = new Menu(root, {
       listLocalSlots: () => this.worldStore.listSlots(),
       onPlaySlot: (index) => this.startSlot(index),
@@ -233,7 +248,16 @@ export class Game {
       this.camera.updateProjectionMatrix()
     })
     document.addEventListener('pointerlockchange', () => {
-      if (!this.controls.isLocked && this.playing && !this.panels.isOpen && !this.menu.isOpen && !this.hud.isInfoOpen) {
+      if (
+        !this.controls.isLocked &&
+        this.playing &&
+        !this.panels.isOpen &&
+        !this.menu.isOpen &&
+        !this.hud.isInfoOpen &&
+        !this.crafting.isOpen &&
+        !this.market.isOpen &&
+        !this.arcade.isOpen
+      ) {
         this.menu.showPause(
           [
             this.cloudWorld ? `"${this.cloudWorld.name}" saves to ${this.profile?.username ?? 'your profile'}` : null,
@@ -248,6 +272,9 @@ export class Game {
     })
     document.addEventListener('keydown', (e) => {
       if (!this.playing) return
+      // While a mini-game is open, all keys belong to the arcade (letters,
+      // space to jump, …) — don't let game shortcuts fire underneath it.
+      if (this.arcade.isOpen) return
       if (e.code === 'KeyF' && this.mountedHorseId && !this.menu.isOpen) {
         // Undo the fly toggle Controls just made, and dismount instead.
         this.controls.fly = !this.controls.fly
@@ -317,7 +344,12 @@ export class Game {
     const world = new World(terrain, { edits, chests, chestLoot: (x, _y, z) => chestLoot(seed, x, z) })
     const scene = new THREE.Scene()
     const sky = new Sky(scene)
-    if (save) sky.time = save.skyTime
+    if (save) {
+      sky.time = save.skyTime
+      sky.day = save.skyDay ?? 0
+    }
+    this.energy = save?.energy ?? MAX_ENERGY
+    this.islandFound = save?.islandFound ?? false
     const chunkRenderer = new ChunkRenderer(scene, world, this.atlas)
     const player = new Player(world)
     const entities = new EntityManager(scene, world)
@@ -384,6 +416,46 @@ export class Game {
       this.hud.showToast('💥 BOOM!')
     }
     interaction.onMysteryBoxOpen = (rarity) => this.hud.showToast(`Opened a ${rarity} Mystery Box!`)
+    // ---- Energy: mining drains it; food and sleep restore it. ----
+    interaction.canMine = () => this.energy > 0
+    interaction.onBlockBroken = () => {
+      this.energy = Math.max(0, this.energy - MINE_ENERGY_COST)
+      if (this.energy === 0) this.hud.showToast('⚡ Out of energy! Eat food or sleep in your bed.')
+    }
+    interaction.onTooTired = () => {
+      const now = performance.now()
+      if (now - this.tiredToastAt > 2500) {
+        this.tiredToastAt = now
+        this.hud.showToast('⚡ Too tired to mine — eat food or sleep in your bed!')
+      }
+    }
+    interaction.onEat = (itemId, energyGain) => {
+      if (this.energy >= MAX_ENERGY) {
+        this.hud.showToast("You're full of energy already!")
+        return false
+      }
+      this.energy = Math.min(MAX_ENERGY, this.energy + energyGain)
+      this.hud.showToast(`🍽 Ate ${itemDef(itemId)?.name ?? 'food'} (+${energyGain}⚡)`)
+      return true
+    }
+    interaction.onSleep = () => {
+      sky.sleepToMorning()
+      this.energy = MAX_ENERGY
+      this.hud.showToast('😴 You slept until morning — energy fully restored!')
+    }
+    interaction.onOpenArcade = (kind) => {
+      this.controls.releaseLock()
+      this.arcade.open(kind)
+      this.updateInputState()
+    }
+    interaction.onCollectEgg = (animalId) => {
+      if (!this.session) return
+      if (this.session.entities.collectEgg(animalId, this.session.sky.day)) {
+        this.inventory.add(ItemId.Egg, 1)
+        this.hud.showToast('🥚 Collected an egg!')
+      }
+    }
+    entities.onEggReady = () => this.hud.showToast('🥚 One of your chickens laid an egg — right-click it to collect!')
     interaction.onOpenMarket = () => {
       this.controls.releaseLock()
       this.market.open(seed)
@@ -739,6 +811,7 @@ export class Game {
     this.panels.close()
     this.crafting.close()
     this.market.close()
+    this.arcade.close()
     this.teardownSession()
     this.menu.showMain(showProfileCta)
     this.updateInputState()
@@ -749,7 +822,8 @@ export class Game {
   }
 
   private updateInputState(): void {
-    this.controls.gameplayInput = !this.panels.isOpen && !this.menu.isOpen && !this.chat.isOpen && !this.market.isOpen
+    this.controls.gameplayInput =
+      !this.panels.isOpen && !this.menu.isOpen && !this.chat.isOpen && !this.market.isOpen && !this.arcade.isOpen
   }
 
   private dismountHorse(): void {
@@ -818,17 +892,30 @@ export class Game {
       s.interaction.update(dt)
     }
 
-    // Build villages when their anchor chunk loads (host/singleplayer only).
+    // Build villages / the secret island when their anchor chunk loads
+    // (host/singleplayer only).
     if (this.mode !== 'guest') {
       for (const key of s.world.chunks.keys()) {
         if (s.builtVillages.has(key)) continue
+        s.builtVillages.add(key)
         const [cx, cz] = key.split(',').map(Number)
         if (villageAnchorForChunk(s.seed, cx, cz)) {
-          s.builtVillages.add(key)
           buildVillage(s.world, s.furniture, s.entities, cx, cz)
-        } else {
-          s.builtVillages.add(key)
         }
+        if (isIslandAnchorChunk(s.world.terrain, cx, cz)) {
+          buildIsland(s.world, s.furniture)
+        }
+      }
+    }
+
+    // Discovering the secret island (once per world).
+    if (!this.islandFound && this.playing) {
+      const isle = s.world.terrain.island
+      const dxi = pos.x - isle.x
+      const dzi = pos.z - isle.z
+      if (dxi * dxi + dzi * dzi < 90 * 90) {
+        this.islandFound = true
+        this.hud.showToast('🏝️ You discovered the Secret Island! Try its mini-game kiosks to win prizes!')
       }
     }
     s.player.applyCamera(this.camera, this.controls)
@@ -842,7 +929,7 @@ export class Game {
         owners.set(id, { x: avatar.group.position.x, y: avatar.group.position.y, z: avatar.group.position.z })
       }
     }
-    s.entities.update(dt, pos, owners, this.mode !== 'guest')
+    s.entities.update(dt, pos, owners, this.mode !== 'guest', s.sky.day)
 
     // After horse physics, sync player position onto the horse.
     if (this.mountedHorseId) {
@@ -899,6 +986,7 @@ export class Game {
       }
     }
 
+    this.hud.setEnergy(this.energy)
     const room = this.mp ? `  room ${this.mp.roomCode} (${this.mp.peers.size + 1} player${this.mp.peers.size ? 's' : ''})` : ''
     this.hud.update(
       dt,
@@ -922,8 +1010,9 @@ export class Game {
       const furn = s.interaction.targetFurniture
       const tb = s.interaction.targetBlock
       if (animal) {
-        key = `a:${animal.kind}`
+        key = `a:${animal.kind}${animal.eggReady ? ':egg' : ''}`
         name = animal.kind.charAt(0).toUpperCase() + animal.kind.slice(1)
+        if (animal.eggReady) name += ' 🥚 (egg ready!)'
         info = animalInfo(animal.kind)
       } else if (furn) {
         const itemId = furnitureItemFor(furn.kind) ?? 0
@@ -960,6 +1049,10 @@ export class Game {
       for (const avatar of this.mp.peers.values()) {
         markers.push({ x: avatar.group.position.x, z: avatar.group.position.z, color: '#7ad0ff' })
       }
+    }
+    // Once discovered, the secret island shows up on the map.
+    if (this.islandFound) {
+      markers.push({ x: s.world.terrain.island.x, z: s.world.terrain.island.z, color: '#ff5fa2' })
     }
     this.minimap.update(s.world.terrain, pos, this.controls.yaw, markers, dt)
   }
@@ -1036,6 +1129,9 @@ export class Game {
       animals: s.entities.serialize(),
       furniture: s.furniture.serialize(),
       skyTime: s.sky.time,
+      skyDay: s.sky.day,
+      energy: this.energy,
+      islandFound: this.islandFound,
     }
   }
 }

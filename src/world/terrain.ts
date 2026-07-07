@@ -22,6 +22,15 @@ const MAX_TRUNK = 6
 /** Max horizontal distance a tree canopy reaches from its trunk. */
 export const TREE_RADIUS = 2
 
+const ISLAND_SEED = 0x15a7d
+/** Distance from the origin at which the secret island is placed. */
+const ISLAND_MIN_DIST = 280
+const ISLAND_DIST_SPREAD = 80
+/** Radius of the island's dry core. */
+export const ISLAND_CORE = 24
+/** Outer radius of the lake ring that surrounds (and hides) the island. */
+export const ISLAND_OUTER = 60
+
 export interface TreeInfo {
   trunkHeight: number
 }
@@ -29,16 +38,40 @@ export interface TreeInfo {
 export class Terrain {
   private readonly hills: Noise2D
   private readonly detail: Noise2D
+  /** Centre of the secret mini-game island (deterministic per seed). */
+  readonly island: { x: number; z: number }
 
   constructor(readonly seed: number) {
     this.hills = makeNoise2D(seed, 4, 1 / 160)
     this.detail = makeNoise2D(seed ^ 0x5eed, 2, 1 / 31)
+    const angle = hash2D(seed ^ ISLAND_SEED, 17, 31) * Math.PI * 2
+    const dist = ISLAND_MIN_DIST + hash2D(seed ^ ISLAND_SEED, 41, 7) * ISLAND_DIST_SPREAD
+    this.island = { x: Math.round(Math.cos(angle) * dist), z: Math.round(Math.sin(angle) * dist) }
   }
 
   /** Ground surface height (y of the topmost solid block) for a column. */
   heightAt(x: number, z: number): number {
     const base = 30 + this.hills.fbm(x, z) * 22 + this.detail.fbm(x, z) * 4
-    return Math.max(2, Math.min(WORLD_HEIGHT - 16, Math.round(base)))
+    let h = base
+    // Secret island: a dome of dry land inside a ring-shaped lake, blended
+    // into the surrounding terrain so it reads as a hidden lagoon.
+    const dx = x - this.island.x
+    const dz = z - this.island.z
+    if (dx > -ISLAND_OUTER && dx < ISLAND_OUTER && dz > -ISLAND_OUTER && dz < ISLAND_OUTER) {
+      const d = Math.sqrt(dx * dx + dz * dz)
+      if (d < ISLAND_OUTER) {
+        const moat = WATER_LEVEL - 7
+        if (d >= ISLAND_CORE) {
+          const t = Math.min(1, (ISLAND_OUTER - d) / 12)
+          h = base + (moat - base) * t
+        } else {
+          const isle = WATER_LEVEL + 3 + Math.cos((d / ISLAND_CORE) * (Math.PI / 2)) * 4
+          const t = Math.min(1, (ISLAND_CORE - d) / 8)
+          h = moat + (isle - moat) * t
+        }
+      }
+    }
+    return Math.max(2, Math.min(WORLD_HEIGHT - 16, Math.round(h)))
   }
 
   /** Deterministic tree at this column, if any. */

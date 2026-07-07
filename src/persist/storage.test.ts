@@ -16,6 +16,9 @@ function sample(): SaveData {
     },
     furniture: [{ id: 'f-1', kind: 'bed', x: 2, y: 31, z: 4, yaw: 0, open: false }],
     skyTime: 0.4,
+    skyDay: 3,
+    energy: 76,
+    islandFound: true,
   }
 }
 

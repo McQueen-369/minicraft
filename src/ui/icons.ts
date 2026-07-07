@@ -87,6 +87,40 @@ export function drawItemIcon(canvas: HTMLCanvasElement, itemId: number, atlasCan
       p(5, 6, 4, 1, 'rgba(255,255,255,0.25)') // shine
       break
     }
+    case ItemId.Egg: {
+      // Oval egg shape built from stacked rows
+      p(6, 2, 4, 2, '#f5efdd')
+      p(5, 4, 6, 3, '#f5efdd')
+      p(4, 7, 8, 4, '#f5efdd')
+      p(5, 11, 6, 2, '#f5efdd')
+      p(6, 13, 4, 1, '#f5efdd')
+      p(6, 4, 2, 3, '#fffdf5')      // highlight
+      p(8, 9, 3, 3, '#ddd2b4')      // shadow
+      break
+    }
+    case ItemId.CookedFish: {
+      p(10, 4, 4, 3, '#a8642a')     // tail fin upper
+      p(10, 9, 4, 3, '#a8642a')     // tail fin lower
+      p(2, 5, 10, 6, '#c87e3a')     // browned body
+      p(4, 4, 5, 3, '#a8642a')      // dorsal fin
+      p(3, 7, 2, 2, '#3a2a1a')      // eye
+      p(4, 6, 5, 1, '#e8a860')      // grill shine
+      p(5, 9, 4, 1, '#8a4e1e')      // char line
+      break
+    }
+    case ItemId.FishStew: {
+      p(2, 8, 12, 5, '#8a5a2b')     // bowl
+      p(1, 8, 1, 3, '#8a5a2b')
+      p(14, 8, 1, 3, '#8a5a2b')
+      p(3, 13, 10, 1, '#6b4520')    // bowl base
+      p(3, 7, 10, 2, '#d8823a')     // stew surface
+      p(4, 6, 2, 2, '#c87e3a')      // fish chunk
+      p(9, 6, 2, 2, '#c0392b')      // apple chunk
+      p(7, 3, 1, 3, '#e8e8e8')      // steam
+      p(5, 2, 1, 3, 'rgba(232,232,232,0.7)')
+      p(10, 2, 1, 3, 'rgba(232,232,232,0.7)')
+      break
+    }
     case ItemId.Bone: {
       for (let i = 0; i < 7; i++) p(4 + i, 4 + i, 2.5, 2.5, '#f0ede5')  // shaft
       p(2, 2, 5, 4, '#f0ede5')    // end knob A

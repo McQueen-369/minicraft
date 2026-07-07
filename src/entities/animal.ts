@@ -25,6 +25,10 @@ export interface Animal extends PhysicsState {
   riderJump?: boolean
   /** When true, the player is carrying this NPC; its AI/physics are suspended. */
   carried?: boolean
+  /** Tamed chickens: world day on which the next egg is laid. */
+  nextEggDay?: number
+  /** Tamed chickens: an egg is waiting to be collected (right-click). */
+  eggReady?: boolean
 }
 
 export const ANIMAL_DIMS: Record<AnimalKind, BoxDims> = {

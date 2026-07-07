@@ -323,6 +323,26 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
       ctx.fillRect(x0 + 7, y0 + 7, 2, 2)
       break
     }
+    case Tile.Fence: {
+      // See-through picket fence: a central post and two horizontal rails on a
+      // transparent background (the material discards pixels via alphaTest).
+      ctx.clearRect(x0, y0, TILE_PX, TILE_PX)
+      // Centre post
+      ctx.fillStyle = '#8a5a28'
+      ctx.fillRect(x0 + 6, y0, 4, TILE_PX)
+      ctx.fillStyle = '#a06c34'
+      ctx.fillRect(x0 + 6, y0, 1, TILE_PX)
+      ctx.fillStyle = '#6b3e1a'
+      ctx.fillRect(x0 + 9, y0, 1, TILE_PX)
+      // Two horizontal rails
+      ctx.fillStyle = '#9a6a30'
+      ctx.fillRect(x0, y0 + 3, TILE_PX, 3)
+      ctx.fillRect(x0, y0 + 10, TILE_PX, 3)
+      ctx.fillStyle = '#6b3e1a'
+      ctx.fillRect(x0, y0 + 5, TILE_PX, 1)
+      ctx.fillRect(x0, y0 + 12, TILE_PX, 1)
+      break
+    }
     default:
       ctx.fillStyle = '#ff00ff'
       ctx.fillRect(x0, y0, TILE_PX, TILE_PX)

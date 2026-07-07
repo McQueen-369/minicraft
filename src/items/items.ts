@@ -18,6 +18,7 @@ export const ItemId = {
   Chest: BlockId.Chest,
   Ladder: BlockId.Ladder,
   TNT: BlockId.TNT,
+  Fence: BlockId.Fence,
   WoodPickaxe: 100,
   StonePickaxe: 101,
   Axe: 102,
@@ -28,6 +29,9 @@ export const ItemId = {
   Apple: 113,
   Fish: 114,
   Bone: 115,
+  Egg: 116,
+  CookedFish: 117,
+  FishStew: 118,
   CapturedPig: 120,
   CapturedChicken: 121,
   CapturedSheep: 122,
@@ -65,6 +69,8 @@ export interface ItemDef {
   animal?: AnimalKind
   /** Which furniture piece this item places. */
   furniture?: FurnitureKind
+  /** Energy restored when the player eats this (right-click with it held). */
+  energy?: number
   maxStack: number
 }
 
@@ -84,9 +90,12 @@ ITEMS.set(ItemId.Seeds, { name: 'Seeds', kind: 'food', food: 'chicken', maxStack
 ITEMS.set(ItemId.CapturedPig, { name: 'Pig (captured)', kind: 'capture', animal: 'pig', maxStack: 1 })
 ITEMS.set(ItemId.CapturedChicken, { name: 'Chicken (captured)', kind: 'capture', animal: 'chicken', maxStack: 1 })
 ITEMS.set(ItemId.CapturedSheep, { name: 'Sheep (captured)', kind: 'capture', animal: 'sheep', maxStack: 1 })
-ITEMS.set(ItemId.Apple, { name: 'Apple', kind: 'food', food: 'pig', maxStack: MAX_STACK })
+ITEMS.set(ItemId.Apple, { name: 'Apple', kind: 'food', food: 'pig', energy: 20, maxStack: MAX_STACK })
 ITEMS.set(ItemId.Fish, { name: 'Fish', kind: 'food', food: 'cat', maxStack: MAX_STACK })
 ITEMS.set(ItemId.Bone, { name: 'Bone', kind: 'food', food: 'dog', maxStack: MAX_STACK })
+ITEMS.set(ItemId.Egg, { name: 'Egg', kind: 'food', maxStack: MAX_STACK })
+ITEMS.set(ItemId.CookedFish, { name: 'Cooked Fish', kind: 'food', energy: 40, maxStack: MAX_STACK })
+ITEMS.set(ItemId.FishStew, { name: 'Fish Stew', kind: 'food', energy: 80, maxStack: MAX_STACK })
 ITEMS.set(ItemId.CapturedRabbit, { name: 'Rabbit (captured)', kind: 'capture', animal: 'rabbit', maxStack: 1 })
 ITEMS.set(ItemId.CapturedCat, { name: 'Cat (captured)', kind: 'capture', animal: 'cat', maxStack: 1 })
 ITEMS.set(ItemId.CapturedDog, { name: 'Dog (captured)', kind: 'capture', animal: 'dog', maxStack: 1 })

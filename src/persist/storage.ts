@@ -12,6 +12,12 @@ export interface SaveData {
   animals: { animals: SavedAnimal[]; spawnedChunks: string[] }
   furniture: SavedFurniture[]
   skyTime: number
+  /** Completed day/night cycles (drives chicken egg laying). */
+  skyDay?: number
+  /** Player energy 0–100 (spent mining, restored by food/sleep). */
+  energy?: number
+  /** Whether the secret mini-game island has been discovered. */
+  islandFound?: boolean
 }
 
 export function serialize(data: SaveData): string {
@@ -45,6 +51,9 @@ export function deserialize(json: string | null): SaveData | null {
       },
       furniture: sanitizeFurniture(data.furniture),
       skyTime: typeof data.skyTime === 'number' ? data.skyTime : 0.25,
+      skyDay: typeof data.skyDay === 'number' ? data.skyDay : 0,
+      energy: typeof data.energy === 'number' ? Math.max(0, Math.min(100, data.energy)) : 100,
+      islandFound: !!data.islandFound,
     }
   } catch {
     return null

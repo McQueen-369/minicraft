@@ -18,6 +18,9 @@ export const PLAYER_HEIGHT = 1.8
 export const PLAYER_EYE = 1.62
 
 export const REACH = 6
+export const MAX_ENERGY = 100
+/** Energy spent per mined block. */
+export const MINE_ENERGY_COST = 2
 export const HOTBAR_SIZE = 9
 export const INVENTORY_SIZE = 200
 export const MAX_STACK = 200

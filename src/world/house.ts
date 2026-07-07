@@ -6,9 +6,12 @@ import type { World } from './world'
 /**
  * Stamp a furnished starter house (bedroom + living room) with an adjoining
  * fenced animal farm at the given column, and return a spawn point inside it.
- * The whole yard is flattened to one level so the player can walk in and out of
- * the door without mining or being blocked. Blocks are written as edits (so
- * they materialize when chunks generate); furniture is placed directly.
+ * The house reads like a real cottage: plank walls with wood corner posts and
+ * a pitched, overhanging brick-shingle gable roof; the farm pen next door is
+ * ringed by wooden fences instead of solid walls. The whole yard is flattened
+ * to one level so the player can walk in and out of the door without mining.
+ * Blocks are written as edits (so they materialize when chunks generate);
+ * furniture is placed directly.
  */
 export function buildStarterHouse(world: World, furniture: FurnitureManager, sx: number, sz: number): { x: number; y: number; z: number } {
   const floorY = world.terrain.heightAt(sx, sz)
@@ -20,7 +23,9 @@ export function buildStarterHouse(world: World, furniture: FurnitureManager, sx:
   const z0 = sz - 6
   const z1 = sz + 6
   const wallTop = floorY + 3
-  const roofY = floorY + 4
+  /** Roof rises 1 block per row of depth, capped at the ridge. */
+  const ROOF_PITCH_MAX = 4
+  const roofPeak = wallTop + ROOF_PITCH_MAX
 
   // Farm pen, just to the +x side of the house.
   const farmX0 = x1 + 2
@@ -30,7 +35,7 @@ export function buildStarterHouse(world: World, furniture: FurnitureManager, sx:
   const fenceTop = floorY + 2 // 2 tall so animals (which hop 1 block) stay in
 
   // Flatten the whole yard (house + farm + a margin) to floorY: grass on top,
-  // solid dirt below, clear air above. Walls/floors are stamped over this.
+  // solid dirt below, clear air above (high enough to clear the roof peak).
   const yx0 = x0 - 3
   const yx1 = farmX1 + 3
   const yz0 = Math.min(z0, farmZ0) - 3
@@ -39,27 +44,58 @@ export function buildStarterHouse(world: World, furniture: FurnitureManager, sx:
     for (let z = yz0; z <= yz1; z++) {
       set(x, floorY - 1, z, BlockId.Dirt)
       set(x, floorY, z, BlockId.Grass)
-      for (let y = floorY + 1; y <= roofY + 1; y++) set(x, y, z, BlockId.Air)
+      for (let y = floorY + 1; y <= roofPeak + 2; y++) set(x, y, z, BlockId.Air)
     }
   }
 
-  // ---- House -------------------------------------------------------------
+  // ---- House shell ---------------------------------------------------------
+  // Plank floor.
   for (let x = x0; x <= x1; x++) {
     for (let z = z0; z <= z1; z++) {
-      set(x, floorY, z, BlockId.Plank) // interior floor
-      set(x, roofY, z, BlockId.Plank) // roof
+      set(x, floorY, z, BlockId.Plank)
     }
   }
+  // Walls: planks with sturdy wood posts on the corners.
   for (let y = floorY + 1; y <= wallTop; y++) {
     for (let x = x0; x <= x1; x++) {
-      set(x, y, z0, BlockId.Brick)
-      set(x, y, z1, BlockId.Brick)
+      set(x, y, z0, BlockId.Plank)
+      set(x, y, z1, BlockId.Plank)
     }
     for (let z = z0; z <= z1; z++) {
-      set(x0, y, z, BlockId.Brick)
-      set(x1, y, z, BlockId.Brick)
+      set(x0, y, z, BlockId.Plank)
+      set(x1, y, z, BlockId.Plank)
+    }
+    for (const [cx, cz] of [[x0, z0], [x0, z1], [x1, z0], [x1, z1]] as const) {
+      set(cx, y, cz, BlockId.Wood)
     }
   }
+
+  // Pitched gable roof: brick "shingle" rows climbing from both z-sides toward
+  // a flat ridge over the middle, overhanging the walls by one block.
+  for (let z = z0 - 1; z <= z1 + 1; z++) {
+    const stepsFromEdge = Math.min(z - (z0 - 1), (z1 + 1) - z)
+    const ry = wallTop + 1 + Math.min(stepsFromEdge, ROOF_PITCH_MAX)
+    for (let x = x0 - 1; x <= x1 + 1; x++) {
+      set(x, ry, z, BlockId.Brick)
+    }
+  }
+  // Gable end walls: fill the plank triangles under the roof line on the
+  // x0 / x1 walls so the attic is closed in.
+  for (let z = z0; z <= z1; z++) {
+    const stepsFromEdge = Math.min(z - (z0 - 1), (z1 + 1) - z)
+    const ry = wallTop + 1 + Math.min(stepsFromEdge, ROOF_PITCH_MAX)
+    for (let y = wallTop + 1; y < ry; y++) {
+      set(x0, y, z, BlockId.Plank)
+      set(x1, y, z, BlockId.Plank)
+    }
+  }
+  // Ceiling over the rooms (attic floor) so the interior feels finished.
+  for (let x = x0 + 1; x <= x1 - 1; x++) {
+    for (let z = z0 + 1; z <= z1 - 1; z++) {
+      set(x, wallTop + 1, z, BlockId.Plank)
+    }
+  }
+
   // Interior partition along z = sz with a 2-wide doorway around x = sx - 1.
   for (let y = floorY + 1; y <= wallTop; y++) {
     for (let x = x0 + 1; x <= x1 - 1; x++) {
@@ -86,6 +122,11 @@ export function buildStarterHouse(world: World, furniture: FurnitureManager, sx:
     furniture.place('window', w.x, w.y, w.z, w.yaw)
   }
 
+  // Stone chimney poking through the roof at the back corner.
+  const chimX = x0 + 2
+  const chimZ = z0 + 1
+  for (let y = wallTop + 1; y <= roofPeak + 1; y++) set(chimX, y, chimZ, BlockId.Stone)
+
   // Living room (entrance side: z > sz).
   furniture.place('sofa', sx - 4, floorY + 1, z1 - 1, 0)
   furniture.place('sofa', sx + 3, floorY + 1, z1 - 1, 0)
@@ -99,17 +140,20 @@ export function buildStarterHouse(world: World, furniture: FurnitureManager, sx:
   furniture.place('desk', sx, floorY + 1, z0 + 1, 0)
   furniture.place('chair', sx, floorY + 1, z0 + 2, Math.PI)
 
-  // ---- Farm pen ----------------------------------------------------------
+  // ---- Farm pen: a proper fenced yard with wood corner posts --------------
   for (let y = floorY + 1; y <= fenceTop; y++) {
     for (let x = farmX0; x <= farmX1; x++) {
-      set(x, y, farmZ0, BlockId.Plank)
-      set(x, y, farmZ1, BlockId.Plank)
+      set(x, y, farmZ0, BlockId.Fence)
+      set(x, y, farmZ1, BlockId.Fence)
     }
     for (let z = farmZ0; z <= farmZ1; z++) {
-      set(farmX1, y, z, BlockId.Plank)
+      set(farmX1, y, z, BlockId.Fence)
       // Gate opening on the house-facing wall at z = sz.
       if (z === sz || z === sz - 1) continue
-      set(farmX0, y, z, BlockId.Plank)
+      set(farmX0, y, z, BlockId.Fence)
+    }
+    for (const [cx, cz] of [[farmX0, farmZ0], [farmX0, farmZ1], [farmX1, farmZ0], [farmX1, farmZ1]] as const) {
+      set(cx, y, cz, BlockId.Wood)
     }
   }
   // A door as the farm gate.

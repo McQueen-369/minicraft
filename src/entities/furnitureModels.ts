@@ -176,6 +176,70 @@ function buildMarket(): FurnitureModel {
   return { group: g, pivot: null }
 }
 
+/**
+ * Mini-game arcade kiosk for the secret island: a bright cabinet with a
+ * glowing screen and a per-game accent colour + screen doodle.
+ */
+function buildArcade(kind: 'arcadePuzzle' | 'arcadeRunner' | 'arcadeMath' | 'arcadeWord'): FurnitureModel {
+  const accents: Record<string, number> = {
+    arcadePuzzle: 0x2e86de,
+    arcadeRunner: 0x27ae60,
+    arcadeMath: 0xe67e22,
+    arcadeWord: 0x9b59b6,
+  }
+  const accent = accents[kind]
+  const g = new THREE.Group()
+  const dark = 0x2c2c34
+
+  // Cabinet body
+  part(g, 1.0, 1.5, 0.7, 0, 0.75, -0.1, dark)
+  // Accent side panels
+  part(g, 0.06, 1.5, 0.7, -0.53, 0.75, -0.1, accent)
+  part(g, 0.06, 1.5, 0.7, 0.53, 0.75, -0.1, accent)
+  // Glowing screen (front face)
+  const screenMat = new THREE.MeshLambertMaterial({ color: 0x0a1a2a, emissive: new THREE.Color(0.05, 0.15, 0.2) })
+  const screen = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 0.06), screenMat)
+  screen.position.set(0, 1.35, 0.26)
+  screen.rotation.x = -0.15
+  g.add(screen)
+  // Screen doodle per game, glowing in the accent colour.
+  const doodleMat = new THREE.MeshLambertMaterial({ color: accent, emissive: new THREE.Color(accent).multiplyScalar(0.5) })
+  const doodle = (w: number, h: number, x: number, y: number) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.03), doodleMat)
+    m.position.set(x, y, 0.32)
+    m.rotation.x = -0.15
+    g.add(m)
+  }
+  if (kind === 'arcadePuzzle') {
+    doodle(0.16, 0.16, -0.14, 1.44)
+    doodle(0.16, 0.16, 0.06, 1.44)
+    doodle(0.16, 0.16, -0.14, 1.24)
+    doodle(0.16, 0.16, 0.1, 1.28)
+  } else if (kind === 'arcadeRunner') {
+    doodle(0.1, 0.28, -0.1, 1.35)
+    doodle(0.12, 0.1, 0.14, 1.22)
+    doodle(0.3, 0.04, 0, 1.14)
+  } else if (kind === 'arcadeMath') {
+    doodle(0.3, 0.08, -0.1, 1.38)
+    doodle(0.08, 0.3, -0.1, 1.38)
+    doodle(0.2, 0.06, 0.18, 1.28)
+  } else {
+    doodle(0.12, 0.2, -0.2, 1.35)
+    doodle(0.12, 0.2, 0, 1.35)
+    doodle(0.12, 0.2, 0.2, 1.35)
+  }
+  // Control deck with two buttons and a joystick
+  part(g, 0.9, 0.08, 0.35, 0, 0.98, 0.32, 0x3c3c46)
+  part(g, 0.1, 0.06, 0.1, -0.18, 1.04, 0.34, 0xd63031)
+  part(g, 0.1, 0.06, 0.1, 0.02, 1.04, 0.34, 0xf6e58d)
+  part(g, 0.05, 0.16, 0.05, 0.24, 1.1, 0.34, 0x999999)
+  part(g, 0.1, 0.06, 0.1, 0.24, 1.18, 0.34, accent)
+  // Marquee top
+  part(g, 1.1, 0.3, 0.5, 0, 1.85, -0.12, accent)
+  part(g, 0.9, 0.18, 0.05, 0, 1.85, 0.14, 0xf6f4ee)
+  return { group: g, pivot: null }
+}
+
 export function buildFurnitureModel(kind: FurnitureKind): FurnitureModel {
   switch (kind) {
     case 'chair':
@@ -194,6 +258,11 @@ export function buildFurnitureModel(kind: FurnitureKind): FurnitureModel {
       return buildCampfire()
     case 'market':
       return buildMarket()
+    case 'arcadePuzzle':
+    case 'arcadeRunner':
+    case 'arcadeMath':
+    case 'arcadeWord':
+      return buildArcade(kind)
   }
 }
 

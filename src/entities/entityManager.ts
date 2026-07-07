@@ -10,6 +10,8 @@ import { buildAnimalModel, disposeModel, type AnimalModel } from './animalModels
 
 const SIM_DISTANCE = 56
 const VIEW_DISTANCE = 96
+/** Tamed chickens lay an egg every this many in-game days. */
+export const EGG_INTERVAL_DAYS = 2
 
 export interface SavedAnimal {
   id: string
@@ -18,6 +20,8 @@ export interface SavedAnimal {
   yaw: number
   mode: AnimalMode
   owner: string | null
+  nextEggDay?: number
+  eggReady?: boolean
 }
 
 export class EntityManager {
@@ -27,6 +31,8 @@ export class EntityManager {
   private readonly models = new Map<string, AnimalModel>()
   private readonly rand = mulberry32(Date.now() & 0xffffffff)
   private releaseCounter = 0
+  /** Called when a tamed chicken finishes laying (egg is ready to collect). */
+  onEggReady: (animal: Animal) => void = () => {}
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -37,7 +43,7 @@ export class EntityManager {
    * Spawn wild animals from newly generated chunks, advance AI (when
    * simulating — guests instead receive host state), and update models.
    */
-  update(dt: number, viewerPos: Vec3, ownerPositions: Map<string, Vec3>, simulate: boolean): void {
+  update(dt: number, viewerPos: Vec3, ownerPositions: Map<string, Vec3>, simulate: boolean, worldDay = 0): void {
     // Wild spawning is authoritative: only the simulating side (host or
     // singleplayer) consumes chunk spawn points; guests receive animals.
     if (simulate) {
@@ -53,6 +59,14 @@ export class EntityManager {
 
     const isSolidAt = (x: number, y: number, z: number) => isSolid(this.world.getBlock(x, y, z))
     for (const animal of this.animals.values()) {
+      if (simulate && animal.kind === 'chicken' && animal.owner !== null) {
+        // Tamed chickens lay an egg every EGG_INTERVAL_DAYS in-game days.
+        if (animal.nextEggDay === undefined) animal.nextEggDay = worldDay + EGG_INTERVAL_DAYS
+        if (!animal.eggReady && worldDay >= animal.nextEggDay) {
+          animal.eggReady = true
+          this.onEggReady(animal)
+        }
+      }
       if (simulate) {
         const nearAnyone =
           dist2(animal.pos, viewerPos) < SIM_DISTANCE * SIM_DISTANCE ||
@@ -121,6 +135,18 @@ export class EntityManager {
     animal.mode = 'follow'
   }
 
+  /**
+   * Take the waiting egg from a tamed chicken and schedule the next one.
+   * Returns whether an egg was actually collected.
+   */
+  collectEgg(id: string, worldDay: number): boolean {
+    const animal = this.animals.get(id)
+    if (!animal || animal.kind !== 'chicken' || !animal.eggReady) return false
+    animal.eggReady = false
+    animal.nextEggDay = worldDay + EGG_INTERVAL_DAYS
+    return true
+  }
+
   toggleStay(id: string): void {
     const animal = this.animals.get(id)
     if (!animal || animal.owner === null) return
@@ -170,6 +196,8 @@ export class EntityManager {
         yaw: a.yaw,
         mode: a.mode === 'ridden' ? 'follow' : a.mode,
         owner: a.owner,
+        nextEggDay: a.nextEggDay,
+        eggReady: a.eggReady,
       })),
       spawnedChunks: [...this.spawnedChunks],
     }
@@ -197,6 +225,8 @@ export class EntityManager {
         decideIn: 0,
         walking: false,
         walkPhase: 0,
+        nextEggDay: s.nextEggDay,
+        eggReady: s.eggReady,
       })
     }
   }

@@ -59,6 +59,20 @@ export class BlockInteraction {
   onTntPrimed: () => void = () => {}
   /** Called when a TNT block detonates, with the blast center. */
   onExplosion: (x: number, y: number, z: number) => void = () => {}
+  /** Whether the player has energy left to mine (false blocks mining). */
+  canMine: () => boolean = () => true
+  /** Called after a block is mined so the game can spend energy. */
+  onBlockBroken: (blockId: number) => void = () => {}
+  /** Called while trying to mine with an empty energy bar. */
+  onTooTired: () => void = () => {}
+  /** Try to eat the held food; returns true when it was consumed. */
+  onEat: (itemId: number, energy: number) => boolean = () => false
+  /** Called when the player right-clicks a bed to sleep. */
+  onSleep: () => void = () => {}
+  /** Called when the player right-clicks an arcade kiosk on the secret island. */
+  onOpenArcade: (kind: string) => void = () => {}
+  /** Called when the player collects a waiting egg from their chicken. */
+  onCollectEgg: (animalId: string) => void = () => {}
 
   private leftDown = false
   /** TNT blocks with a lit fuse, counting down to detonation. */
@@ -289,6 +303,12 @@ export class BlockInteraction {
       this.miningProgress = null
       return
     }
+    if (!this.canMine()) {
+      this.mining = null
+      this.miningProgress = null
+      this.onTooTired()
+      return
+    }
     if (!this.mining || this.mining.x !== target.x || this.mining.y !== target.y || this.mining.z !== target.z) {
       const id = this.world.getBlock(target.x, target.y, target.z)
       this.mining = {
@@ -349,6 +369,7 @@ export class BlockInteraction {
     }
     this.world.setBlock(x, y, z, BlockId.Air)
     this.onBlockEdit(x, y, z, BlockId.Air)
+    this.onBlockBroken(id)
   }
 
   /** Try to catch fish using the net. Returns true when a fish was caught. */
@@ -383,6 +404,10 @@ export class BlockInteraction {
         this.onFurnitureEvent({ type: 'toggle', id: f.id })
       } else if (f.kind === 'market') {
         this.onOpenMarket()
+      } else if (f.kind === 'bed') {
+        this.onSleep()
+      } else if (f.kind.startsWith('arcade')) {
+        this.onOpenArcade(f.kind)
       }
       return
     }
@@ -401,21 +426,21 @@ export class BlockInteraction {
       this.interactAnimal(animalHit.animal.id)
       return
     }
-    if (!hit) return
-
-    const blockId = this.world.getBlock(hit.x, hit.y, hit.z)
-    if (blockId === BlockId.Chest) {
-      this.onOpenChest(hit.x, hit.y, hit.z)
-      return
-    }
-    if (blockId === BlockId.MysteryBox || blockId === BlockId.MysteryBoxRare || blockId === BlockId.MysteryBoxEpic) {
-      this.collectMysteryBoxLoot(blockId, hit.x, hit.y, hit.z)
-      return
-    }
-    // Right-clicking placed TNT lights its fuse.
-    if (blockId === BlockId.TNT) {
-      this.primeTnt(hit.x, hit.y, hit.z)
-      return
+    if (hit) {
+      const blockId = this.world.getBlock(hit.x, hit.y, hit.z)
+      if (blockId === BlockId.Chest) {
+        this.onOpenChest(hit.x, hit.y, hit.z)
+        return
+      }
+      if (blockId === BlockId.MysteryBox || blockId === BlockId.MysteryBoxRare || blockId === BlockId.MysteryBoxEpic) {
+        this.collectMysteryBoxLoot(blockId, hit.x, hit.y, hit.z)
+        return
+      }
+      // Right-clicking placed TNT lights its fuse.
+      if (blockId === BlockId.TNT) {
+        this.primeTnt(hit.x, hit.y, hit.z)
+        return
+      }
     }
 
     const held = this.inventory.heldSlot
@@ -423,6 +448,13 @@ export class BlockInteraction {
     const def = itemDef(held.itemId)
     if (!def) return
 
+    // Eat held food that restores energy (feeding an animal was handled above).
+    if (def.kind === 'food' && def.energy && this.onEat(held.itemId, def.energy)) {
+      this.inventory.removeFrom(this.inventory.selected)
+      return
+    }
+
+    if (!hit) return
     const px = hit.x + hit.nx
     const py = hit.y + hit.ny
     const pz = hit.z + hit.nz
@@ -502,6 +534,12 @@ export class BlockInteraction {
     if (!animal) return
     const held = this.inventory.heldSlot
     const heldDef = held ? itemDef(held.itemId) : null
+
+    // Your chicken with an egg waiting: right-click collects it.
+    if (animal.kind === 'chicken' && animal.owner === this.playerId && animal.eggReady) {
+      this.onCollectEgg(animal.id)
+      return
+    }
 
     // Feed matching food -> tame.
     const foodFor = heldDef?.food

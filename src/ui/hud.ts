@@ -129,7 +129,7 @@ const STYLE = `
   text-shadow: 1px 1px 0 #000; z-index: 5; white-space: pre; pointer-events: none;
 }
 .mc-toast {
-  position: absolute; left: 50%; bottom: 76px; transform: translateX(-50%);
+  position: absolute; left: 50%; bottom: 100px; transform: translateX(-50%);
   color: #fff; font-size: 14px; text-shadow: 1px 1px 0 #000; z-index: 5;
   pointer-events: none; transition: opacity 0.5s; opacity: 0;
 }
@@ -137,6 +137,22 @@ const STYLE = `
   position: absolute; left: 50%; top: 12px; transform: translateX(-50%);
   color: #fff; font-size: 14px; text-shadow: 1px 1px 0 #000; z-index: 5;
   pointer-events: none; font-family: 'Courier New', monospace; letter-spacing: 1px;
+}
+.mc-energy {
+  position: absolute; left: 50%; bottom: 72px; transform: translateX(-50%);
+  width: 240px; height: 16px; z-index: 6; pointer-events: none;
+  background: rgba(10,10,10,0.6); border: 2px solid #333; border-radius: 8px;
+  display: flex; align-items: center; overflow: hidden;
+}
+.mc-energy-fill {
+  height: 100%; background: linear-gradient(90deg, #e8b23a, #ffd34d);
+  transition: width 0.25s ease; border-radius: 5px;
+}
+.mc-energy-fill.low { background: linear-gradient(90deg, #b03020, #e05540); }
+.mc-energy-label {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  color: #fff; font-size: 10px; font-weight: bold; text-shadow: 1px 1px 0 #000;
+  font-family: 'Courier New', monospace; letter-spacing: 1px; white-space: nowrap;
 }
 .mc-players {
   position: absolute; top: 200px; right: 12px; z-index: 5;
@@ -167,6 +183,10 @@ export class HUD {
   private readonly debug: HTMLDivElement
   private readonly toast: HTMLDivElement
   private readonly dayTimer: HTMLDivElement
+  private readonly energyBar: HTMLDivElement
+  private readonly energyFill: HTMLDivElement
+  private readonly energyLabel: HTMLSpanElement
+  private lastEnergy = -1
   private readonly playerList: HTMLDivElement
   private readonly instructionsOverlay: HTMLDivElement
   private readonly nameplate: HTMLDivElement
@@ -326,6 +346,16 @@ export class HUD {
     this.dayTimer.className = 'mc-daytimer'
     root.appendChild(this.dayTimer)
 
+    // Energy bar just above the hotbar.
+    this.energyBar = document.createElement('div')
+    this.energyBar.className = 'mc-energy'
+    this.energyFill = document.createElement('div')
+    this.energyFill.className = 'mc-energy-fill'
+    this.energyLabel = document.createElement('span')
+    this.energyLabel.className = 'mc-energy-label'
+    this.energyBar.append(this.energyFill, this.energyLabel)
+    root.appendChild(this.energyBar)
+
     this.playerList = document.createElement('div')
     this.playerList.className = 'mc-players'
     root.appendChild(this.playerList)
@@ -371,8 +401,19 @@ export class HUD {
       <p>USE — Place / Interact &nbsp; FLY — Toggle fly</p>
       <p>Double-tap the look area while aiming at your animal — Store it in the bag</p>
       <p>Tap the BAG slot by the hotbar — Open inventory &nbsp; Tap hotbar slot — Select item</p>
+      <h3>Energy, Food &amp; Sleep</h3>
+      <p>Mining costs energy (⚡ bar above the hotbar) — at 0 you're too tired to mine</p>
+      <p>Eat to refuel: Apple +20 &nbsp; Cooked Fish +40 &nbsp; Fish Stew +80 (USE with the food held)</p>
+      <p>Cook in the crafting menu: Fish + Wood → Cooked Fish; Cooked Fish + Egg + Apple → Fish Stew</p>
+      <p>Or go home and USE your bed to sleep until morning — restores full energy</p>
+      <h3>Chickens &amp; Eggs</h3>
+      <p>Tamed chickens lay an egg every 2 days — right-click (USE) your chicken to collect it</p>
+      <p>Eggs are a cooking ingredient for hearty dishes</p>
+      <h3>Secret Island</h3>
+      <p>Rumour says a hidden island sits in a ring-shaped lake a few hundred blocks out…</p>
+      <p>Its arcade kiosks host mini-games — puzzles, running, math targets, word guessing — with item prizes!</p>
       <h3>Furniture & Home</h3>
-      <p>New worlds start with a furnished house (bedroom + living room) and a fenced farm</p>
+      <p>New worlds start with a furnished cottage (pitched roof!) and a fence-ringed farm</p>
       <p>Release tamed animals into the farm pen — toggle them to "stay" to keep them in</p>
       <p>Place furniture (doors, windows, desk, chairs, bed, sofa) with USE; MINE to pick it back up</p>
       <p>USE a door to swing it open or closed</p>
@@ -457,11 +498,21 @@ export class HUD {
     }
   }
 
+  /** Reflect the player's energy (0–100) in the bar above the hotbar. */
+  setEnergy(energy: number): void {
+    const v = Math.round(Math.max(0, Math.min(100, energy)))
+    if (v === this.lastEnergy) return
+    this.lastEnergy = v
+    this.energyFill.style.width = `${v}%`
+    this.energyFill.classList.toggle('low', v <= 25)
+    this.energyLabel.textContent = `⚡ ${v} / 100`
+  }
+
   update(
     dt: number,
     debugText: string,
     miningProgress: number | null,
-    phaseInfo?: { phase: 'day' | 'night'; remainingSecs: number },
+    phaseInfo?: { phase: 'day' | 'night'; remainingSecs: number; day: number },
   ): void {
     this.debug.textContent = debugText
     if (miningProgress !== null) {
@@ -474,7 +525,7 @@ export class HUD {
       const mins = Math.floor(phaseInfo.remainingSecs / 60)
       const secs = Math.floor(phaseInfo.remainingSecs % 60)
       const icon = phaseInfo.phase === 'day' ? '☀' : '🌙'
-      this.dayTimer.textContent = `${icon} ${mins}:${secs.toString().padStart(2, '0')}`
+      this.dayTimer.textContent = `Day ${phaseInfo.day + 1}  ${icon} ${mins}:${secs.toString().padStart(2, '0')}`
     }
     if (this.toastTimer > 0) {
       this.toastTimer -= dt
