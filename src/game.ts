@@ -375,8 +375,9 @@ export class Game {
     this.inventory.load(save?.inventory ?? [])
     // Fresh world: give the player a fishing net to start with.
     if (!save) this.inventory.add(ItemId.Net, 1)
-    // TNT is a freebie, not a hunted resource: top the bag up whenever it runs dry.
-    if (this.inventory.countOf(ItemId.TNT) === 0) this.inventory.add(ItemId.TNT, 10)
+    // TNT is a freebie, not a hunted resource: every session starts with 200 in the bag.
+    const tntShortfall = TNT_SESSION_COUNT - this.inventory.countOf(ItemId.TNT)
+    if (tntShortfall > 0) this.inventory.add(ItemId.TNT, tntShortfall)
 
     const interaction = new BlockInteraction(
       world,
@@ -1135,6 +1136,9 @@ export class Game {
     }
   }
 }
+
+/** TNT is a free explosive freebie every session starts topped up to. */
+const TNT_SESSION_COUNT = 200
 
 function randomSeed(): number {
   return hashString(`${Date.now()}-${Math.random()}`)

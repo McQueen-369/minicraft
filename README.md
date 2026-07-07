@@ -10,16 +10,18 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 ### World & Exploration
 - **Infinite procedural terrain** — seeded simplex-noise hills, rivers, lakes with sand beaches, streamed in chunks as you explore
 - **Expanded render distance** — 12-chunk view radius for wide-open exploration
-- **Day/night cycle** — a bright sun disc and drifting clouds by day, moon and stars by night; live HUD timer shows the current phase
+- **Day/night cycle** — a bright sun disc and drifting clouds by day, moon and stars by night; a live HUD timer shows the day count and current phase
 - **Villages** — procedurally placed settlements with walled, gabled-roof houses, a campfire, a market stall, and villager NPCs. Villages always sit on solid ground, raising onto an island if the spot would otherwise be in water
+- **Secret Island** — a hidden dome of land tucked inside a ring-shaped lake a few hundred blocks from spawn, deterministic per world seed. Its plaza hosts an arcade of four educational mini-games plus bonus mystery boxes (see below)
 - **Carry villagers** — left-click a villager NPC to pick it up and carry it around; left-click again to set it back down (NPCs are never stored in your bag)
-- **Minimap** — press M to toggle; shows nearby animals and your home spawn
+- **Minimap** — press M to toggle; shows nearby animals, your home spawn, and (once discovered) the secret island
 
 ### Blocks & Resources
-- **10+ block types** — Grass, Dirt, Stone, Sand, Wood, Leaves, Apple Leaves, Planks, Brick, Glass, Ladder
+- **12+ block types** — Grass, Dirt, Stone, Sand, Wood, Leaves, Apple Leaves, Planks, Brick, Glass, Fence, Ladder, TNT
 - **Gold Ore** — shiny yellow spots appear on the surface; rich veins run through deep stone layers
 - **Mystery Boxes** — Common, Rare, and Epic variants found in the wild, each containing random loot
 - **Loot chests** — naturally generated on the surface, filled with tools and resources
+- **TNT** — every session starts with 200 in your bag; place and right-click to light the fuse, or right-click placed TNT to detonate it (2 second fuse, chain-reacts with nearby TNT)
 
 ### Animals & Taming
 | Animal | Tamed with | Notes |
@@ -35,6 +37,7 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 - Tamed animals **follow** you by default; right-click to toggle **follow/stay**
 - **Shift + right-click** a tamed animal to capture it into your bag
 - Right-click on captured animal item to **release** it at a target spot
+- **Tamed chickens lay an egg every 2 in-game days** — the nameplate flags "egg ready!"; right-click your chicken to collect it as a cooking ingredient
 
 ### Horses
 - Tame with Wheat, then **right-click** to mount
@@ -45,6 +48,22 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 ### Apple Trees
 - About 30% of trees are apple trees — recognisable by the **red apples** visible in their leaf canopy
 - Breaking apple leaves drops an Apple; regular leaves drop a Leaf block (and occasionally a Bone)
+
+### Energy, Food & Sleep
+- A ⚡ **energy bar** (0–100) sits above the hotbar — mining costs energy, and at 0 you're too tired to mine
+- **Eat food to refuel**: Apple (+20), Cooked Fish (+40), Fish Stew (+80) — right-click with the food held
+- **Cook** in the crafting panel: Fish + Wood → Cooked Fish; Cooked Fish + Egg + Apple → Fish Stew
+- **Sleep** in a bed (right-click) to jump straight to the next morning with a fully restored bar
+- Energy, the day count, and island discovery all persist in your save
+
+### Secret Island & Mini-Games
+- Hidden inside a ring-shaped lake a few hundred blocks from spawn — explore to stumble onto it (a toast announces the find and pins it on the minimap)
+- Its plaza has four glowing arcade kiosks, each a small educational mini-game that pays out item prizes:
+  - 🧩 **Sliding Puzzle** — reorder a shuffled 3×3 grid; fewer moves win a bigger prize
+  - 🏃 **Island Runner** — endless jump-the-obstacle runner; score 150+ to win gold
+  - 🎯 **Math Blaster** — shoot the target with the correct answer across 10 ramping arithmetic questions
+  - 🔤 **Word Wizard** — hangman-style word guessing with vocabulary hints
+- A couple of bonus Rare Mystery Boxes sit at the plaza's edge for explorers
 
 ### Fishing
 - Start with a **Fishing Net** in your hotbar
@@ -62,11 +81,15 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 - Successful crafts give clear visual feedback — the recipe flashes green with a “✓ Crafted!” confirmation
 
 ### Building & Furniture
-- Place doors, windows, desks, chairs, beds, sofas, chests, and ladders
+- Place doors, windows, desks, chairs, beds, sofas, chests, fences, and ladders
 - **Build skyward without a ceiling** — the world column is 256 blocks tall, leaving ~230 blocks of clear air above the terrain for towers and sky bases
-- **Left-click** on placed furniture to pick it back up; campfires and market stalls are fixed
+- **Left-click** on placed furniture to pick it back up; campfires, market stalls, and arcade kiosks are fixed
 - Chests store up to 27 extra item stacks
 - Opening a chest pops up a brief on-screen overview of its contents (fades after 3 seconds, or click to dismiss)
+
+### Your Starter Cottage
+- New worlds spawn you inside a furnished cottage (bedroom + living room) with plank walls, wood corner posts, and a pitched, overhanging brick-shingle gable roof with a chimney
+- The adjoining farm pen is ringed by wooden **fences** (not solid walls) so you can see your animals from outside — release tamed animals in and toggle "stay" to keep them there
 
 ### Ladders
 - **Stack ladders vertically** to build a climbable column as tall as you like — aim at the top of a ladder and right-click to add another above it
@@ -95,7 +118,7 @@ npm install
 npm run dev        # open http://localhost:5173
 ```
 
-Other commands: `npm run test:run` (80+ unit tests), `npm run build` (production build into `dist/`).
+Other commands: `npm run test:run` (100+ unit tests), `npm run build` (production build into `dist/`).
 
 ### Multiplayer setup
 
@@ -145,9 +168,10 @@ Click **Create Profile** on the main menu to save worlds to the cloud (username 
 | Hold left-click | Mine the targeted block |
 | Left-click furniture / ladder | Pick it back up into your bag |
 | Left-click villager | Pick up / set down to carry the NPC around |
-| Right-click | Place held block / open chest / feed or interact with animal |
+| Right-click | Place held block / open chest / eat held food / sleep in bed / open arcade kiosk / feed or interact with animal |
 | Shift + right-click (animal) | Capture tamed animal into bag |
 | Right-click ground with capture item | Release animal |
+| Right-click tamed chicken with egg ready | Collect the egg |
 
 ### UI & Shortcuts
 
@@ -174,6 +198,8 @@ Click **Create Profile** on the main menu to save worlds to the cloud (username 
 - **Market** refreshes every real-world hour. Save up Gold and check back for new stock
 - The **minimap** (M) marks animals in yellow/gold so you can find tamed ones
 - Pressing **I** while looking at a block or animal shows a tooltip with taming / drop info
+- Keep an eye on your **⚡ energy bar** — carry cooked food or head home to sleep before you run out mid-dig
+- The **secret island** is worth the swim — its mini-games are a fast way to stock up on Gold
 
 ---
 
@@ -182,13 +208,13 @@ Click **Create Profile** on the main menu to save worlds to the cloud (username 
 ```
 src/
 ├── core/      blocks, chunk-coordinate math, seeded RNG
-├── world/     noise, terrain generation, chunked world with edit diffs, village builder
-├── render/    procedural texture atlas, chunk mesher, day-night sky, fish school, bird flock
+├── world/     noise, terrain generation, chunked world with edit diffs, village + secret island builders
+├── render/    procedural texture atlas, chunk mesher, day-night sky (with day counter), fish school, bird flock
 ├── player/    pointer-lock + touch controls, AABB voxel physics
-├── interact/  voxel DDA raycast, mining / placing / animal / furniture interaction
-├── items/     item registry, inventory (200 slots × 200 stack), chest loot tables
-├── entities/  animal AI (wander / follow / stay / ridden), blocky 3D models, entity manager
+├── interact/  voxel DDA raycast, mining / placing / animal / furniture / eating / sleeping interaction
+├── items/     item registry, inventory (200 slots × 200 stack), crafting recipes, chest loot tables
+├── entities/  animal AI (wander / follow / stay / ridden), egg-laying chickens, blocky 3D models, entity manager
 ├── net/       Supabase Realtime transport, remote avatars, multiplayer protocol, cloud-save API
-├── ui/        HUD, inventory / chest / crafting / market panels, minimap, menus, mobile controls
+├── ui/        HUD (energy bar, day timer), inventory / chest / crafting / market / arcade panels, minimap, menus, mobile controls
 └── persist/   localStorage save/load, 5-slot MultiWorldStore
 ```
