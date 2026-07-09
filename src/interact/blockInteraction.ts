@@ -73,8 +73,14 @@ export class BlockInteraction {
   onOpenArcade: (kind: string) => void = () => {}
   /** Called when the player collects a waiting egg from their chicken. */
   onCollectEgg: (animalId: string) => void = () => {}
+  /** Called when a swing lands on a zombie that survives the hit. */
+  onZombieHit: () => void = () => {}
+  /** Called when the player's swing finishes a zombie off. */
+  onZombieKilled: (pos: Vec3) => void = () => {}
 
   private leftDown = false
+  /** Seconds into the current weapon swing (null = not attacking). */
+  private attackSwing: number | null = null
   /** TNT blocks with a lit fuse, counting down to detonation. */
   private readonly primedTnt: { x: number; y: number; z: number; timer: number }[] = []
   /** Id of the NPC the player is currently carrying (left-click to pick/drop). */
@@ -208,6 +214,7 @@ export class BlockInteraction {
       this.highlight.visible = false
       this.mining = null
       this.miningProgress = null
+      this.attackSwing = null
       this.targetAnimal = null
       this.targetFurniture = null
       return
@@ -250,6 +257,33 @@ export class BlockInteraction {
     }
 
     this.updateMining(dt)
+    this.updateAttack(dt)
+  }
+
+  /**
+   * Attacking is the mining action pointed at a zombie: hold MINE / left-click
+   * to swing the held weapon; each completed swing lands one hit.
+   */
+  private updateAttack(dt: number): void {
+    const target = this.targetAnimal
+    if (!this.leftDown || !target || target.kind !== 'zombie') {
+      this.attackSwing = null
+      return
+    }
+    this.attackSwing = (this.attackSwing ?? 0) + dt
+    this.miningProgress = Math.min(1, this.attackSwing / ATTACK_SWING_SECONDS)
+    if (this.attackSwing < ATTACK_SWING_SECONDS) return
+    this.attackSwing = 0
+    const damage = (this.inventory.heldItemId !== null ? itemDef(this.inventory.heldItemId)?.damage : undefined) ?? 1
+    const pos = { ...target.pos }
+    const result = this.entities.hurtZombie(target.id, damage, this.player.state.pos)
+    if (result === 'died') {
+      this.onAnimalEvent({ type: 'capture', animalId: target.id })
+      this.targetAnimal = null
+      this.onZombieKilled(pos)
+    } else if (result === 'hurt') {
+      this.onZombieHit()
+    }
   }
 
   /** Light the fuse of a placed TNT block. */
@@ -577,6 +611,8 @@ export class BlockInteraction {
 
 const TNT_FUSE_SECONDS = 2
 const TNT_BLAST_RADIUS = 3
+/** Seconds per weapon swing when attacking a mob. */
+const ATTACK_SWING_SECONDS = 0.45
 
 /** Snap a yaw to the nearest quarter turn so furniture lines up with walls. */
 function snapYaw(yaw: number): number {

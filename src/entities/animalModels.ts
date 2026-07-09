@@ -207,6 +207,35 @@ function buildHorse(): AnimalModel {
   return { group, legs }
 }
 
+function buildZombie(): AnimalModel {
+  const group = new THREE.Group()
+  const skin = 0x6aa84f
+  const shirt = 0x2f6f4f
+  const pants = 0x3a4a6b
+  // Torso
+  const body = box(0.5, 0.75, 0.3, shirt)
+  body.position.y = 1.05
+  // Head (green, with dark sunken eyes)
+  const head = box(0.42, 0.42, 0.42, skin)
+  head.position.set(0, 1.67, 0)
+  const eyeL = box(0.09, 0.07, 0.03, 0x1a1a1a)
+  eyeL.position.set(-0.1, 1.72, 0.22)
+  const eyeR = box(0.09, 0.07, 0.03, 0x1a1a1a)
+  eyeR.position.set(0.1, 1.72, 0.22)
+  // Arms stretched out forward, zombie-style
+  const armL = box(0.14, 0.14, 0.55, skin)
+  armL.position.set(-0.3, 1.32, 0.32)
+  const armR = box(0.14, 0.14, 0.55, skin)
+  armR.position.set(0.3, 1.32, 0.32)
+  group.add(body, head, eyeL, eyeR, armL, armR)
+  const legs = [
+    leg(0.18, 0.62, pants, -0.12, 0, 0.62),
+    leg(0.18, 0.62, pants, 0.12, 0, 0.62),
+  ]
+  group.add(...legs)
+  return { group, legs }
+}
+
 export function buildAnimalModel(kind: AnimalKind): AnimalModel {
   if (kind === 'pig') return buildPig()
   if (kind === 'sheep') return buildSheep()
@@ -215,6 +244,7 @@ export function buildAnimalModel(kind: AnimalKind): AnimalModel {
   if (kind === 'dog') return buildDog()
   if (kind === 'villager') return buildVillager()
   if (kind === 'horse') return buildHorse()
+  if (kind === 'zombie') return buildZombie()
   return buildChicken()
 }
 

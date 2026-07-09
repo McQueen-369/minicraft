@@ -29,6 +29,10 @@ export interface Animal extends PhysicsState {
   nextEggDay?: number
   /** Tamed chickens: an egg is waiting to be collected (right-click). */
   eggReady?: boolean
+  /** Zombies: remaining hit points; dies at 0. */
+  health?: number
+  /** Zombies: seconds until this mob may strike the player again. */
+  attackCooldown?: number
 }
 
 export const ANIMAL_DIMS: Record<AnimalKind, BoxDims> = {
@@ -40,6 +44,7 @@ export const ANIMAL_DIMS: Record<AnimalKind, BoxDims> = {
   dog: { width: 0.65, height: 0.75 },
   villager: { width: 0.5, height: 1.8 },
   horse: { width: 1.0, height: 1.7 },
+  zombie: { width: 0.6, height: 1.8 },
 }
 
 export const ANIMAL_SPEED: Record<AnimalKind, number> = {
@@ -51,6 +56,7 @@ export const ANIMAL_SPEED: Record<AnimalKind, number> = {
   dog: 1.9,
   villager: 0.9,
   horse: 2.5,
+  zombie: 2.2,
 }
 
 const SPAWN_SEED = 0xa21

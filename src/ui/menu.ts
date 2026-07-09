@@ -8,7 +8,7 @@ const STYLE = `
   background: linear-gradient(rgba(10,14,20,0.85), rgba(10,14,20,0.92));
   display: flex; align-items: center; justify-content: center; color: #eee;
 }
-.mc-menu-box { text-align: center; width: 380px; max-height: 92vh; overflow-y: auto; padding: 0 4px; }
+.mc-menu-box { text-align: center; width: 380px; max-width: 92vw; max-height: 92vh; overflow-y: auto; padding: 0 4px; }
 .mc-menu-box h1 { font-size: 42px; letter-spacing: 4px; margin-bottom: 6px; color: #fff; text-shadow: 3px 3px 0 #2a4; }
 .mc-menu-box .sub { color: #aaa; margin-bottom: 24px; font-size: 13px; }
 .mc-menu-box button {

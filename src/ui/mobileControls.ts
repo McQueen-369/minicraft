@@ -5,7 +5,8 @@ const STYLE = `
   position: absolute; inset: 0; pointer-events: none; z-index: 6; touch-action: none;
 }
 .mc-joystick-zone {
-  position: absolute; bottom: 200px; left: 16px;
+  position: absolute; bottom: calc(200px + env(safe-area-inset-bottom, 0px));
+  left: calc(16px + env(safe-area-inset-left, 0px));
   width: 140px; height: 140px; pointer-events: all; touch-action: none;
 }
 .mc-joystick-base {
@@ -25,7 +26,8 @@ const STYLE = `
 
 /* Coloured action cluster on the right, aligned with the joystick height. */
 .mc-action-cluster {
-  position: absolute; bottom: 200px; right: 16px;
+  position: absolute; bottom: calc(200px + env(safe-area-inset-bottom, 0px));
+  right: calc(16px + env(safe-area-inset-right, 0px));
   width: 150px; height: 140px; pointer-events: none;
 }
 .mc-cbtn {
@@ -53,7 +55,8 @@ const STYLE = `
 
 /* FLY / USE row, underneath the coloured cluster. */
 .mc-action-btns {
-  position: absolute; bottom: 120px; right: 16px;
+  position: absolute; bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+  right: calc(16px + env(safe-area-inset-right, 0px));
   display: flex; flex-direction: row; gap: 10px; pointer-events: all;
 }
 .mc-btn {
@@ -67,6 +70,28 @@ const STYLE = `
 .mc-btn:active { background: rgba(255,255,255,0.35); }
 .mc-btn-active {
   background: rgba(255,220,50,0.45) !important; border-color: rgba(255,220,50,0.9) !important;
+}
+
+/* Short landscape screens: pull the clusters down beside the hotbar and move
+   the FLY/USE pair to a column left of the action cluster so everything fits. */
+@media (max-height: 500px) {
+  .mc-joystick-zone {
+    bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+    width: 120px; height: 120px;
+  }
+  .mc-joystick-base { width: 120px; height: 120px; }
+  .mc-action-cluster {
+    bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+    width: 140px; height: 120px;
+  }
+  .mc-cbtn { width: 54px; height: 54px; }
+  .mc-cbtn svg { width: 26px; height: 26px; }
+  .mc-action-btns {
+    bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+    right: calc(170px + env(safe-area-inset-right, 0px));
+    flex-direction: column; gap: 8px;
+  }
+  .mc-btn { width: 50px; height: 50px; font-size: 11px; }
 }
 `
 
@@ -103,9 +128,7 @@ const ICON_PICK = [
   'M19.686 8.314a12.5 12.5 0 0 1 1.356 10.225 1 1 0 0 1-1.751-.119 22 22 0 0 0-3.393-6.319',
 ]
 
-const BASE_RADIUS = 70
 const KNOB_RADIUS = 27
-const MAX_DIST = BASE_RADIUS - KNOB_RADIUS
 const TAP_MAX_MS = 250
 const TAP_MAX_MOVE = 10
 const DOUBLE_TAP_MS = 300
@@ -116,6 +139,8 @@ export class MobileControls {
   private flyBtn: HTMLDivElement | null = null
   private joystickTouchId: number | null = null
   private joystickOrigin = { x: 0, y: 0 }
+  /** Knob travel limit, measured from the base's live size (it shrinks in landscape). */
+  private joystickMax = 43
   private lookTouchId: number | null = null
   private lookLast = { x: 0, y: 0 }
   private lookStart = { x: 0, y: 0 }
@@ -242,7 +267,8 @@ export class MobileControls {
     const t = e.changedTouches[0]
     this.joystickTouchId = t.identifier
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    this.joystickOrigin = { x: rect.left + BASE_RADIUS, y: rect.top + BASE_RADIUS }
+    this.joystickOrigin = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+    this.joystickMax = Math.max(16, rect.width / 2 - KNOB_RADIUS)
     this.updateJoystick(t.clientX, t.clientY)
   }
 
@@ -277,7 +303,7 @@ export class MobileControls {
     const dx = cx - this.joystickOrigin.x
     const dy = cy - this.joystickOrigin.y
     const dist = Math.hypot(dx, dy)
-    const clamped = Math.min(dist, MAX_DIST)
+    const clamped = Math.min(dist, this.joystickMax)
     const nx = dist > 0 ? dx / dist : 0
     const ny = dist > 0 ? dy / dist : 0
     this.knob.style.transform = `translate(calc(-50% + ${nx * clamped}px), calc(-50% + ${ny * clamped}px))`

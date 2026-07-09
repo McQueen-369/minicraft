@@ -343,6 +343,28 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
       ctx.fillRect(x0, y0 + 12, TILE_PX, 1)
       break
     }
+    case Tile.DiamondOreSide: {
+      // Stone base with sparkling cyan diamond clusters
+      speckle(ctx, x0, y0, '#8a8a8a', ['#7d7d7d', '#979797', '#6f6f6f'], 0.55, 26)
+      // Diamond cluster 1 (top-left)
+      ctx.fillStyle = '#2fd4d4'
+      ctx.fillRect(x0 + 2, y0 + 3, 3, 2)
+      ctx.fillRect(x0 + 3, y0 + 5, 2, 1)
+      ctx.fillStyle = '#9ffcfc'
+      ctx.fillRect(x0 + 2, y0 + 3, 2, 1)
+      // Diamond cluster 2 (bottom-right)
+      ctx.fillStyle = '#2fd4d4'
+      ctx.fillRect(x0 + 10, y0 + 10, 4, 2)
+      ctx.fillRect(x0 + 11, y0 + 12, 2, 1)
+      ctx.fillStyle = '#9ffcfc'
+      ctx.fillRect(x0 + 10, y0 + 10, 2, 1)
+      // Small speck (middle-right)
+      ctx.fillStyle = '#2fd4d4'
+      ctx.fillRect(x0 + 8, y0 + 6, 2, 2)
+      ctx.fillStyle = '#e8ffff'
+      ctx.fillRect(x0 + 8, y0 + 6, 1, 1)
+      break
+    }
     default:
       ctx.fillStyle = '#ff00ff'
       ctx.fillRect(x0, y0, TILE_PX, TILE_PX)

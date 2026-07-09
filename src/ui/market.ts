@@ -12,7 +12,29 @@ interface MarketEntry {
   desc: string
   price: number
   qty: number
+  /** What the price is paid in (default gold). */
+  currency?: 'gold' | 'diamond'
 }
+
+/** Smithy stock: always available, paid for with mined diamonds. */
+const SMITHY: MarketEntry[] = [
+  {
+    itemId: ItemId.IronBlade,
+    name: 'Iron Blade',
+    desc: 'Smithing material. Combine with your Sword in the crafting menu to forge an Iron Sword (double damage).',
+    price: 4,
+    qty: 1,
+    currency: 'diamond',
+  },
+  {
+    itemId: ItemId.DiamondEdge,
+    name: 'Diamond Edge',
+    desc: 'Smithing material. Combine with an Iron Sword in the crafting menu to forge a Diamond Sword (the strongest weapon).',
+    price: 8,
+    qty: 1,
+    currency: 'diamond',
+  },
+]
 
 const POOL: MarketEntry[] = [
   { itemId: ItemId.Stone, name: 'Stone', desc: 'Sturdy building material. Mine from hills.', price: 5, qty: 10 },
@@ -186,6 +208,15 @@ export class MarketPanel {
     return this.inventory.countOf(ItemId.Gold)
   }
 
+  private diamondCount(): number {
+    return this.inventory.countOf(ItemId.Diamond)
+  }
+
+  /** How much of an entry's currency the player holds. */
+  private fundsFor(entry: MarketEntry): number {
+    return entry.currency === 'diamond' ? this.diamondCount() : this.goldCount()
+  }
+
   private refreshItems(): void {
     const hour = Math.floor(Date.now() / 3600000)
     const rng = mulberry32(this.worldSeed ^ MARKET_SEED ^ hour)
@@ -195,16 +226,19 @@ export class MarketPanel {
       const j = Math.floor(rng() * (i + 1))
       ;[arr[i], arr[j]] = [arr[j], arr[i]]
     }
-    this.items = arr.slice(0, MARKET_COUNT)
+    // The smithy is always open; the rotating stock follows it.
+    this.items = [...SMITHY, ...arr.slice(0, MARKET_COUNT)]
   }
 
   private renderList(): void {
     const gold = this.goldCount()
     const minsLeft = 60 - (Math.floor(Date.now() / 60000) % 60)
-    this.goldBar.innerHTML = `⬛ Gold: <strong>${gold}</strong><span class="mc-mkt-refresh"> — refreshes in ${minsLeft}m</span>`
+    this.goldBar.innerHTML =
+      `🥇 Gold: <strong>${gold}</strong> · 💎 Diamonds: <strong>${this.diamondCount()}</strong>` +
+      `<span class="mc-mkt-refresh"> — refreshes in ${minsLeft}m</span>`
     this.listEl.innerHTML = ''
     for (const entry of this.items) {
-      const canAfford = gold >= entry.price
+      const canAfford = this.fundsFor(entry) >= entry.price
       const row = document.createElement('div')
       row.className = 'mc-mkt-row' + (canAfford ? '' : ' cant-afford')
 
@@ -222,7 +256,7 @@ export class MarketPanel {
 
       const price = document.createElement('span')
       price.className = 'mc-mkt-iprice'
-      price.textContent = `${entry.price} 🥇 ×${entry.qty}`
+      price.textContent = `${entry.price} ${entry.currency === 'diamond' ? '💎' : '🥇'} ×${entry.qty}`
 
       row.append(icon, name, price)
       row.addEventListener('click', () => this.showDetail(entry))
@@ -234,10 +268,12 @@ export class MarketPanel {
     this.listEl.style.display = 'none'
     this.detailEl.style.display = 'flex'
 
-    const gold = this.goldCount()
-    const canAfford = gold >= entry.price
+    const funds = this.fundsFor(entry)
+    const canAfford = funds >= entry.price
+    const currencyName = entry.currency === 'diamond' ? 'Diamonds' : 'Gold'
+    const currencyIcon = entry.currency === 'diamond' ? '💎' : '🥇'
 
-    this.goldBar.innerHTML = `⬛ Gold: <strong>${gold}</strong>`
+    this.goldBar.innerHTML = `🥇 Gold: <strong>${this.goldCount()}</strong> · 💎 Diamonds: <strong>${this.diamondCount()}</strong>`
     this.detailEl.innerHTML = ''
 
     const back = document.createElement('button')
@@ -271,22 +307,22 @@ export class MarketPanel {
     infoBox.className = 'mc-mkt-info-box'
     infoBox.innerHTML =
       `<strong>How to trade:</strong><br>` +
-      `Hand over <strong>${entry.price} Gold</strong> to receive 1 × ${entry.name}.<br>` +
+      `Hand over <strong>${entry.price} ${currencyName}</strong> to receive 1 × ${entry.name}.<br>` +
       `Stock available: <strong>×${entry.qty}</strong><br>` +
-      `Your gold: <strong style="color:${canAfford ? '#2a6a3a' : '#882222'}">${gold}</strong>`
+      `Your ${currencyName.toLowerCase()}: <strong style="color:${canAfford ? '#2a6a3a' : '#882222'}">${funds}</strong>`
 
     const tradeBtn = document.createElement('button')
     tradeBtn.className = 'mc-mkt-trade-btn'
-    tradeBtn.textContent = `Trade  (${entry.price} 🥇)`
+    tradeBtn.textContent = `Trade  (${entry.price} ${currencyIcon})`
     if (!canAfford) tradeBtn.disabled = true
     tradeBtn.addEventListener('click', () => {
-      const curGold = this.goldCount()
-      if (curGold < entry.price) return
-      // Deduct gold from inventory slots
+      if (this.fundsFor(entry) < entry.price) return
+      // Deduct the currency from inventory slots
+      const currencyItem = entry.currency === 'diamond' ? ItemId.Diamond : ItemId.Gold
       let remaining = entry.price
       for (let i = 0; i < this.inventory.slots.length && remaining > 0; i++) {
         const slot = this.inventory.slots[i]
-        if (slot && slot.itemId === ItemId.Gold) {
+        if (slot && slot.itemId === currencyItem) {
           const take = Math.min(slot.count, remaining)
           this.inventory.removeFrom(i, take)
           remaining -= take

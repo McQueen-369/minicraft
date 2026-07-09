@@ -2,7 +2,7 @@ import { MAX_STACK } from '../constants'
 import { BlockId, blockDef, type ToolType } from '../core/blocks'
 import type { FurnitureKind } from '../entities/furniture'
 
-export type AnimalKind = 'pig' | 'chicken' | 'sheep' | 'rabbit' | 'cat' | 'dog' | 'villager' | 'horse'
+export type AnimalKind = 'pig' | 'chicken' | 'sheep' | 'rabbit' | 'cat' | 'dog' | 'villager' | 'horse' | 'zombie'
 
 export const ItemId = {
   // Items 1..99 are placeable blocks and share BlockId values.
@@ -23,6 +23,9 @@ export const ItemId = {
   StonePickaxe: 101,
   Axe: 102,
   Shears: 103,
+  Sword: 104,
+  IronSword: 105,
+  DiamondSword: 106,
   Wheat: 110,
   Carrot: 111,
   Seeds: 112,
@@ -47,6 +50,9 @@ export const ItemId = {
   Sofa: 135,
   Net: 140,
   Gold: 200,
+  Diamond: 201,
+  IronBlade: 210,
+  DiamondEdge: 211,
 } as const
 
 export type ItemId = (typeof ItemId)[keyof typeof ItemId]
@@ -60,9 +66,11 @@ export type ChestContents = (Slot | null)[]
 
 export interface ItemDef {
   name: string
-  kind: 'block' | 'tool' | 'food' | 'capture' | 'furniture' | 'net'
+  kind: 'block' | 'tool' | 'food' | 'capture' | 'furniture' | 'net' | 'material'
   block?: BlockId
   tool?: { type: ToolType; power: number }
+  /** Damage dealt per swing when attacking a mob (bare hand = 1). */
+  damage?: number
   /** Which animal kind(s) this food tames. */
   food?: AnimalKind | AnimalKind[]
   /** Which animal a capture item releases. */
@@ -80,10 +88,13 @@ for (const id of Object.values(BlockId)) {
   const def = blockDef(id)
   if (def) ITEMS.set(id, { name: def.name, kind: 'block', block: id, maxStack: MAX_STACK })
 }
-ITEMS.set(ItemId.WoodPickaxe, { name: 'Wood Pickaxe', kind: 'tool', tool: { type: 'pickaxe', power: 4 }, maxStack: 1 })
-ITEMS.set(ItemId.StonePickaxe, { name: 'Stone Pickaxe', kind: 'tool', tool: { type: 'pickaxe', power: 8 }, maxStack: 1 })
-ITEMS.set(ItemId.Axe, { name: 'Axe', kind: 'tool', tool: { type: 'axe', power: 4 }, maxStack: 1 })
+ITEMS.set(ItemId.WoodPickaxe, { name: 'Wood Pickaxe', kind: 'tool', tool: { type: 'pickaxe', power: 4 }, damage: 3, maxStack: 1 })
+ITEMS.set(ItemId.StonePickaxe, { name: 'Stone Pickaxe', kind: 'tool', tool: { type: 'pickaxe', power: 8 }, damage: 4, maxStack: 1 })
+ITEMS.set(ItemId.Axe, { name: 'Axe', kind: 'tool', tool: { type: 'axe', power: 4 }, damage: 4, maxStack: 1 })
 ITEMS.set(ItemId.Shears, { name: 'Shears', kind: 'tool', tool: { type: 'shears', power: 8 }, maxStack: 1 })
+ITEMS.set(ItemId.Sword, { name: 'Sword', kind: 'tool', damage: 6, maxStack: 1 })
+ITEMS.set(ItemId.IronSword, { name: 'Iron Sword', kind: 'tool', damage: 12, maxStack: 1 })
+ITEMS.set(ItemId.DiamondSword, { name: 'Diamond Sword', kind: 'tool', damage: 24, maxStack: 1 })
 ITEMS.set(ItemId.Wheat, { name: 'Wheat', kind: 'food', food: ['sheep', 'horse'], maxStack: MAX_STACK })
 ITEMS.set(ItemId.Carrot, { name: 'Carrot', kind: 'food', food: 'rabbit', maxStack: MAX_STACK })
 ITEMS.set(ItemId.Seeds, { name: 'Seeds', kind: 'food', food: 'chicken', maxStack: MAX_STACK })
@@ -108,6 +119,9 @@ ITEMS.set(ItemId.Bed, { name: 'Bed', kind: 'furniture', furniture: 'bed', maxSta
 ITEMS.set(ItemId.Sofa, { name: 'Sofa', kind: 'furniture', furniture: 'sofa', maxStack: 16 })
 ITEMS.set(ItemId.Net, { name: 'Fishing Net', kind: 'net', maxStack: 1 })
 ITEMS.set(ItemId.Gold, { name: 'Gold', kind: 'block', maxStack: MAX_STACK })
+ITEMS.set(ItemId.Diamond, { name: 'Diamond', kind: 'material', maxStack: MAX_STACK })
+ITEMS.set(ItemId.IronBlade, { name: 'Iron Blade', kind: 'material', maxStack: MAX_STACK })
+ITEMS.set(ItemId.DiamondEdge, { name: 'Diamond Edge', kind: 'material', maxStack: MAX_STACK })
 
 const FURNITURE_ITEM: Partial<Record<FurnitureKind, number>> = {
   door: ItemId.Door,

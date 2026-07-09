@@ -45,10 +45,22 @@ const STYLE = `
 }
 .mc-cat-btn.active { background: #e7d9a0; border-color: #555 #fff #fff #555; }
 .mc-panel-main { flex: 1 1 auto; min-width: 0; }
-.mc-grid { display: grid; grid-template-columns: repeat(9, 50px); gap: 4px; margin-bottom: 10px; }
+.mc-grid { display: grid; grid-template-columns: repeat(9, var(--mc-pslot, 50px)); gap: 4px; margin-bottom: 10px; }
 .mc-pslot {
-  width: 50px; height: 50px; background: #8b8b8b; border: 2px solid;
+  width: var(--mc-pslot, 50px); height: var(--mc-pslot, 50px); background: #8b8b8b; border: 2px solid;
   border-color: #373737 #fff #fff #373737; position: relative; cursor: pointer;
+}
+/* Narrow screens: shrink slots and stack the category rail above the grid so
+   the 9-wide inventory always fits without horizontal cutoff. */
+@media (max-width: 720px) {
+  :root { --mc-pslot: 40px; }
+  .mc-panel-body { flex-direction: column; }
+  .mc-cats { flex-direction: row; flex-wrap: wrap; }
+  .mc-cat-btn { min-width: 0; padding: 8px 8px; font-size: 12px; }
+}
+@media (max-width: 470px) {
+  :root { --mc-pslot: 33px; }
+  .mc-pslot .count { font-size: 11px; }
 }
 .mc-pslot.picked { outline: 3px solid #ffd34d; }
 .mc-pslot.catalog-empty { opacity: 0.32; cursor: default; }

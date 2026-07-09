@@ -18,6 +18,7 @@ export const BlockId = {
   AppleLeaves: 16,
   TNT: 17,
   Fence: 18,
+  DiamondOre: 19,
 } as const
 
 export type BlockId = (typeof BlockId)[keyof typeof BlockId]
@@ -50,6 +51,7 @@ export const Tile = {
   TNTSide: 23,
   TNTTop: 24,
   Fence: 25,
+  DiamondOreSide: 26,
 } as const
 
 export type ToolType = 'pickaxe' | 'axe' | 'shears'
@@ -127,6 +129,10 @@ export const BLOCKS: Record<BlockId, BlockDef | null> = {
   [BlockId.Fence]: def('Fence', uniform(Tile.Fence), 1.5, 'axe', {
     id: BlockId.Fence,
     opaque: false,
+  }),
+  [BlockId.DiamondOre]: def('Diamond Ore', uniform(Tile.DiamondOreSide), 7, 'pickaxe', {
+    id: BlockId.DiamondOre,
+    drops: 201, // ItemId.Diamond — drops the gem, not the ore block itself
   }),
 }
 

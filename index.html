@@ -2,14 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
     <link rel="icon" href="data:," />
     <title>Minicraft</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+      /* Dynamic viewport units track mobile browser chrome and rotation. */
+      @supports (height: 100dvh) {
+        html, body { height: 100dvh; }
+      }
       body { font-family: 'Courier New', monospace; user-select: none; }
-      #app { width: 100%; height: 100%; position: relative; }
+      #app { width: 100%; height: 100%; position: relative; overflow: hidden; }
       canvas { display: block; }
     </style>
   </head>

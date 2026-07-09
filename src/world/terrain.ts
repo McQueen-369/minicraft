@@ -17,6 +17,11 @@ const MYSTERY_SEED = 0xb05e
 const GOLD_SEED = 0xf7a3c2
 const GOLD_PROB = 0.04      // 4% of deep stone blocks contain gold ore
 const GOLD_SURFACE_PROB = 0.004 // 0.4% of surface blocks show a gold-spotted outcrop
+const DIAMOND_SEED = 0xd1a40d
+/** Diamonds are rarer than gold and only appear in the deepest stone. */
+const DIAMOND_PROB = 0.015
+/** How far below the surface diamond ore starts appearing. */
+const DIAMOND_DEPTH = 6
 const MIN_TRUNK = 4
 const MAX_TRUNK = 6
 /** Max horizontal distance a tree canopy reaches from its trunk. */
@@ -124,6 +129,8 @@ export class Terrain {
         return BlockId.Grass
       }
       if (y >= h - 2) return BlockId.Dirt
+      // Deepest stone — rare diamond ore (checked before gold so it wins ties)
+      if (y < h - DIAMOND_DEPTH && hash2D(this.seed ^ DIAMOND_SEED ^ (y * 0x51F3A9 | 0), x, z) < DIAMOND_PROB) return BlockId.DiamondOre
       // Deep stone layer — scatter gold ore veins
       if (y < h - 3 && hash2D(this.seed ^ GOLD_SEED ^ (y * 0x8A3CB7 | 0), x, z) < GOLD_PROB) return BlockId.GoldOre
       return BlockId.Stone
@@ -178,6 +185,7 @@ export class Terrain {
             else id = BlockId.Grass
           }
           else if (y >= h - 2) id = BlockId.Dirt
+          else if (y < h - DIAMOND_DEPTH && hash2D(this.seed ^ DIAMOND_SEED ^ (y * 0x51F3A9 | 0), wx, wz) < DIAMOND_PROB) id = BlockId.DiamondOre
           else if (y < h - 3 && hash2D(this.seed ^ GOLD_SEED ^ (y * 0x8A3CB7 | 0), wx, wz) < GOLD_PROB) id = BlockId.GoldOre
           else id = BlockId.Stone
           data[localIndex(lx, y, lz)] = id

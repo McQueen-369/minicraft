@@ -5,6 +5,13 @@ import { drawItemIcon } from './icons'
 import type { InfoContent } from './info'
 
 const STYLE = `
+:root { --mc-slot: 52px; }
+/* Scale the hotbar down so all slots + buttons fit narrow (portrait) screens. */
+@media (max-width: 900px) { :root { --mc-slot: 44px; } }
+@media (max-width: 640px) { :root { --mc-slot: 38px; } }
+@media (max-width: 470px) { :root { --mc-slot: 32px; } }
+/* Short landscape screens: keep the bottom bar compact. */
+@media (max-height: 500px) { :root { --mc-slot: 36px; } }
 .mc-help-btn {
   position: absolute; top: 140px; right: 12px; z-index: 7;
   width: 52px; height: 52px; border-radius: 10px;
@@ -59,12 +66,18 @@ const STYLE = `
   z-index: 5; display: none;
 }
 .mc-mining > div { height: 100%; background: #fff; width: 0%; }
+.mc-bottom {
+  position: absolute; left: 50%; bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%); z-index: 7; max-width: 100vw;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  pointer-events: none;
+}
 .mc-hotbar {
-  position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
-  display: flex; gap: 4px; z-index: 7;
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 4px;
+  max-width: 100vw; padding: 0 4px; pointer-events: auto;
 }
 .mc-slot {
-  width: 52px; height: 52px; background: rgba(20,20,20,0.6);
+  width: var(--mc-slot, 52px); height: var(--mc-slot, 52px); background: rgba(20,20,20,0.6);
   border: 2px solid #555; position: relative; image-rendering: pixelated;
   cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
@@ -72,11 +85,11 @@ const STYLE = `
 .mc-slot:active { background: rgba(60,60,60,0.8); }
 .mc-slot canvas { width: 100%; height: 100%; image-rendering: pixelated; }
 .mc-slot .count {
-  position: absolute; right: 3px; bottom: 1px; color: #fff; font-size: 14px;
+  position: absolute; right: 3px; bottom: 1px; color: #fff; font-size: clamp(10px, calc(var(--mc-slot, 52px) * 0.27), 14px);
   font-weight: bold; text-shadow: 1px 1px 0 #000; pointer-events: none;
 }
 .mc-bag-slot {
-  width: 52px; height: 52px; margin-left: 8px; border-radius: 8px;
+  width: var(--mc-slot, 52px); height: var(--mc-slot, 52px); margin-left: 8px; border-radius: 8px;
   background: rgba(20,20,20,0.7); border: 2px solid #888; color: #fff;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 1px; font-size: 9px; font-weight: bold; cursor: pointer; user-select: none;
@@ -85,7 +98,7 @@ const STYLE = `
 .mc-bag-slot:hover, .mc-bag-slot:active { border-color: #fff; background: rgba(60,60,60,0.85); }
 .mc-bag-slot svg { width: 22px; height: 22px; }
 .mc-chat-btn {
-  height: 52px; margin-left: 4px; padding: 0 10px; border-radius: 8px;
+  height: var(--mc-slot, 52px); margin-left: 4px; padding: 0 10px; border-radius: 8px;
   background: rgba(20,20,20,0.7); border: 2px solid #888; color: #fff;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 1px; font-size: 9px; font-weight: bold; cursor: pointer; user-select: none;
@@ -95,7 +108,7 @@ const STYLE = `
 .mc-chat-btn.active { border-color: #7ec8e3; background: rgba(20,60,80,0.85); }
 .mc-chat-btn svg { width: 22px; height: 22px; }
 .mc-craft-btn-hud {
-  height: 52px; margin-left: 4px; padding: 0 10px; border-radius: 8px;
+  height: var(--mc-slot, 52px); margin-left: 4px; padding: 0 10px; border-radius: 8px;
   background: rgba(20,20,20,0.7); border: 2px solid #888; color: #fff;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 1px; font-size: 9px; font-weight: bold; cursor: pointer; user-select: none;
@@ -128,19 +141,22 @@ const STYLE = `
   position: absolute; left: 8px; top: 8px; color: #fff; font-size: 12px;
   text-shadow: 1px 1px 0 #000; z-index: 5; white-space: pre; pointer-events: none;
 }
+/* Phones: the dev stats line would collide with the centred day timer. */
+@media (max-width: 900px), (max-height: 500px) {
+  .mc-debug { display: none; }
+}
 .mc-toast {
   position: absolute; left: 50%; bottom: 100px; transform: translateX(-50%);
   color: #fff; font-size: 14px; text-shadow: 1px 1px 0 #000; z-index: 5;
   pointer-events: none; transition: opacity 0.5s; opacity: 0;
 }
 .mc-daytimer {
-  position: absolute; left: 50%; top: 12px; transform: translateX(-50%);
+  position: absolute; left: 50%; top: calc(8px + env(safe-area-inset-top, 0px)); transform: translateX(-50%);
   color: #fff; font-size: 14px; text-shadow: 1px 1px 0 #000; z-index: 5;
   pointer-events: none; font-family: 'Courier New', monospace; letter-spacing: 1px;
 }
 .mc-energy {
-  position: absolute; left: 50%; bottom: 72px; transform: translateX(-50%);
-  width: 240px; height: 16px; z-index: 6; pointer-events: none;
+  position: relative; width: min(240px, 70vw); height: 16px; pointer-events: none;
   background: rgba(10,10,10,0.6); border: 2px solid #333; border-radius: 8px;
   display: flex; align-items: center; overflow: hidden;
 }
@@ -232,6 +248,11 @@ export class HUD {
     this.miningBar.appendChild(this.miningFill)
     root.appendChild(this.miningBar)
 
+    // Bottom-anchored stack: energy bar above the hotbar, centred, wrapping on
+    // narrow screens so nothing is ever cut off.
+    const bottomWrap = document.createElement('div')
+    bottomWrap.className = 'mc-bottom'
+
     const hotbar = document.createElement('div')
     hotbar.className = 'mc-hotbar'
     for (let i = 0; i < HOTBAR_SIZE; i++) {
@@ -319,7 +340,17 @@ export class HUD {
     hotbar.appendChild(craftBtnHud)
     this.craftBtnHud = craftBtnHud
 
-    root.appendChild(hotbar)
+    // Energy bar sits directly above the hotbar inside the bottom stack.
+    this.energyBar = document.createElement('div')
+    this.energyBar.className = 'mc-energy'
+    this.energyFill = document.createElement('div')
+    this.energyFill.className = 'mc-energy-fill'
+    this.energyLabel = document.createElement('span')
+    this.energyLabel.className = 'mc-energy-label'
+    this.energyBar.append(this.energyFill, this.energyLabel)
+
+    bottomWrap.append(this.energyBar, hotbar)
+    root.appendChild(bottomWrap)
 
     // Underwater tint overlay
     this.underwaterOverlay = document.createElement('div')
@@ -345,16 +376,6 @@ export class HUD {
     this.dayTimer = document.createElement('div')
     this.dayTimer.className = 'mc-daytimer'
     root.appendChild(this.dayTimer)
-
-    // Energy bar just above the hotbar.
-    this.energyBar = document.createElement('div')
-    this.energyBar.className = 'mc-energy'
-    this.energyFill = document.createElement('div')
-    this.energyFill.className = 'mc-energy-fill'
-    this.energyLabel = document.createElement('span')
-    this.energyLabel.className = 'mc-energy-label'
-    this.energyBar.append(this.energyFill, this.energyLabel)
-    root.appendChild(this.energyBar)
 
     this.playerList = document.createElement('div')
     this.playerList.className = 'mc-players'
@@ -406,6 +427,15 @@ export class HUD {
       <p>Eat to refuel: Apple +20 &nbsp; Cooked Fish +40 &nbsp; Fish Stew +80 (USE with the food held)</p>
       <p>Cook in the crafting menu: Fish + Wood → Cooked Fish; Cooked Fish + Egg + Apple → Fish Stew</p>
       <p>Or go home and USE your bed to sleep until morning — restores full energy</p>
+      <h3>Zombies &amp; Swords</h3>
+      <p>Zombies rise at night and crumble at dawn — they chase you and their hits drain energy</p>
+      <p>Attack them exactly like mining: aim and hold left-click (mobile: hold the red ⛏ button)</p>
+      <p>You start with a Sword in your bag — hold it to hit much harder than bare hands</p>
+      <p>Defeated zombies drop Gold and sometimes a Diamond</p>
+      <h3>Diamonds &amp; Sword Upgrades</h3>
+      <p>Diamond Ore hides deep underground (6+ blocks below the surface) — mine it with a pickaxe</p>
+      <p>Spend Diamonds at the market smithy: Iron Blade (4💎) and Diamond Edge (8💎)</p>
+      <p>Forge in the crafting menu: Sword + Iron Blade → Iron Sword; Iron Sword + Diamond Edge → Diamond Sword</p>
       <h3>Chickens &amp; Eggs</h3>
       <p>Tamed chickens lay an egg every 2 days — right-click (USE) your chicken to collect it</p>
       <p>Eggs are a cooking ingredient for hearty dishes</p>

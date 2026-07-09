@@ -23,6 +23,17 @@ function capitalize(s: string): string {
 
 /** How to tame, command, capture and release a given animal. */
 export function animalInfo(kind: AnimalKind): InfoContent {
+  if (kind === 'zombie') {
+    return {
+      title: 'Zombie',
+      lines: [
+        'A hostile mob that only comes out at night — it crumbles away at dawn.',
+        'It chases you, and each strike drains your energy (⚡).',
+        'Attack: hold MINE (left-click) while aiming at it — the same action as mining. A sword hits much harder than bare hands.',
+        'Defeated zombies drop Gold and sometimes a Diamond.',
+      ],
+    }
+  }
   if (kind === 'villager') {
     return {
       title: 'Villager',
@@ -84,10 +95,24 @@ export function itemInfo(itemId: number): InfoContent {
     lines.push('Use: select it on the hotbar and USE (right-click) on a surface to place the block.')
     const bd = def.block !== undefined ? blockDef(def.block) : null
     if (bd) lines.push(`Get: mine ${def.name} blocks with ${toolWord(bd.tool)} to collect them.`)
+  } else if (def.kind === 'tool' && def.damage !== undefined && !def.tool) {
+    // Pure weapons (swords)
+    lines.push(`Use: hold it and attack zombies with MINE (hold left-click) — deals ${def.damage} damage per swing.`)
+    lines.push('Upgrade: buy smithing materials with Diamonds at the market, then forge in the crafting menu.')
+    lines.push('Get: every player starts with a Sword in the bag; stronger tiers are forged.')
   } else if (def.kind === 'tool') {
     lines.push('Use: hold it and mine matching blocks — it breaks them much faster than bare hands.')
     if (def.tool) lines.push(toolBestFor(def.tool.type))
+    if (def.damage !== undefined) lines.push(`It also deals ${def.damage} damage per swing against zombies.`)
     lines.push('Get: tools are found inside treasure boxes scattered around the world.')
+  } else if (def.kind === 'material') {
+    if (itemId === 201 /* Diamond */) {
+      lines.push('A precious gem — spend it at the market smithy on materials that strengthen your sword.')
+      lines.push('Get: mine Diamond Ore found deep underground, or defeat night zombies for a chance at one.')
+    } else {
+      lines.push('Smithing material — combine it with your sword in the crafting menu to forge a stronger weapon.')
+      lines.push('Get: buy it with Diamonds at the market smithy.')
+    }
   } else if (def.kind === 'food') {
     lines.push(`Use: hold it and USE (right-click) on a ${def.food} to feed and tame it.`)
     lines.push('Get: harvested from crops or found inside treasure boxes.')

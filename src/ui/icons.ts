@@ -36,6 +36,24 @@ export function drawItemIcon(canvas: HTMLCanvasElement, itemId: number, atlasCan
       p(11, 3, 2, 3, head)
       break
     }
+    case ItemId.Sword:
+    case ItemId.IronSword:
+    case ItemId.DiamondSword: {
+      const blade = itemId === ItemId.DiamondSword ? '#3fd6d6' : itemId === ItemId.IronSword ? '#d8d8e0' : '#a8a8b0'
+      const edge = itemId === ItemId.DiamondSword ? '#aefcfc' : '#f0f0f4'
+      // Diagonal blade from the top-right tip down to the guard
+      for (let i = 0; i < 8; i++) {
+        p(12 - i, 2 + i, 2, 2, blade)
+        p(13 - i, 2 + i, 1, 1, edge)
+      }
+      // Cross-guard
+      p(4, 9, 4, 2, '#8a6a2a')
+      p(6, 7, 2, 4, '#8a6a2a')
+      // Grip and pommel
+      p(3, 11, 2, 2, '#5a3e1a')
+      p(2, 12, 2, 2, '#4a3212')
+      break
+    }
     case ItemId.Axe: {
       for (let i = 0; i < 8; i++) p(5 + i, 12 - i, 1, 1, '#6b4a2a')
       p(3, 2, 5, 5, '#8a8a8a')
@@ -233,6 +251,39 @@ export function drawItemIcon(canvas: HTMLCanvasElement, itemId: number, atlasCan
       p(3, 4, 2, 6, '#4e5f79') // left arm
       p(11, 4, 2, 6, '#4e5f79') // right arm
       p(4, 5, 8, 2, '#6b7d99')
+      break
+    }
+    case ItemId.Gold: {
+      // Gold ingot
+      p(3, 6, 10, 5, '#e8a400')
+      p(4, 5, 8, 1, '#ffd040')   // top face
+      p(3, 6, 10, 1, '#ffd040')  // top edge shine
+      p(3, 10, 10, 1, '#b07800') // base shadow
+      p(5, 7, 3, 1, '#ffe080')   // glint
+      break
+    }
+    case ItemId.Diamond: {
+      // Cut gem: wide crown tapering to a point
+      p(5, 3, 6, 2, '#7ef2f2')
+      p(4, 5, 8, 2, '#3fd6d6')
+      p(5, 7, 6, 2, '#2fb8c8')
+      p(6, 9, 4, 2, '#2098b0')
+      p(7, 11, 2, 2, '#187e98')
+      p(6, 4, 2, 1, '#e8ffff')   // sparkle
+      break
+    }
+    case ItemId.IronBlade: {
+      // Bare forged blade, no hilt yet
+      for (let i = 0; i < 9; i++) p(11 - i, 2 + i, 3, 1, '#c8c8d0')
+      for (let i = 0; i < 9; i++) p(13 - i, 2 + i, 1, 1, '#eeeef4')
+      p(2, 11, 3, 3, '#8a8a94')  // tang
+      break
+    }
+    case ItemId.DiamondEdge: {
+      // Gem-tipped edge insert
+      for (let i = 0; i < 9; i++) p(11 - i, 2 + i, 3, 1, '#3fd6d6')
+      for (let i = 0; i < 9; i++) p(13 - i, 2 + i, 1, 1, '#aefcfc')
+      p(2, 11, 3, 3, '#2098b0')  // tang
       break
     }
   }

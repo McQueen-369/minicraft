@@ -23,6 +23,10 @@ export const RECIPES: Recipe[] = [
   { id: 'stone-pickaxe', inputs: [{ itemId: BlockId.Plank, count: 3 }, { itemId: BlockId.Stone, count: 4 }], output: { itemId: ItemId.StonePickaxe, count: 1 } },
   { id: 'axe', inputs: [{ itemId: BlockId.Plank, count: 2 }, { itemId: BlockId.Stone, count: 3 }], output: { itemId: ItemId.Axe, count: 1 } },
   { id: 'shears', inputs: [{ itemId: BlockId.Plank, count: 2 }, { itemId: BlockId.Stone, count: 1 }], output: { itemId: ItemId.Shears, count: 1 } },
+  // Weapons — upgrade materials are bought with diamonds at the market smithy
+  { id: 'sword', inputs: [{ itemId: BlockId.Plank, count: 2 }, { itemId: BlockId.Stone, count: 3 }], output: { itemId: ItemId.Sword, count: 1 } },
+  { id: 'iron-sword', inputs: [{ itemId: ItemId.Sword, count: 1 }, { itemId: ItemId.IronBlade, count: 1 }], output: { itemId: ItemId.IronSword, count: 1 } },
+  { id: 'diamond-sword', inputs: [{ itemId: ItemId.IronSword, count: 1 }, { itemId: ItemId.DiamondEdge, count: 1 }], output: { itemId: ItemId.DiamondSword, count: 1 } },
   { id: 'net', inputs: [{ itemId: BlockId.Leaves, count: 3 }], output: { itemId: ItemId.Net, count: 1 } },
   // Storage
   { id: 'chest', inputs: [{ itemId: BlockId.Stone, count: 4 }, { itemId: BlockId.Plank, count: 2 }], output: { itemId: BlockId.Chest, count: 1 } },

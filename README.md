@@ -19,6 +19,7 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 ### Blocks & Resources
 - **12+ block types** — Grass, Dirt, Stone, Sand, Wood, Leaves, Apple Leaves, Planks, Brick, Glass, Fence, Ladder, TNT
 - **Gold Ore** — shiny yellow spots appear on the surface; rich veins run through deep stone layers
+- **Diamond Ore** — rare sparkling veins hidden 6+ blocks below the surface; drops Diamond gems used at the market smithy to strengthen your sword
 - **Mystery Boxes** — Common, Rare, and Epic variants found in the wild, each containing random loot
 - **Loot chests** — naturally generated on the surface, filled with tools and resources
 - **TNT** — every session starts with 200 in your bag; place and right-click to light the fuse, or right-click placed TNT to detonate it (2 second fuse, chain-reacts with nearby TNT)
@@ -70,10 +71,22 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 - Aim at water and **right-click** to cast — works if the ray hits an underwater block or crosses the water surface
 - Visible **fish schools** swim beneath the surface
 
+### Zombies & Combat
+- **Zombies rise at night** and crumble to dust at dawn — they chase you and each strike drains 8⚡ energy
+- **Attacking is the mining action**: aim at a zombie and hold left-click (mobile: hold the red ⛏ button)
+- **Every player starts with a Sword** in the bag — swords hit far harder than bare hands
+- Defeated zombies drop **2 Gold**, with a 30% chance of a bonus **Diamond**
+
+### Sword Upgrades
+- Mine **Diamonds** deep underground, then spend them at the market **smithy**:
+  - **Iron Blade** (4 💎) + Sword → **Iron Sword** (double damage) in the crafting menu
+  - **Diamond Edge** (8 💎) + Iron Sword → **Diamond Sword** (one-swing zombie kills)
+
 ### Market
 - Visit the market stall in any village and **right-click** to open
 - Spend Gold to buy raw materials, food, tools, and furniture
-- Stock of 8 items rotates **hourly** (seeded by the world)
+- The **smithy section** always stocks sword-upgrade materials, priced in Diamonds
+- Stock of 8 rotating items refreshes **hourly** (seeded by the world)
 - Gold is mined from Gold Ore deposits
 
 ### Crafting
@@ -166,6 +179,7 @@ Click **Create Profile** on the main menu to save worlds to the cloud (username 
 | Input | Action |
 |-------|--------|
 | Hold left-click | Mine the targeted block |
+| Hold left-click on a zombie | Attack it with the held weapon (same action as mining) |
 | Left-click furniture / ladder | Pick it back up into your bag |
 | Left-click villager | Pick up / set down to carry the NPC around |
 | Right-click | Place held block / open chest / eat held food / sleep in bed / open arcade kiosk / feed or interact with animal |

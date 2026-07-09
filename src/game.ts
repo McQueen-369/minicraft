@@ -242,11 +242,24 @@ export class Game {
       }
     }
 
-    window.addEventListener('resize', () => {
-      this.renderer.setSize(window.innerWidth, window.innerHeight)
-      this.camera.aspect = window.innerWidth / window.innerHeight
+    // Track every way the viewport can change size on mobile (rotation,
+    // browser chrome collapsing, keyboard) — the container is the truth.
+    const applySize = () => {
+      const w = root.clientWidth || window.innerWidth
+      const h = root.clientHeight || window.innerHeight
+      this.renderer.setSize(w, h)
+      this.camera.aspect = w / h
       this.camera.updateProjectionMatrix()
+    }
+    window.addEventListener('resize', applySize)
+    window.visualViewport?.addEventListener('resize', applySize)
+    // Some mobile browsers report stale dimensions right at the rotation
+    // event; re-apply once the new size has settled.
+    window.addEventListener('orientationchange', () => {
+      applySize()
+      setTimeout(applySize, 300)
     })
+    applySize()
     document.addEventListener('pointerlockchange', () => {
       if (
         !this.controls.isLocked &&
@@ -375,6 +388,9 @@ export class Game {
     this.inventory.load(save?.inventory ?? [])
     // Fresh world: give the player a fishing net to start with.
     if (!save) this.inventory.add(ItemId.Net, 1)
+    // Every player carries a sword by default so night zombies can be fought.
+    const hasSword = [ItemId.Sword, ItemId.IronSword, ItemId.DiamondSword].some((id) => this.inventory.countOf(id) > 0)
+    if (!hasSword) this.inventory.add(ItemId.Sword, 1)
     // TNT is a freebie, not a hunted resource: every session starts with 200 in the bag.
     const tntShortfall = TNT_SESSION_COUNT - this.inventory.countOf(ItemId.TNT)
     if (tntShortfall > 0) this.inventory.add(ItemId.TNT, tntShortfall)
@@ -457,6 +473,18 @@ export class Game {
       }
     }
     entities.onEggReady = () => this.hud.showToast('🥚 One of your chickens laid an egg — right-click it to collect!')
+    // ---- Zombies: they rise at night, strike drains energy, kills pay loot. ----
+    entities.onZombieNight = () => this.hud.showToast('🌙 Zombies are rising — ready your sword!')
+    entities.onZombieAttack = () => {
+      this.energy = Math.max(0, this.energy - ZOMBIE_HIT_ENERGY)
+      this.hud.showToast(`🧟 A zombie hit you! (-${ZOMBIE_HIT_ENERGY}⚡) Fight back or run!`)
+    }
+    interaction.onZombieKilled = () => {
+      this.inventory.add(ItemId.Gold, 2)
+      const bonusDiamond = Math.random() < 0.3
+      if (bonusDiamond) this.inventory.add(ItemId.Diamond, 1)
+      this.hud.showToast(bonusDiamond ? '⚔️ Zombie defeated! +2 Gold +1 Diamond' : '⚔️ Zombie defeated! +2 Gold')
+    }
     interaction.onOpenMarket = () => {
       this.controls.releaseLock()
       this.market.open(seed)
@@ -930,7 +958,7 @@ export class Game {
         owners.set(id, { x: avatar.group.position.x, y: avatar.group.position.y, z: avatar.group.position.z })
       }
     }
-    s.entities.update(dt, pos, owners, this.mode !== 'guest', s.sky.day)
+    s.entities.update(dt, pos, owners, this.mode !== 'guest', s.sky.day, s.sky.phaseInfo.phase === 'night')
 
     // After horse physics, sync player position onto the horse.
     if (this.mountedHorseId) {
@@ -1139,6 +1167,8 @@ export class Game {
 
 /** TNT is a free explosive freebie every session starts topped up to. */
 const TNT_SESSION_COUNT = 200
+/** Energy lost each time a zombie lands a strike. */
+const ZOMBIE_HIT_ENERGY = 8
 
 function randomSeed(): number {
   return hashString(`${Date.now()}-${Math.random()}`)
