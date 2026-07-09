@@ -117,9 +117,17 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 - Underwater blue tint when submerged
 - Background music (toggle with the music button in the HUD)
 
+### Character Customization
+- **🧍 Customize Character** on the main menu opens the character editor with a live rotating 3D preview
+- Pick a **facial expression** from 8 presets — Happy, Cheerful, Chill (sunglasses!), Surprised, Sleepy, Grumpy, Fierce, Silly — or fine-tune **eyes** and **mouth** individually
+- Choose **hair style** (short, long, spiky, bowl, ponytail, mohawk, or bald) and **hair colour**
+- Set **skin tone**, **eye colour**, and **clothing colours** (shirt + trousers)
+- Your look is saved on this device and shown to friends in multiplayer
+
 ### Multiplayer *(requires Supabase — see setup below)*
 - Host a world and share a room code (e.g. `MC-4821`) with friends
 - Block edits, animals, chests, and player avatars sync in real time
+- Everyone sees your **customized character** — face, hair, and outfit
 - Real-time **chat** (press C or Enter)
 
 ---

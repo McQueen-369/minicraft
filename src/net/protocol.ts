@@ -1,6 +1,7 @@
 import type { SavedAnimal } from '../entities/entityManager'
 import type { SavedFurniture } from '../entities/furniture'
 import type { ChestContents, Slot } from '../items/items'
+import type { Appearance } from '../player/appearance'
 
 export const PROTOCOL_VERSION = 1
 
@@ -13,6 +14,8 @@ export interface PlayerStateMsg {
   z: number
   yaw: number
   pitch: number
+  /** Character appearance; optional so older clients stay compatible. */
+  ap?: Appearance
 }
 
 export interface HelloMsg {

@@ -1,6 +1,7 @@
 import type { LocalWorldMeta } from '../persist/storage'
 import type { Profile, WorldMeta } from '../net/cloud'
 import { generateRoomCode } from '../net/protocol'
+import { CharacterEditor } from './character'
 
 const STYLE = `
 .mc-menu {
@@ -124,6 +125,10 @@ export class Menu {
     }
     if (profile) this.renderSignedIn(profile)
     else this.renderSignedOut()
+
+    const charSection = el('div', '', 'section')
+    this.button(charSection, '🧍 Customize Character', () => this.showCharacter())
+    this.box.appendChild(charSection)
 
     this.box.appendChild(
       el(
@@ -473,6 +478,23 @@ export class Menu {
         error.textContent = e instanceof Error ? e.message : 'Could not load your worlds'
       },
     )
+  }
+
+  // -------------------------------------------------------------- character
+
+  /** Character customisation: face, hair, clothing and colours. */
+  private showCharacter(): void {
+    this.mode = 'main'
+    this.mainRenderSeq++
+    this.el.style.display = 'flex'
+    this.box.innerHTML = ''
+    this.box.appendChild(el('h1', 'CHARACTER'))
+    this.box.appendChild(el('div', 'design your look — friends see it in multiplayer', 'sub'))
+    const name =
+      (this.cb.multiplayerAvailable ? this.cb.profile()?.username : null) ??
+      localStorage.getItem('minicraft-name') ??
+      'Player'
+    new CharacterEditor(this.box, name, () => this.showMain())
   }
 
   // --------------------------------------------------------------- settings

@@ -23,6 +23,7 @@ import { connectChannel, Multiplayer } from './net/multiplayer'
 import { generateRoomCode, isValidRoomCode, type SnapshotMsg } from './net/protocol'
 import { supabaseConfigured } from './net/supabase'
 import { MultiWorldStore, type SaveData } from './persist/storage'
+import { loadAppearance } from './player/appearance'
 import { Controls } from './player/controls'
 import { Player } from './player/player'
 import { createAtlas, type Atlas } from './render/atlas'
@@ -623,7 +624,7 @@ export class Game {
     this.mode = 'host'
     this.cloudWorld = null
     this.createSession(save?.seed ?? randomSeed(), save)
-    this.mp = new Multiplayer('host', roomCode, transport, this.session!.scene, this.playerId, playerName, this.hooks())
+    this.mp = new Multiplayer('host', roomCode, transport, this.session!.scene, this.playerId, playerName, this.hooks(), loadAppearance(localStorage))
     this.beginPlay()
     this.hud.showToast(`Hosting room ${roomCode} — share the code!`)
   }
@@ -639,7 +640,7 @@ export class Game {
       this.mode = 'host'
       this.cloudWorld = { id: w.id, name: w.name }
       this.createSession(save.seed, save)
-      this.mp = new Multiplayer('host', code, transport, this.session!.scene, this.playerId, profile.username, this.hooks())
+      this.mp = new Multiplayer('host', code, transport, this.session!.scene, this.playerId, profile.username, this.hooks(), loadAppearance(localStorage))
       this.beginPlay()
       this.hud.showToast(`Hosting "${w.name}" in room ${code} — the session saves to your profile`)
     } else {
@@ -686,7 +687,7 @@ export class Game {
     const transport = await connectChannel(code)
     this.mode = 'guest'
     this.cloudWorld = null
-    const mp = new Multiplayer('guest', code, transport, new THREE.Scene(), this.playerId, name, this.hooks())
+    const mp = new Multiplayer('guest', code, transport, new THREE.Scene(), this.playerId, name, this.hooks(), loadAppearance(localStorage))
     try {
       await mp.requestSnapshot(8000)
     } catch (e) {

@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
 import { Multiplayer, type MultiplayerHooks, type Transport } from './multiplayer'
 import type { GameMessage, SnapshotMsg } from './protocol'
+import { DEFAULT_APPEARANCE, sanitizeAppearance } from '../player/appearance'
 
 /** Two in-memory transports wired to each other (loopback excluded, like broadcast self:false). */
 function transportPair(): [Transport, Transport] {
@@ -115,6 +116,20 @@ describe('Multiplayer', () => {
     new Multiplayer('guest', 'MC-0005', guestT, new THREE.Scene(), 'g', 'Ann', guestHooks)
     host.update(0, { x: 0, y: 0, z: 0, yaw: 0, pitch: 0 }, () => [], 0.75)
     expect(receivedSkyTime).toBe(0.75)
+  })
+
+  it('broadcasts the local appearance in player state messages', () => {
+    const sent: GameMessage[] = []
+    const t: Transport = {
+      send: (m) => sent.push(structuredClone(m)),
+      onMessage: () => {},
+      close: () => {},
+    }
+    const look = sanitizeAppearance({ ...DEFAULT_APPEARANCE, hair: 'mohawk', mouth: 'grin' })
+    const mp = new Multiplayer('guest', 'MC-0007', t, new THREE.Scene(), 'g', 'Ann', makeHooks(fakeWorld()), look)
+    mp.update(0, { x: 1, y: 2, z: 3, yaw: 0, pitch: 0 }, () => [])
+    const player = sent.find((m) => m.t === 'player')
+    expect(player && player.t === 'player' ? player.ap : null).toEqual(look)
   })
 
   it('calls onHostLeft when the host disconnects', async () => {

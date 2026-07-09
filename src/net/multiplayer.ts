@@ -10,6 +10,7 @@ import {
   type GameMessage,
   type SnapshotMsg,
 } from './protocol'
+import { appearanceKey, sanitizeAppearance, type Appearance } from '../player/appearance'
 import { gameChannel } from './supabase'
 import { buildAvatar, disposeAvatar, updateAvatar, type RemoteAvatar } from './remotePlayer'
 
@@ -61,6 +62,7 @@ export class Multiplayer {
     readonly selfId: string,
     private readonly name: string,
     private readonly hooks: MultiplayerHooks,
+    private readonly appearance?: Appearance,
   ) {
     transport.onMessage((msg) => this.handle(msg))
   }
@@ -115,7 +117,7 @@ export class Multiplayer {
     this.playerSendIn -= dt
     if (this.playerSendIn <= 0) {
       this.playerSendIn = 1 / PLAYER_STATE_HZ
-      this.transport.send({ t: 'player', id: this.selfId, name: this.name, ...self })
+      this.transport.send({ t: 'player', id: this.selfId, name: this.name, ap: this.appearance, ...self })
     }
     if (this.role === 'host') {
       this.animalSendIn -= dt
@@ -159,9 +161,17 @@ export class Multiplayer {
         break
       case 'player': {
         if (msg.id === this.selfId) break
+        const look = msg.ap ? sanitizeAppearance(msg.ap) : undefined
         let avatar = this.peers.get(msg.id)
+        if (avatar && look && avatar.lookKey !== appearanceKey(look)) {
+          // Peer changed their character — rebuild the avatar in place.
+          this.scene.remove(avatar.group)
+          disposeAvatar(avatar)
+          this.peers.delete(msg.id)
+          avatar = undefined
+        }
         if (!avatar) {
-          avatar = buildAvatar(msg.name || 'Player')
+          avatar = buildAvatar(msg.name || 'Player', look)
           avatar.group.position.set(msg.x, msg.y, msg.z)
           this.peers.set(msg.id, avatar)
           this.scene.add(avatar.group)

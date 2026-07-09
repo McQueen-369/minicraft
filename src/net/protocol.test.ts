@@ -7,6 +7,13 @@ describe('protocol', () => {
       { t: 'hello', id: 'p1', name: 'Ann' },
       { t: 'player', id: 'p1', name: 'Ann', x: 1, y: 2, z: 3, yaw: 0.5, pitch: -0.2 },
       {
+        t: 'player', id: 'p2', name: 'Bob', x: 0, y: 0, z: 0, yaw: 0, pitch: 0,
+        ap: {
+          skin: '#ffdbac', hair: 'spiky', hairColor: '#c93756', eyes: 'shades',
+          eyeColor: '#2c222b', mouth: 'grin', shirt: '#27ae60', pants: '#2d3436',
+        },
+      },
+      {
         t: 'snapshot',
         to: 'p2',
         hostId: 'h1',
