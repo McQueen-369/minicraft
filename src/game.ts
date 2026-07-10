@@ -457,9 +457,12 @@ export class Game {
       return true
     }
     interaction.onSleep = () => {
-      sky.sleepToMorning()
-      this.energy = MAX_ENERGY
-      this.hud.showToast('😴 You slept until morning — energy fully restored!')
+      // Eyes close (screen dims), the night passes in the dark, eyes reopen.
+      this.hud.sleepTransition(() => {
+        sky.sleepToMorning()
+        this.energy = MAX_ENERGY
+        this.hud.showToast('😴 You slept until morning — energy fully restored!')
+      })
     }
     interaction.onOpenArcade = (kind) => {
       this.controls.releaseLock()
@@ -805,7 +808,10 @@ export class Game {
     this.mobileControls?.show()
     this.minimap.show()
     this.chat.show()
-    if (this.session) this.minimap.setHome(this.session.spawn.x, this.session.spawn.z)
+    if (this.session) {
+      this.minimap.setHome(this.session.spawn.x, this.session.spawn.z)
+      this.minimap.setIsland(this.session.world.terrain.island.x, this.session.world.terrain.island.z)
+    }
   }
 
   private resume(): void {
@@ -1079,10 +1085,6 @@ export class Game {
       for (const avatar of this.mp.peers.values()) {
         markers.push({ x: avatar.group.position.x, z: avatar.group.position.z, color: '#7ad0ff' })
       }
-    }
-    // Once discovered, the secret island shows up on the map.
-    if (this.islandFound) {
-      markers.push({ x: s.world.terrain.island.x, z: s.world.terrain.island.z, color: '#ff5fa2' })
     }
     this.minimap.update(s.world.terrain, pos, this.controls.yaw, markers, dt)
   }

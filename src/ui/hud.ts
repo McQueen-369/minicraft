@@ -76,6 +76,11 @@ const STYLE = `
   display: flex; flex-wrap: wrap; justify-content: center; gap: 4px;
   max-width: 100vw; padding: 0 4px; pointer-events: auto;
 }
+.mc-held-name {
+  color: #fff; font-size: 14px; font-weight: bold; text-shadow: 1px 1px 0 #000;
+  font-family: 'Courier New', monospace; pointer-events: none;
+  transition: opacity 0.4s; opacity: 0; min-height: 17px;
+}
 .mc-slot {
   width: var(--mc-slot, 52px); height: var(--mc-slot, 52px); background: rgba(20,20,20,0.6);
   border: 2px solid #555; position: relative; image-rendering: pixelated;
@@ -203,6 +208,11 @@ export class HUD {
   private readonly energyFill: HTMLDivElement
   private readonly energyLabel: HTMLSpanElement
   private lastEnergy = -1
+  private readonly heldName: HTMLDivElement
+  private heldNameTimer: ReturnType<typeof setTimeout> | null = null
+  /** selected index + itemId of the last shown name, to announce only changes. */
+  private lastHeldKey = ''
+  private readonly sleepFade: HTMLDivElement
   private readonly playerList: HTMLDivElement
   private readonly instructionsOverlay: HTMLDivElement
   private readonly nameplate: HTMLDivElement
@@ -349,8 +359,19 @@ export class HUD {
     this.energyLabel.className = 'mc-energy-label'
     this.energyBar.append(this.energyFill, this.energyLabel)
 
-    bottomWrap.append(this.energyBar, hotbar)
+    // Name of the item just selected in the hotbar, fading above the energy bar.
+    this.heldName = document.createElement('div')
+    this.heldName.className = 'mc-held-name'
+
+    bottomWrap.append(this.heldName, this.energyBar, hotbar)
     root.appendChild(bottomWrap)
+
+    // Full-screen black overlay for the sleep eyes-closing transition.
+    this.sleepFade = document.createElement('div')
+    this.sleepFade.className = 'mc-sleep-fade'
+    this.sleepFade.style.cssText =
+      'position:absolute;inset:0;background:#000;z-index:19;pointer-events:none;opacity:0;display:none;transition:opacity 0.9s ease;'
+    root.appendChild(this.sleepFade)
 
     // Underwater tint overlay
     this.underwaterOverlay = document.createElement('div')
@@ -439,8 +460,9 @@ export class HUD {
       <h3>Chickens &amp; Eggs</h3>
       <p>Tamed chickens lay an egg every 2 days — right-click (USE) your chicken to collect it</p>
       <p>Eggs are a cooking ingredient for hearty dishes</p>
-      <h3>Secret Island</h3>
-      <p>Rumour says a hidden island sits in a ring-shaped lake a few hundred blocks out…</p>
+      <h3>Challenge Island</h3>
+      <p>An island of challenges sits in a ring-shaped lake a few hundred blocks out</p>
+      <p>Follow the pink flag 🏝 on your map — it always points toward the island</p>
       <p>Its arcade kiosks host mini-games — puzzles, running, math targets, word guessing — with item prizes!</p>
       <h3>Furniture & Home</h3>
       <p>New worlds start with a furnished cottage (pitched roof!) and a fence-ringed farm</p>
@@ -460,9 +482,11 @@ export class HUD {
       <h3>Tips</h3>
       <h3>Crafting</h3>
       <p>Press Z or tap CRAFT to open the crafting panel — merge items to make tools, furniture, ladders, and more</p>
+      <p>Tap the ⓘ beside any recipe for full instructions — the exact items needed and where to find each one</p>
       <p>Ladder: place on a wall and walk into it to climb; Space up, Shift down</p>
       <h3>Tips</h3>
-      <p>Look at an animal or block — its name shows up top; tap the ⓘ (or press I) for how to tame/use it</p>
+      <p>Tap any hotbar or bag item to see its name; look at an animal or block and its name shows up top</p>
+      <p>Tap the ⓘ (or press I) on a nameplate for how to tame/use it</p>
       <p>Open a treasure box to auto-collect its loot — the box is used up, not kept</p>
       <p>Open the BAG to browse items by category (Blocks, Tools, Food, Animals, Furniture)</p>
       <p>In multiplayer each player shows up in a unique shirt colour</p>
@@ -526,6 +550,42 @@ export class HUD {
         el.title = ''
       }
     }
+    // Announce the held item by name whenever the selection lands on a
+    // different item (click/tap, number key, or scroll).
+    const held = this.inventory.slots[this.inventory.selected]
+    const key = `${this.inventory.selected}:${held?.itemId ?? 'empty'}`
+    if (key !== this.lastHeldKey) {
+      this.lastHeldKey = key
+      if (held) this.showHeldName(itemDef(held.itemId)?.name ?? '')
+      else this.heldName.style.opacity = '0'
+    }
+  }
+
+  private showHeldName(name: string): void {
+    this.heldName.textContent = name
+    this.heldName.style.opacity = '1'
+    if (this.heldNameTimer) clearTimeout(this.heldNameTimer)
+    this.heldNameTimer = setTimeout(() => { this.heldName.style.opacity = '0' }, 1600)
+  }
+
+  /**
+   * Sleep transition: the screen dims like eyes closing, `onDark` runs while
+   * everything is black (jump to morning), then the view fades back in.
+   */
+  sleepTransition(onDark: () => void): void {
+    this.sleepFade.style.display = 'block'
+    // Force reflow so the fade-in transition starts from opacity 0.
+    void this.sleepFade.offsetWidth
+    this.sleepFade.style.opacity = '1'
+    setTimeout(() => {
+      onDark()
+      setTimeout(() => {
+        this.sleepFade.style.opacity = '0'
+        setTimeout(() => {
+          if (this.sleepFade.style.opacity === '0') this.sleepFade.style.display = 'none'
+        }, 950)
+      }, 500)
+    }, 950)
   }
 
   /** Reflect the player's energy (0–100) in the bar above the hotbar. */

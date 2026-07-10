@@ -54,11 +54,11 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 - A ⚡ **energy bar** (0–100) sits above the hotbar — mining costs energy, and at 0 you're too tired to mine
 - **Eat food to refuel**: Apple (+20), Cooked Fish (+40), Fish Stew (+80) — right-click with the food held
 - **Cook** in the crafting panel: Fish + Wood → Cooked Fish; Cooked Fish + Egg + Apple → Fish Stew
-- **Sleep** in a bed (right-click) to jump straight to the next morning with a fully restored bar
+- **Sleep** in a bed (right-click) to jump straight to the next morning with a fully restored bar — the screen dims like closing your eyes, then fades back in at dawn
 - Energy, the day count, and island discovery all persist in your save
 
-### Secret Island & Mini-Games
-- Hidden inside a ring-shaped lake a few hundred blocks from spawn — explore to stumble onto it (a toast announces the find and pins it on the minimap)
+### Challenge Island & Mini-Games
+- Sits inside a ring-shaped lake a few hundred blocks from spawn — a pink **🏝 flag on the map** always points the way (clamped to the map edge until you get close)
 - Its plaza has four glowing arcade kiosks, each a small educational mini-game that pays out item prizes:
   - 🧩 **Sliding Puzzle** — reorder a shuffled 3×3 grid; fewer moves win a bigger prize
   - 🏃 **Island Runner** — endless jump-the-obstacle runner; score 150+ to win gold
@@ -91,7 +91,12 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 
 ### Crafting
 - Press **Z** to open the crafting table — craft planks from wood, glass from sand, and more
+- Tap the **ⓘ** next to any recipe for a full instruction page: what the item does, the exact combination needed, how much of each ingredient you have, and **where to find every ingredient**
 - Successful crafts give clear visual feedback — the recipe flashes green with a “✓ Crafted!” confirmation
+
+### Item Names & Identification
+- Selecting a hotbar slot pops up the item's name above the energy bar
+- Tapping any item in the bag or a chest shows its name at the top of the panel — including undiscovered catalog items
 
 ### Building & Furniture
 - Place doors, windows, desks, chairs, beds, sofas, chests, fences, and ladders
@@ -117,8 +122,9 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 - Underwater blue tint when submerged
 - Background music (toggle with the music button in the HUD)
 
-### Character Customization
-- **🧍 Customize Character** on the main menu opens the character editor with a live rotating 3D preview
+### Profile & Character Customization
+- **⚙ Profile Settings** on the main menu gathers everything about you: character customization plus (when signed in) username and password changes
+- **🧍 Customize Character** opens the character editor with a live rotating 3D preview
 - Pick a **facial expression** from 8 presets — Happy, Cheerful, Chill (sunglasses!), Surprised, Sleepy, Grumpy, Fierce, Silly — or fine-tune **eyes** and **mouth** individually
 - Choose **hair style** (short, long, spiky, bowl, ponytail, mohawk, or bald) and **hair colour**
 - Set **skin tone**, **eye colour**, and **clothing colours** (shirt + trousers)

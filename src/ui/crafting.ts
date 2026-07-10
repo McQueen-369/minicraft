@@ -1,6 +1,6 @@
 import type { Inventory } from '../items/inventory'
 import { itemDef } from '../items/items'
-import { RECIPES, type Recipe } from '../items/crafting'
+import { itemSource, RECIPES, type Recipe } from '../items/crafting'
 import { drawItemIcon } from './icons'
 
 const STYLE = `
@@ -72,6 +72,32 @@ const STYLE = `
   60% { transform: scale(1.25); }
   100% { transform: scale(1); }
 }
+.mc-craft-info-btn {
+  flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%;
+  background: #8b8b8b; border: 2px solid; border-color: #fff #555 #555 #fff;
+  color: #333; font-family: Georgia, 'Times New Roman', serif; font-size: 14px;
+  font-weight: bold; font-style: italic; cursor: pointer; padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.mc-craft-info-btn:hover { background: #e7d9a0; }
+.mc-craft-detail { display: flex; flex-direction: column; gap: 10px; font-size: 12px; }
+.mc-craft-detail-head { display: flex; align-items: center; gap: 10px; }
+.mc-craft-detail-head .mc-craft-icon { width: 44px; height: 44px; flex: 0 0 44px; }
+.mc-craft-detail-head strong { font-size: 15px; }
+.mc-craft-detail-desc { line-height: 1.5; background: #d7d7d7; border: 2px solid; border-color: #555 #fff #fff #555; padding: 8px; }
+.mc-craft-detail h4 { margin: 4px 0 0; font-size: 12px; border-bottom: 1px solid #999; padding-bottom: 2px; }
+.mc-craft-need-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; background: #b0b0b0; border: 2px solid; border-color: #fff #555 #555 #fff; }
+.mc-craft-need-row .who { flex: 1 1 auto; line-height: 1.35; }
+.mc-craft-need-row .have { flex: 0 0 auto; font-weight: bold; white-space: nowrap; }
+.mc-craft-need-row .have.ok { color: #1a6e1a; }
+.mc-craft-need-row .have.missing { color: #a03020; }
+.mc-craft-need-row .src { display: block; font-size: 11px; color: #444; }
+.mc-craft-back {
+  align-self: flex-start; background: #8b8b8b; border: 2px solid; border-color: #fff #555 #555 #fff;
+  color: #333; font-family: 'Courier New', monospace; font-size: 12px; font-weight: bold;
+  padding: 5px 10px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.mc-craft-back:hover { background: #a5a5a5; }
 `
 
 export class CraftingPanel {
@@ -81,6 +107,8 @@ export class CraftingPanel {
   /** Output item of the most recent craft, briefly highlighted as feedback. */
   private flashItemId: number | null = null
   private flashTimer: ReturnType<typeof setTimeout> | null = null
+  /** Recipe whose instruction page is showing instead of the list, if any. */
+  private detailRecipe: Recipe | null = null
 
   onClose: () => void = () => {}
   onCraft: (name: string, count: number) => void = () => {}
@@ -137,6 +165,7 @@ export class CraftingPanel {
   close(): void {
     if (!this._isOpen) return
     this._isOpen = false
+    this.detailRecipe = null
     this.backdrop.style.display = 'none'
     this.onClose()
   }
@@ -149,10 +178,83 @@ export class CraftingPanel {
   refresh(): void {
     if (!this._isOpen) return
     this.list.innerHTML = ''
+    if (this.detailRecipe) {
+      this.list.appendChild(this.buildDetail(this.detailRecipe))
+      return
+    }
     for (const recipe of RECIPES) {
       const canCraft = recipe.inputs.every((inp) => this.inventory.countOf(inp.itemId) >= inp.count)
       this.list.appendChild(this.buildRow(recipe, canCraft))
     }
+  }
+
+  /** Full instruction page for one recipe: what it does, the exact item
+   *  combination needed, how much of each you have, and where to find them. */
+  private buildDetail(recipe: Recipe): HTMLDivElement {
+    const detail = document.createElement('div')
+    detail.className = 'mc-craft-detail'
+
+    const back = document.createElement('button')
+    back.className = 'mc-craft-back'
+    back.textContent = '← All recipes'
+    const goBack = (e: Event) => {
+      e.preventDefault()
+      this.detailRecipe = null
+      this.refresh()
+    }
+    back.addEventListener('click', goBack)
+    back.addEventListener('touchstart', goBack, { passive: false })
+    detail.appendChild(back)
+
+    const head = document.createElement('div')
+    head.className = 'mc-craft-detail-head'
+    head.appendChild(this.makeIcon(recipe.output.itemId, recipe.output.count))
+    const name = document.createElement('div')
+    name.innerHTML = `<strong>${itemDef(recipe.output.itemId)?.name ?? ''}</strong><br>makes ×${recipe.output.count}`
+    head.appendChild(name)
+    detail.appendChild(head)
+
+    const desc = document.createElement('div')
+    desc.className = 'mc-craft-detail-desc'
+    desc.textContent = recipe.desc
+    detail.appendChild(desc)
+
+    const needTitle = document.createElement('h4')
+    needTitle.textContent = 'You need'
+    detail.appendChild(needTitle)
+    let canCraft = true
+    for (const inp of recipe.inputs) {
+      const have = this.inventory.countOf(inp.itemId)
+      const enough = have >= inp.count
+      if (!enough) canCraft = false
+      const row = document.createElement('div')
+      row.className = 'mc-craft-need-row'
+      row.appendChild(this.makeIcon(inp.itemId, inp.count))
+      const who = document.createElement('div')
+      who.className = 'who'
+      const inpName = document.createElement('strong')
+      inpName.textContent = `${inp.count} × ${itemDef(inp.itemId)?.name ?? ''}`
+      const src = document.createElement('span')
+      src.className = 'src'
+      src.textContent = `Find it: ${itemSource(inp.itemId)}`
+      who.append(inpName, src)
+      row.appendChild(who)
+      const have$ = document.createElement('div')
+      have$.className = 'have ' + (enough ? 'ok' : 'missing')
+      have$.textContent = enough ? `✓ have ${have}` : `have ${have}/${inp.count}`
+      row.appendChild(have$)
+      detail.appendChild(row)
+    }
+
+    const btn = document.createElement('button')
+    btn.className = 'mc-craft-btn'
+    btn.textContent = canCraft ? 'Craft it!' : 'Missing items'
+    btn.disabled = !canCraft
+    const craft = (e: Event) => { e.preventDefault(); this.doCraft(recipe) }
+    btn.addEventListener('click', craft)
+    btn.addEventListener('touchstart', craft, { passive: false })
+    detail.appendChild(btn)
+    return detail
   }
 
   private buildRow(recipe: Recipe, canCraft: boolean): HTMLDivElement {
@@ -195,6 +297,20 @@ export class CraftingPanel {
       made.textContent = '✓ Crafted!'
       row.appendChild(made)
     }
+
+    // Instructions button — opens the recipe's detail page.
+    const info = document.createElement('button')
+    info.className = 'mc-craft-info-btn'
+    info.textContent = 'i'
+    info.title = `How to craft ${outputName}`
+    const openDetail = (e: Event) => {
+      e.preventDefault()
+      this.detailRecipe = recipe
+      this.refresh()
+    }
+    info.addEventListener('click', openDetail)
+    info.addEventListener('touchstart', openDetail, { passive: false })
+    row.appendChild(info)
 
     // Craft button
     const btn = document.createElement('button')

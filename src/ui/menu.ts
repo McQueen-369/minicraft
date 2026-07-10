@@ -126,9 +126,9 @@ export class Menu {
     if (profile) this.renderSignedIn(profile)
     else this.renderSignedOut()
 
-    const charSection = el('div', '', 'section')
-    this.button(charSection, '🧍 Customize Character', () => this.showCharacter())
-    this.box.appendChild(charSection)
+    const profileSection = el('div', '', 'section')
+    this.button(profileSection, '⚙ Profile Settings — character & password', () => this.showProfileSettings())
+    this.box.appendChild(profileSection)
 
     this.box.appendChild(
       el(
@@ -397,7 +397,7 @@ export class Menu {
     bar.appendChild(who)
     const settings = document.createElement('button')
     settings.textContent = '⚙ Settings'
-    settings.addEventListener('click', () => this.showSettings(profile))
+    settings.addEventListener('click', () => this.showProfileSettings())
     bar.appendChild(settings)
     const out = document.createElement('button')
     out.textContent = 'Sign Out'
@@ -494,58 +494,75 @@ export class Menu {
       (this.cb.multiplayerAvailable ? this.cb.profile()?.username : null) ??
       localStorage.getItem('minicraft-name') ??
       'Player'
-    new CharacterEditor(this.box, name, () => this.showMain())
+    new CharacterEditor(this.box, name, () => this.showProfileSettings())
   }
 
   // --------------------------------------------------------------- settings
 
-  /** Account settings page: rename the profile and reset the password. */
-  private showSettings(profile: Profile): void {
+  /** Profile settings page: customise the character; when signed in, also
+   *  rename the profile and reset the password. */
+  private showProfileSettings(): void {
     this.mode = 'main'
     this.mainRenderSeq++
     this.el.style.display = 'flex'
     this.box.innerHTML = ''
-    this.box.appendChild(el('h1', 'SETTINGS'))
-    this.box.appendChild(el('div', `Signed in as ${profile.username}`, 'sub'))
+    const profile = this.cb.multiplayerAvailable ? this.cb.profile() : null
+    this.box.appendChild(el('h1', 'PROFILE'))
     this.box.appendChild(
-      el('div', 'Changing your username or password keeps all your saved worlds intact.', 'save-notice'),
+      el('div', profile ? `Signed in as ${profile.username}` : 'settings saved on this device', 'sub'),
     )
 
-    // Change username
-    const nameSection = el('div', '', 'section')
-    nameSection.appendChild(el('div', 'Change Username', 'section-title'))
-    const newName = input('New username (3-16 letters/numbers)', 16)
-    const namePw = input('Current password', 64)
-    namePw.type = 'password'
-    const nameError = el('div', '', 'error')
-    nameSection.appendChild(newName)
-    nameSection.appendChild(namePw)
-    this.asyncButton(nameSection, 'Update Username', nameError, async () => {
-      await this.cb.onChangeUsername(namePw.value, newName.value.trim())
-      this.showSettings(this.cb.profile() ?? profile)
-      this.flash('Username updated')
-    })
-    nameSection.appendChild(nameError)
-    this.box.appendChild(nameSection)
+    // Character customisation
+    const charSection = el('div', '', 'section')
+    charSection.appendChild(el('div', 'Your Character', 'section-title'))
+    this.button(charSection, '🧍 Customize Character', () => this.showCharacter())
+    this.box.appendChild(charSection)
 
-    // Change password
-    const pwSection = el('div', '', 'section')
-    pwSection.appendChild(el('div', 'Reset Password', 'section-title'))
-    const curPw = input('Current password', 64)
-    curPw.type = 'password'
-    const newPw = input('New password (min 4 characters)', 64)
-    newPw.type = 'password'
-    const pwError = el('div', '', 'error')
-    pwSection.appendChild(curPw)
-    pwSection.appendChild(newPw)
-    this.asyncButton(pwSection, 'Update Password', pwError, async () => {
-      await this.cb.onChangePassword(curPw.value, newPw.value)
-      curPw.value = ''
-      newPw.value = ''
-      this.flash('Password updated')
-    })
-    pwSection.appendChild(pwError)
-    this.box.appendChild(pwSection)
+    if (profile) {
+      this.box.appendChild(
+        el('div', 'Changing your username or password keeps all your saved worlds intact.', 'save-notice'),
+      )
+
+      // Change username
+      const nameSection = el('div', '', 'section')
+      nameSection.appendChild(el('div', 'Change Username', 'section-title'))
+      const newName = input('New username (3-16 letters/numbers)', 16)
+      const namePw = input('Current password', 64)
+      namePw.type = 'password'
+      const nameError = el('div', '', 'error')
+      nameSection.appendChild(newName)
+      nameSection.appendChild(namePw)
+      this.asyncButton(nameSection, 'Update Username', nameError, async () => {
+        await this.cb.onChangeUsername(namePw.value, newName.value.trim())
+        this.showProfileSettings()
+        this.flash('Username updated')
+      })
+      nameSection.appendChild(nameError)
+      this.box.appendChild(nameSection)
+
+      // Change password
+      const pwSection = el('div', '', 'section')
+      pwSection.appendChild(el('div', 'Reset Password', 'section-title'))
+      const curPw = input('Current password', 64)
+      curPw.type = 'password'
+      const newPw = input('New password (min 4 characters)', 64)
+      newPw.type = 'password'
+      const pwError = el('div', '', 'error')
+      pwSection.appendChild(curPw)
+      pwSection.appendChild(newPw)
+      this.asyncButton(pwSection, 'Update Password', pwError, async () => {
+        await this.cb.onChangePassword(curPw.value, newPw.value)
+        curPw.value = ''
+        newPw.value = ''
+        this.flash('Password updated')
+      })
+      pwSection.appendChild(pwError)
+      this.box.appendChild(pwSection)
+    } else if (this.cb.multiplayerAvailable) {
+      this.box.appendChild(
+        el('div', 'Sign in (or create a profile) on the main menu to change your username or password.', 'hint'),
+      )
+    }
 
     const back = el('div', '', 'section')
     this.button(back, '← Back to Menu', () => this.showMain())

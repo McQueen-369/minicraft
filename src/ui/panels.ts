@@ -70,6 +70,11 @@ const STYLE = `
   font-weight: bold; text-shadow: 1px 1px 0 #000; pointer-events: none;
 }
 .mc-empty { font-size: 13px; color: #555; margin: 4px 0 10px; }
+.mc-picked-name {
+  min-height: 18px; margin: 0 0 8px; font-size: 13px; font-weight: bold;
+  color: #1d3a5f; line-height: 1.4;
+}
+.mc-picked-name .dim { color: #666; font-weight: normal; }
 .mc-summary-msg { font-size: 14px; margin: 0 0 10px; }
 .mc-summary-names { font-size: 13px; margin: 4px 0 12px; line-height: 1.7; }
 .mc-summary-close {
@@ -97,6 +102,8 @@ export class Panels {
   private chestSlots: (Slot | null)[] | null = null
   private summary: Slot[] | null = null
   private category: Category = 'all'
+  /** Name line describing the item the player last clicked/tapped. */
+  private clickedInfo: string | null = null
   /** Notified after any change while a chest is open (multiplayer sync). */
   onChestChange: () => void = () => {}
   onClose: () => void = () => {}
@@ -130,6 +137,7 @@ export class Panels {
     this.summary = null
     this.picked = null
     this.category = 'all'
+    this.clickedInfo = null
     this.render()
     this.backdrop.style.display = 'flex'
   }
@@ -139,6 +147,7 @@ export class Panels {
     this.summary = null
     this.picked = null
     this.category = 'all'
+    this.clickedInfo = null
     this.render()
     this.backdrop.style.display = 'flex'
   }
@@ -173,6 +182,12 @@ export class Panels {
     // Scrollable main area (chest + inventory rows).
     const scroll = document.createElement('div')
     scroll.className = 'mc-panel-scroll'
+    // Name of the item the player last tapped, so everything is identifiable.
+    const nameLine = document.createElement('div')
+    nameLine.className = 'mc-picked-name'
+    if (this.clickedInfo) nameLine.textContent = this.clickedInfo
+    else nameLine.innerHTML = '<span class="dim">Tap an item to see its name</span>'
+    scroll.appendChild(nameLine)
     const body = document.createElement('div')
     body.className = 'mc-panel-body'
     body.appendChild(this.categoryBar())
@@ -276,6 +291,15 @@ export class Panels {
     countEl.textContent = count > 0 ? String(count) : ''
     el.appendChild(countEl)
     el.title = itemDef(itemId)?.name ?? ''
+    // Even catalog entries identify themselves when tapped.
+    const announce = (e: Event) => {
+      e.preventDefault()
+      const name = itemDef(itemId)?.name ?? 'Item'
+      this.clickedInfo = count > 0 ? `${name} ×${count}` : `${name} — none collected yet`
+      this.render()
+    }
+    el.addEventListener('mousedown', announce)
+    el.addEventListener('touchstart', announce, { passive: false })
     return el
   }
 
@@ -376,11 +400,18 @@ export class Panels {
 
   private clickSlot(slots: (Slot | null)[], index: number): void {
     if (!this.picked) {
-      if (slots[index]) this.picked = { slots, index }
+      const slot = slots[index]
+      if (slot) {
+        this.picked = { slots, index }
+        const name = itemDef(slot.itemId)?.name ?? 'Item'
+        this.clickedInfo = `${name} ×${slot.count} — tap another slot to move it`
+      }
     } else {
       const touchedChest = this.picked.slots === this.chestSlots || slots === this.chestSlots
       Inv.transfer(this.picked.slots, this.picked.index, slots, index)
       this.picked = null
+      const landed = slots[index]
+      this.clickedInfo = landed ? `${itemDef(landed.itemId)?.name ?? 'Item'} ×${landed.count}` : null
       this.inventory.onChange()
       if (touchedChest) this.onChestChange()
     }

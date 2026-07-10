@@ -63,6 +63,7 @@ export class Minimap {
   private yaw = 0
   private markers: MapMarker[] = []
   private home: { x: number; z: number } | null = null
+  private island: { x: number; z: number } | null = null
 
   constructor(root: HTMLElement) {
     const style = document.createElement('style')
@@ -97,6 +98,7 @@ export class Minimap {
       '<span class="sw" style="background:#ffd34d"></span>Animals &nbsp; ' +
       '<span class="sw" style="background:#7ad0ff"></span>Players<br>' +
       '<span class="sw" style="background:#f4d35e"></span>🏠 Home &nbsp; ' +
+      '<span class="sw" style="background:#ff5fa2"></span>🏝 Challenge Island (mini-games!) &nbsp; ' +
       '<span class="sw" style="background:#2e6fae"></span>Water &nbsp; ' +
       '<span class="sw" style="background:#d9cfa0"></span>Sand &nbsp; ' +
       '<span class="sw" style="background:#5cab46"></span>Grass &nbsp; ' +
@@ -120,6 +122,11 @@ export class Minimap {
   /** Mark the player's home (starter house) so it shows on the map. */
   setHome(x: number, z: number): void {
     this.home = { x, z }
+  }
+
+  /** Mark the challenge island (arcade mini-games) so players can find it. */
+  setIsland(x: number, z: number): void {
+    this.island = { x, z }
   }
 
   show(): void { this.container.style.display = '' }
@@ -189,6 +196,17 @@ export class Minimap {
       drawHouseIcon(ctx, sx, sy, size > 200 ? 7 : 5)
     }
 
+    // Challenge island flag — clamped to the map edge like home, so the
+    // mini-game island is always identifiable and points explorers to it.
+    if (this.island) {
+      let sx = ((this.island.x - cx) / step) + size / 2
+      let sy = ((this.island.z - cz) / step) + size / 2
+      const m = size > 200 ? 9 : 6
+      sx = Math.max(m, Math.min(size - m, sx))
+      sy = Math.max(m, Math.min(size - m, sy))
+      drawIslandIcon(ctx, sx, sy, size > 200 ? 7 : 5)
+    }
+
     // Markers (animals, players).
     for (const m of this.markers) {
       const sx = ((m.x - cx) / step) + size / 2
@@ -245,6 +263,38 @@ function drawHouseIcon(ctx: CanvasRenderingContext2D, x: number, y: number, r: n
   ctx.lineTo(r, 0)
   ctx.closePath()
   ctx.fillStyle = '#c1440e'
+  ctx.fill()
+  ctx.stroke()
+  ctx.restore()
+}
+
+/** A flag on a pole planted in a sandy mound: the challenge island. */
+function drawIslandIcon(ctx: CanvasRenderingContext2D, x: number, y: number, r: number): void {
+  ctx.save()
+  ctx.translate(x, y)
+  ctx.lineJoin = 'round'
+  // Sandy mound base.
+  ctx.fillStyle = '#d9cfa0'
+  ctx.strokeStyle = '#3a2a12'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.ellipse(0, r * 0.7, r, r * 0.45, 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.stroke()
+  // Pole.
+  ctx.strokeStyle = '#3a2a12'
+  ctx.lineWidth = 1.5
+  ctx.beginPath()
+  ctx.moveTo(0, r * 0.7)
+  ctx.lineTo(0, -r)
+  ctx.stroke()
+  // Pennant flag.
+  ctx.fillStyle = '#ff5fa2'
+  ctx.beginPath()
+  ctx.moveTo(0, -r)
+  ctx.lineTo(r * 1.1, -r * 0.55)
+  ctx.lineTo(0, -r * 0.1)
+  ctx.closePath()
   ctx.fill()
   ctx.stroke()
   ctx.restore()
