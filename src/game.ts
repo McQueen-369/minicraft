@@ -340,9 +340,20 @@ export class Game {
     const saveNow = () => {
       if (this.playing && this.mode !== 'guest') this.save()
     }
-    window.addEventListener('beforeunload', saveNow)
+    // Stop the soundtrack the moment the tab is hidden or the page is about
+    // to unload (switching tabs, quitting the browser, closing the window),
+    // instead of letting it silently keep playing off-screen.
+    window.addEventListener('beforeunload', () => {
+      saveNow()
+      this.music.setActive(false)
+    })
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') saveNow()
+      if (document.visibilityState === 'hidden') {
+        saveNow()
+        this.music.setActive(false)
+      } else {
+        this.updateMusic()
+      }
     })
 
     this.renderer.setAnimationLoop(() => this.frame())
@@ -389,9 +400,19 @@ export class Game {
     this.inventory.load(save?.inventory ?? [])
     // Fresh world: give the player a fishing net to start with.
     if (!save) this.inventory.add(ItemId.Net, 1)
-    // Every player carries a sword by default so night zombies can be fought.
-    const hasSword = [ItemId.Sword, ItemId.IronSword, ItemId.DiamondSword].some((id) => this.inventory.countOf(id) > 0)
-    if (!hasSword) this.inventory.add(ItemId.Sword, 1)
+    if (!save) {
+      // Fresh world: start with every sword tier already forged so players
+      // can fight night zombies at full strength immediately. Crafting
+      // recipes stay available to replace a blade that's lost or given away.
+      this.inventory.add(ItemId.Sword, 1)
+      this.inventory.add(ItemId.IronSword, 1)
+      this.inventory.add(ItemId.DiamondSword, 1)
+    } else {
+      // Returning players always keep at least a basic sword so night
+      // zombies remain fightable even if every sword was lost or dropped.
+      const hasSword = [ItemId.Sword, ItemId.IronSword, ItemId.DiamondSword].some((id) => this.inventory.countOf(id) > 0)
+      if (!hasSword) this.inventory.add(ItemId.Sword, 1)
+    }
     // TNT is a freebie, not a hunted resource: every session starts with 200 in the bag.
     const tntShortfall = TNT_SESSION_COUNT - this.inventory.countOf(ItemId.TNT)
     if (tntShortfall > 0) this.inventory.add(ItemId.TNT, tntShortfall)

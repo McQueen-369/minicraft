@@ -12,7 +12,9 @@ const BIG_SIZE = 460 // CSS size of the expanded map
 const MINI_RES = 84 // sampled pixels (scaled up by CSS — keeps heightAt cheap)
 const BIG_RES = 220
 const MINI_HALF = 60 // world blocks from center to edge
-const BIG_HALF = 180
+// Wide enough that the secret island (280-360 blocks from spawn) always
+// fits within the fixed, home-anchored expanded map.
+const BIG_HALF = 400
 const REDRAW_INTERVAL = 0.25 // seconds
 
 const STYLE = `
@@ -64,6 +66,8 @@ export class Minimap {
   private markers: MapMarker[] = []
   private home: { x: number; z: number } | null = null
   private island: { x: number; z: number } | null = null
+  /** Fixed world-space anchor for the expanded map — set once, from home. */
+  private origin: { x: number; z: number } | null = null
 
   constructor(root: HTMLElement) {
     const style = document.createElement('style')
@@ -122,6 +126,10 @@ export class Minimap {
   /** Mark the player's home (starter house) so it shows on the map. */
   setHome(x: number, z: number): void {
     this.home = { x, z }
+    // The expanded map is anchored to home the first time it's known, so
+    // home/island stay pixel-fixed on screen instead of sliding with the
+    // player — only the player's own arrow moves across that view.
+    if (!this.origin) this.origin = { x, z }
   }
 
   /** Mark the challenge island (arcade mini-games) so players can find it. */
@@ -142,7 +150,7 @@ export class Minimap {
 
   private openBig(): void {
     this.overlay.style.display = 'flex'
-    this.draw(this.bigCanvas, BIG_HALF)
+    this.draw(this.bigCanvas, BIG_HALF, true)
   }
 
   toggleMap(): void {
@@ -158,18 +166,34 @@ export class Minimap {
     this.redrawIn -= dt
     if (this.redrawIn > 0) return
     this.redrawIn = REDRAW_INTERVAL
-    this.draw(this.miniCanvas, MINI_HALF)
-    if (this.isBigOpen) this.draw(this.bigCanvas, BIG_HALF)
+    this.draw(this.miniCanvas, MINI_HALF, false)
+    if (this.isBigOpen) this.draw(this.bigCanvas, BIG_HALF, true)
   }
 
-  private draw(canvas: HTMLCanvasElement, half: number): void {
+  /**
+   * `fixed` selects the map's frame of reference:
+   *  - false (corner radar): centered on the player, terrain scrolls — good
+   *    for local awareness, but any fixed-world icon slides on screen as a
+   *    natural consequence of recentering every frame.
+   *  - true (expanded map): centered on the fixed `origin` (home), so home
+   *    and the secret island stay pinned to accurate, stable screen
+   *    positions; only the player's own arrow moves within that view.
+   */
+  private draw(canvas: HTMLCanvasElement, half: number, fixed: boolean): void {
     const terrain = this.terrain
     const ctx = canvas.getContext('2d')
     if (!terrain || !ctx) return
     const size = canvas.width
     const step = (half * 2) / size
-    const cx = this.pos.x
-    const cz = this.pos.z
+    const anchor = fixed && this.origin ? this.origin : this.pos
+    const cx = anchor.x
+    const cz = anchor.z
+    const margin = size > 200 ? 9 : 6
+    const project = (wx: number, wz: number): { sx: number; sy: number } => {
+      const sx = Math.max(margin, Math.min(size - margin, ((wx - cx) / step) + size / 2))
+      const sy = Math.max(margin, Math.min(size - margin, ((wz - cz) / step) + size / 2))
+      return { sx, sy }
+    }
     const img = ctx.createImageData(size, size)
     let i = 0
     for (let py = 0; py < size; py++) {
@@ -186,24 +210,18 @@ export class Minimap {
     ctx.putImageData(img, 0, 0)
 
     // Home icon — clamped to the map edge when off-screen so it always points
-    // the player back toward their house.
+    // the player back toward their house. In fixed mode home sits exactly at
+    // the anchor, so it stays pinned to one accurate screen position.
     if (this.home) {
-      let sx = ((this.home.x - cx) / step) + size / 2
-      let sy = ((this.home.z - cz) / step) + size / 2
-      const m = size > 200 ? 9 : 6
-      sx = Math.max(m, Math.min(size - m, sx))
-      sy = Math.max(m, Math.min(size - m, sy))
+      const { sx, sy } = project(this.home.x, this.home.z)
       drawHouseIcon(ctx, sx, sy, size > 200 ? 7 : 5)
     }
 
     // Challenge island flag — clamped to the map edge like home, so the
     // mini-game island is always identifiable and points explorers to it.
+    // In fixed mode its screen position never changes as the player moves.
     if (this.island) {
-      let sx = ((this.island.x - cx) / step) + size / 2
-      let sy = ((this.island.z - cz) / step) + size / 2
-      const m = size > 200 ? 9 : 6
-      sx = Math.max(m, Math.min(size - m, sx))
-      sy = Math.max(m, Math.min(size - m, sy))
+      const { sx, sy } = project(this.island.x, this.island.z)
       drawIslandIcon(ctx, sx, sy, size > 200 ? 7 : 5)
     }
 
@@ -218,12 +236,13 @@ export class Minimap {
       ctx.fill()
     }
 
-    // Player arrow at center, pointing in facing direction.
+    // Player arrow: dead-center on the local radar (it's always "you"), or
+    // plotted (and edge-clamped) against the fixed anchor on the expanded map
+    // so it's the one thing that actually moves across that view.
     const dirX = -Math.sin(this.yaw)
     const dirZ = -Math.cos(this.yaw)
     const ang = Math.atan2(dirZ, dirX)
-    const cxp = size / 2
-    const cyp = size / 2
+    const { sx: cxp, sy: cyp } = fixed ? project(this.pos.x, this.pos.z) : { sx: size / 2, sy: size / 2 }
     const r = size > 200 ? 9 : 6
     ctx.save()
     ctx.translate(cxp, cyp)
