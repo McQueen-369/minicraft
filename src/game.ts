@@ -115,6 +115,10 @@ export class Game {
     this.renderer = new THREE.WebGLRenderer({ antialias: true })
     this.renderer.setSize(window.innerWidth, window.innerHeight)
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    // Filmic rolloff keeps sunlit faces from clipping to flat white while the
+    // baked ambient occlusion keeps its contrast in the shadows.
+    this.renderer.toneMapping = THREE.NeutralToneMapping
+    this.renderer.toneMappingExposure = 1.25
     root.appendChild(this.renderer.domElement)
     this.camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 600)
     this.atlas = createAtlas()
@@ -207,8 +211,11 @@ export class Game {
       this.updateInputState()
       if (this.playing && !this.panels.isOpen && !this.menu.isOpen) this.controls.requestLock()
     }
-    this.market.onTrade = (name) => {
-      this.hud.showToast(`Traded for ${name}!`)
+    this.market.onTrade = (name, count) => {
+      this.hud.showToast(`🛒 Traded for ${count > 1 ? `${count}× ` : ''}${name}!`)
+    }
+    this.market.onSell = (name, count, gold) => {
+      this.hud.showToast(`💰 Sold ${count > 1 ? `${count}× ` : ''}${name} for ${gold} gold!`)
     }
     this.hud.onInfoClose = () => {
       if (this.playing && !this.menu.isOpen && !this.panels.isOpen) this.controls.requestLock()

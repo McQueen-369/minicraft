@@ -1,6 +1,6 @@
 import { BlockId } from '../core/blocks'
-import { blockKey } from '../core/coords'
 import type { FurnitureManager } from '../entities/furnitureManager'
+import { flattenSite, type SetBlock } from './ground'
 import type { World } from './world'
 
 /**
@@ -15,7 +15,7 @@ import type { World } from './world'
  */
 export function buildStarterHouse(world: World, furniture: FurnitureManager, sx: number, sz: number): { x: number; y: number; z: number } {
   const floorY = world.terrain.heightAt(sx, sz)
-  const set = (x: number, y: number, z: number, id: number) => world.edits.set(blockKey(x, y, z), id)
+  const set: SetBlock = (x, y, z, id) => world.setBlock(x, y, z, id)
 
   // House footprint (roughly double the original size).
   const x0 = sx - 8
@@ -40,13 +40,9 @@ export function buildStarterHouse(world: World, furniture: FurnitureManager, sx:
   const yx1 = farmX1 + 3
   const yz0 = Math.min(z0, farmZ0) - 3
   const yz1 = Math.max(z1, farmZ1) + 3
-  for (let x = yx0; x <= yx1; x++) {
-    for (let z = yz0; z <= yz1; z++) {
-      set(x, floorY - 1, z, BlockId.Dirt)
-      set(x, floorY, z, BlockId.Grass)
-      for (let y = floorY + 1; y <= roofPeak + 2; y++) set(x, y, z, BlockId.Air)
-    }
-  }
+  // flattenSite packs each column from the natural surface up to the floor, so
+  // the yard never ends up as a shelf of grass hanging over open air.
+  flattenSite(world.terrain, set, { x0: yx0, x1: yx1, z0: yz0, z1: yz1, floorY, clearance: roofPeak - floorY + 2 })
 
   // ---- House shell ---------------------------------------------------------
   // Plank floor.

@@ -16,7 +16,8 @@ export class ChunkRenderer {
   ) {
     // alphaTest discards the transparent pixels of cutout tiles (glass panes)
     // without the sorting artifacts of a fully transparent material.
-    this.material = new THREE.MeshLambertMaterial({ map: atlas.texture, alphaTest: 0.5 })
+    // vertexColors carries the mesher's baked face tint + ambient occlusion.
+    this.material = new THREE.MeshLambertMaterial({ map: atlas.texture, alphaTest: 0.5, vertexColors: true })
   }
 
   get chunkCount(): number {
@@ -80,6 +81,7 @@ export class ChunkRenderer {
     geometry.setAttribute('position', new THREE.BufferAttribute(data.positions, 3))
     geometry.setAttribute('normal', new THREE.BufferAttribute(data.normals, 3))
     geometry.setAttribute('uv', new THREE.BufferAttribute(data.uvs, 2))
+    geometry.setAttribute('color', new THREE.BufferAttribute(data.colors, 3))
     geometry.setIndex(new THREE.BufferAttribute(data.indices, 1))
     geometry.computeBoundingSphere()
     const mesh = new THREE.Mesh(geometry, this.material)

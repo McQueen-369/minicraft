@@ -1,6 +1,7 @@
 import { BlockId } from '../core/blocks'
-import { blockKey, worldToChunk } from '../core/coords'
+import { worldToChunk } from '../core/coords'
 import type { FurnitureManager } from '../entities/furnitureManager'
+import { flattenSite, type SetBlock } from './ground'
 import type { Terrain } from './terrain'
 import type { World } from './world'
 
@@ -20,20 +21,19 @@ export function buildIsland(world: World, furniture: FurnitureManager): void {
   const ix = world.terrain.island.x
   const iz = world.terrain.island.z
   const floorY = world.terrain.heightAt(ix, iz)
-  const set = (x: number, y: number, z: number, id: number) => world.edits.set(blockKey(x, y, z), id)
+  const set: SetBlock = (x, y, z, id) => world.setBlock(x, y, z, id)
 
-  // Flatten the plaza and clear the air above it.
+  // Flatten the plaza onto solid ground: the dome slopes away from its centre,
+  // so the outer plaza needs packing underneath, not just a grass cap.
   const R = 10
-  for (let dx = -R; dx <= R; dx++) {
-    for (let dz = -R; dz <= R; dz++) {
-      if (dx * dx + dz * dz > R * R) continue
-      const x = ix + dx
-      const z = iz + dz
-      set(x, floorY - 1, z, BlockId.Dirt)
-      set(x, floorY, z, BlockId.Grass)
-      for (let y = floorY + 1; y <= floorY + 5; y++) set(x, y, z, BlockId.Air)
-    }
-  }
+  flattenSite(world.terrain, set, {
+    x0: ix - R,
+    x1: ix + R,
+    z0: iz - R,
+    z1: iz + R,
+    floorY,
+    inside: (x, z) => (x - ix) ** 2 + (z - iz) ** 2 <= R * R,
+  })
 
   // Stone ring path connecting the four kiosks.
   const ringR = 6.5
