@@ -184,7 +184,7 @@ export function buildVillage(
   for (const g of GARDENS) buildGarden(set, sx + g.ox, sz + g.oz, floorY, g.w, g.d)
 
   // Lamp posts along the lanes light the village at night.
-  for (const [lx, lz] of LAMPS) buildLamp(set, sx + lx, sz + lz, floorY)
+  for (const [lx, lz] of LAMPS) buildLamp(set, furniture, sx + lx, sz + lz, floorY)
 
   for (const { ox, oz, yaw } of HOUSES) {
     buildHouse(world, furniture, sx + ox, sz + oz, floorY, set, yaw)
@@ -207,8 +207,8 @@ export function buildVillage(
   set(mx - 3, floorY + 1, mz - 1, BlockId.Plank)
   set(mx + 3, floorY + 1, mz, BlockId.Plank)
   set(mx + 3, floorY + 1, mz + 1, BlockId.Wood)
-  buildLamp(set, mx + 3, mz - 2, floorY)
-  buildLamp(set, mx - 3, mz - 2, floorY)
+  buildLamp(set, furniture, mx + 3, mz - 2, floorY)
+  buildLamp(set, furniture, mx - 3, mz - 2, floorY)
 
   // ---- Villagers ----------------------------------------------------------
   // Three around the campfire, one per side house, and a trader at the stall.
@@ -241,10 +241,11 @@ export function buildVillage(
   }
 }
 
-/** A lantern on a post: wooden pole capped with a glass lamp head. */
-function buildLamp(set: SetBlock, x: number, z: number, floorY: number): void {
+/** A street lamp: wooden pole with a lit lantern sitting on top. */
+function buildLamp(set: SetBlock, furniture: FurnitureManager, x: number, z: number, floorY: number): void {
   for (let y = floorY + 1; y <= floorY + 3; y++) set(x, y, z, BlockId.Wood)
-  set(x, floorY + 4, z, BlockId.Glass)
+  set(x, floorY + 4, z, BlockId.Air)
+  furniture.place('lantern', x, floorY + 4, z, 0)
 }
 
 /** Stone-ringed well with a plank canopy on two posts. */
@@ -384,7 +385,7 @@ function buildHouse(
     supportColumn(world.terrain, set, hx + dx, front + outward, floorY)
     set(hx + dx, floorY, front + outward, BlockId.Stone)
   }
-  buildLamp(set, hx + 2, front + outward, floorY)
+  buildLamp(set, furniture, hx + 2, front + outward, floorY)
 
   // ---- Interior ----
   // The door sits in the doorway itself so the opening is actually closed.
@@ -395,4 +396,6 @@ function buildHouse(
   furniture.place('bed', hx + 2, floorY + 1, hz - 1, yaw === 0 ? Math.PI / 2 : -Math.PI / 2)
   // Kept off-centre so it never blocks the doorway.
   furniture.place('sofa', hx + 2, floorY + 1, hz + outward * (hd - 1), yaw + Math.PI)
+  // A lantern under the roof beam keeps the room readable after dark.
+  furniture.place('lantern', hx - 1, floorY + 3, hz, 0)
 }

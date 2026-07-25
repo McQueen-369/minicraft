@@ -1,3 +1,4 @@
+import { WATER_LEVEL } from '../constants'
 import { BlockId } from '../core/blocks'
 import type { Terrain } from './terrain'
 
@@ -5,6 +6,11 @@ export type SetBlock = (x: number, y: number, z: number, id: number) => void
 
 /** Tallest thing terrain generation puts above a column (trunk + canopy). */
 const CANOPY_CLEARANCE = 9
+
+/** Packing material: sand at and below the waterline reads as a shoreline. */
+function fillAt(y: number): number {
+  return y <= WATER_LEVEL ? BlockId.Sand : BlockId.Dirt
+}
 
 export interface SiteOptions {
   /** Inclusive footprint bounds in world coordinates. */
@@ -40,7 +46,7 @@ export function flattenSite(terrain: Terrain, set: SetBlock, opts: SiteOptions):
       if (opts.inside && !opts.inside(x, z)) continue
       const h = terrain.heightAt(x, z)
       // Pack the gap between the natural surface and the floor.
-      for (let y = h + 1; y < floorY; y++) set(x, y, z, BlockId.Dirt)
+      for (let y = h + 1; y < floorY; y++) set(x, y, z, fillAt(y))
       set(x, floorY, z, cap)
       const top = Math.max(h, floorY) + CANOPY_CLEARANCE + clearance
       for (let y = floorY + 1; y <= top; y++) set(x, y, z, BlockId.Air)
@@ -52,7 +58,7 @@ export function flattenSite(terrain: Terrain, set: SetBlock, opts: SiteOptions):
  * Fill the column under a block down to the natural surface, so a structure
  * placed past the edge of a flattened site still meets the ground.
  */
-export function supportColumn(terrain: Terrain, set: SetBlock, x: number, z: number, floorY: number, fill = BlockId.Dirt): void {
+export function supportColumn(terrain: Terrain, set: SetBlock, x: number, z: number, floorY: number, fill?: number): void {
   const h = terrain.heightAt(x, z)
-  for (let y = h + 1; y < floorY; y++) set(x, y, z, fill)
+  for (let y = h + 1; y < floorY; y++) set(x, y, z, fill ?? fillAt(y))
 }

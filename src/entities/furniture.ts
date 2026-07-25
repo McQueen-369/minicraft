@@ -6,6 +6,7 @@ export type FurnitureKind =
   | 'bed'
   | 'sofa'
   | 'campfire'
+  | 'lantern'
   | 'market'
   | 'arcadePuzzle'
   | 'arcadeRunner'
@@ -20,6 +21,7 @@ export const FURNITURE_KINDS: FurnitureKind[] = [
   'bed',
   'sofa',
   'campfire',
+  'lantern',
   'market',
   'arcadePuzzle',
   'arcadeRunner',
@@ -51,6 +53,7 @@ export const FURNITURE_HEIGHT: Record<FurnitureKind, number> = {
   bed: 0.8,
   sofa: 0.9,
   campfire: 0.4,
+  lantern: 0.8,
   market: 2.5,
   arcadePuzzle: 2.5,
   arcadeRunner: 2.5,
@@ -66,6 +69,7 @@ export const FURNITURE_LABEL: Record<FurnitureKind, string> = {
   bed: 'Bed',
   sofa: 'Sofa',
   campfire: 'Campfire',
+  lantern: 'Lantern',
   market: 'Market',
   arcadePuzzle: 'Puzzle Kiosk',
   arcadeRunner: 'Runner Kiosk',
