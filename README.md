@@ -137,6 +137,15 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 - Block edits, animals, chests, and player avatars sync in real time
 - Everyone sees your **customized character** — face, hair, and outfit
 - Real-time **chat** (press C or Enter)
+- **Player-to-player trading** — press **T** (or the TRADE button by the hotbar) near another player to invite them to a trade
+
+### Trading With Other Players
+- Press **T** near another player, or tap **TRADE**; with several people around you pick who to invite from a list
+- They get a request they can accept or decline — accepting opens the trade window on both screens
+- Click items in your bag to put them on the table, and click a lot on the table to take it back; the ×1 / ×5 / ×10 / ×64 buttons set how much each click moves
+- Both players must press **Confirm trade**. Changing either offer clears both confirmations, so nobody can swap the goods out at the last second
+- Leave one side empty to simply give something away
+- Trades cancel themselves if either player backs out, walks off the room, or no longer has what they offered
 
 ---
 
@@ -225,6 +234,7 @@ Click **Create Profile** on the main menu to save worlds to the cloud (username 
 - **Apple trees** show red apples in their canopy — only they drop Apples for taming pigs
 - **Fishing net** is in your starting hotbar — aim at water and right-click
 - **Horse** is the fastest way to explore. Tame with Wheat, right-click to ride, F to dismount
+- **Trade with friends** rather than grinding: one of you mines Gold while the other farms, then swap with **T**
 - **Market** refreshes every real-world hour. Save up Gold and check back for new stock — and clear out your spare blocks on the **Sell** tab while you are there
 - The **minimap** (M) marks animals in yellow/gold so you can find tamed ones
 - Pressing **I** while looking at a block or animal shows a tooltip with taming / drop info
@@ -244,7 +254,7 @@ src/
 ├── interact/  voxel DDA raycast, mining / placing / animal / furniture / eating / sleeping interaction
 ├── items/     item registry, inventory (200 slots × 200 stack), crafting recipes, chest loot tables
 ├── entities/  animal AI (wander / follow / stay / ridden), egg-laying chickens, blocky 3D models, entity manager
-├── net/       Supabase Realtime transport, remote avatars, multiplayer protocol, cloud-save API
-├── ui/        HUD (energy bar, day timer), inventory / chest / crafting / market / arcade panels, minimap, menus, mobile controls
+├── net/       Supabase Realtime transport, remote avatars, multiplayer protocol, player trading, cloud-save API
+├── ui/        HUD (energy bar, day timer), inventory / chest / crafting / market / trade / arcade panels, minimap, menus, mobile controls
 └── persist/   localStorage save/load, 5-slot MultiWorldStore
 ```

@@ -111,6 +111,10 @@ const STYLE = `
 }
 .mc-chat-btn:hover, .mc-chat-btn:active { border-color: #fff; background: rgba(60,60,60,0.85); }
 .mc-chat-btn.active { border-color: #7ec8e3; background: rgba(20,60,80,0.85); }
+/* Trade button only exists in multiplayer, so it starts hidden. */
+.mc-trade-btn-hud { display: none; }
+.mc-trade-btn-hud.shown { display: flex; }
+.mc-trade-btn-hud.active { border-color: #9ae37e; background: rgba(24,70,32,0.85); }
 .mc-chat-btn svg { width: 22px; height: 22px; }
 .mc-craft-btn-hud {
   height: var(--mc-slot, 52px); margin-left: 4px; padding: 0 10px; border-radius: 8px;
@@ -232,6 +236,7 @@ export class HUD {
   private readonly infoOverlay: HTMLDivElement
   private readonly infoBox: HTMLDivElement
   private readonly chatBtn: HTMLDivElement
+  private readonly tradeBtn: HTMLDivElement
   private readonly craftBtnHud: HTMLDivElement
   private readonly underwaterOverlay: HTMLDivElement
   private readonly chestOverlay: HTMLDivElement
@@ -242,6 +247,8 @@ export class HUD {
   onInventory: () => void = () => {}
   /** Called when the chat button is tapped/clicked. */
   onChatToggle: () => void = () => {}
+  /** Trade button pressed (multiplayer only). */
+  onTradeToggle: () => void = () => {}
   /** Called when the craft button is tapped/clicked. */
   onCraftToggle: () => void = () => {}
   /** Called when a hotbar slot is tapped/clicked to select it. */
@@ -337,6 +344,31 @@ export class HUD {
     chatBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.onChatToggle() }, { passive: false })
     hotbar.appendChild(chatBtn)
     this.chatBtn = chatBtn
+
+    // Trade button (multiplayer only)
+    const tradeBtn = document.createElement('div')
+    tradeBtn.className = 'mc-chat-btn mc-trade-btn-hud'
+    tradeBtn.title = 'Trade with a nearby player (T)'
+    const tradeSvg = document.createElementNS(chatSvgNS, 'svg')
+    tradeSvg.setAttribute('viewBox', '0 0 24 24')
+    tradeSvg.setAttribute('fill', 'none')
+    tradeSvg.setAttribute('stroke', 'currentColor')
+    tradeSvg.setAttribute('stroke-width', '2')
+    tradeSvg.setAttribute('stroke-linecap', 'round')
+    tradeSvg.setAttribute('stroke-linejoin', 'round')
+    // Two arrows swapping places.
+    for (const d of ['M4 8h13l-3-3', 'M20 16H7l3 3']) {
+      const path = document.createElementNS(chatSvgNS, 'path')
+      path.setAttribute('d', d)
+      tradeSvg.appendChild(path)
+    }
+    const tradeLabel = document.createElement('span')
+    tradeLabel.textContent = 'TRADE'
+    tradeBtn.append(tradeSvg, tradeLabel)
+    tradeBtn.addEventListener('click', () => this.onTradeToggle())
+    tradeBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.onTradeToggle() }, { passive: false })
+    hotbar.appendChild(tradeBtn)
+    this.tradeBtn = tradeBtn
 
     // Craft button
     const craftBtnHud = document.createElement('div')
@@ -444,7 +476,7 @@ export class HUD {
       <h3>Controls</h3>
       <p>WASD / Arrows — Move</p>
       <p>Space — Jump &nbsp; F — Toggle fly &nbsp; Shift (fly) — Down</p>
-      <p>E — Inventory &nbsp; C — Chat &nbsp; Z — Crafting &nbsp; M — Map</p>
+      <p>E — Inventory &nbsp; C — Chat &nbsp; Z — Crafting &nbsp; M — Map &nbsp; T — Trade</p>
       <p>I — Instructions / Info &nbsp; 1–9 — Select hotbar &nbsp; Scroll — Cycle hotbar</p>
       <p>Left-click (hold) — Mine &nbsp; Right-click — Place / Use / Open chest</p>
       <p>Climb Ladders: Space (up) &nbsp; Shift (down)</p>
@@ -469,6 +501,11 @@ export class HUD {
       <p>Diamond Ore hides deep underground (6+ blocks below the surface) — mine it with a pickaxe</p>
       <p>Spend Diamonds at the market smithy: Iron Blade (4💎) and Diamond Edge (8💎)</p>
       <p>Forge in the crafting menu: Sword + Iron Blade → Iron Sword; Iron Sword + Diamond Edge → Diamond Sword</p>
+      <h3>Trading With Other Players</h3>
+      <p>In a multiplayer room, press <strong>T</strong> (or tap TRADE by the hotbar) near another player to invite them</p>
+      <p>Click items in your bag to put them on the table; click them again on the table to take them back</p>
+      <p>Both players must press Confirm — changing either offer clears both confirmations</p>
+      <p>You can also give things away for free: offer nothing on one side</p>
       <h3>Chickens &amp; Eggs</h3>
       <p>Tamed chickens lay an egg every 2 days — right-click (USE) your chicken to collect it</p>
       <p>Eggs are a cooking ingredient for hearty dishes</p>
@@ -754,6 +791,15 @@ export class HUD {
 
   setChatOpen(open: boolean): void {
     this.chatBtn.classList.toggle('active', open)
+  }
+
+  /** Show the trade button only while a multiplayer session is running. */
+  setTradeAvailable(available: boolean): void {
+    this.tradeBtn.classList.toggle('shown', available)
+  }
+
+  setTradeOpen(open: boolean): void {
+    this.tradeBtn.classList.toggle('active', open)
   }
 
   setCraftOpen(open: boolean): void {

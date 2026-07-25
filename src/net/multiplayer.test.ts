@@ -132,6 +132,31 @@ describe('Multiplayer', () => {
     expect(player && player.t === 'player' ? player.ap : null).toEqual(look)
   })
 
+  it('routes trade messages to the trading hook, skipping our own', () => {
+    const [hostT, guestT] = transportPair()
+    const seen: string[] = []
+    const guestHooks = makeHooks(fakeWorld())
+    guestHooks.onTrade = (msg) => seen.push(`${msg.ev}:${msg.from}`)
+    const host = new Multiplayer('host', 'MC-0010', hostT, new THREE.Scene(), 'host1', 'Host', makeHooks(fakeWorld()))
+    const guest = new Multiplayer('guest', 'MC-0010', guestT, new THREE.Scene(), 'guest1', 'Ann', guestHooks)
+    host.sendTrade({ ev: 'invite', from: 'host1', to: 'guest1', fromName: 'Host' })
+    guest.sendTrade({ ev: 'accept', from: 'guest1', to: 'host1' })
+    expect(seen).toEqual(['invite:host1'])
+  })
+
+  it('reports a departing peer so an open trade can be cancelled', async () => {
+    const [hostT, guestT] = transportPair()
+    const left: string[] = []
+    const hostHooks = makeHooks(fakeWorld())
+    hostHooks.onPeerLeft = (id) => left.push(id)
+    const host = new Multiplayer('host', 'MC-0011', hostT, new THREE.Scene(), 'host1', 'Host', hostHooks)
+    const guest = new Multiplayer('guest', 'MC-0011', guestT, new THREE.Scene(), 'guest1', 'Ann', makeHooks(fakeWorld()))
+    await guest.requestSnapshot(1000)
+    guest.dispose()
+    expect(left).toEqual(['guest1'])
+    expect(host.peerList()).toEqual([])
+  })
+
   it('calls onHostLeft when the host disconnects', async () => {
     const [hostT, guestT] = transportPair()
     let hostLeftCalled = false

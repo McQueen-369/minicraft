@@ -9,6 +9,7 @@ import {
   type FurnitureMsg,
   type GameMessage,
   type SnapshotMsg,
+  type TradeMsg,
 } from './protocol'
 import { appearanceKey, sanitizeAppearance, type Appearance } from '../player/appearance'
 import { gameChannel } from './supabase'
@@ -33,6 +34,10 @@ export interface MultiplayerHooks {
   applyFurnitureEvent(msg: FurnitureMsg): void
   /** Incoming chat message from a peer. */
   onChat?(playerId: string, name: string, text: string): void
+  /** Incoming player-to-player trade message. */
+  onTrade?(msg: TradeMsg): void
+  /** A peer disconnected or timed out (cancels a trade with them). */
+  onPeerLeft?(playerId: string): void
   /** Guest: called when the host disconnects. */
   onHostLeft?(): void
 }
@@ -110,6 +115,21 @@ export class Multiplayer {
 
   sendChat(text: string): void {
     this.transport.send({ t: 'chat', playerId: this.selfId, name: this.name, text })
+  }
+
+  sendTrade(msg: Omit<TradeMsg, 't'>): void {
+    this.transport.send({ t: 'trade', ...msg })
+  }
+
+  /** Live peers, nearest first, for the trade picker. */
+  peerList(): { id: string; name: string; x: number; y: number; z: number }[] {
+    return [...this.peers].map(([id, avatar]) => ({
+      id,
+      name: avatar.name,
+      x: avatar.group.position.x,
+      y: avatar.group.position.y,
+      z: avatar.group.position.z,
+    }))
   }
 
   /** Per-frame: throttled state broadcasts + remote avatar smoothing. */
@@ -201,10 +221,16 @@ export class Multiplayer {
       case 'chat':
         if (msg.playerId !== this.selfId) this.hooks.onChat?.(msg.playerId, msg.name, msg.text)
         break
+      case 'trade':
+        if (msg.from !== this.selfId) this.hooks.onTrade?.(msg)
+        break
     }
   }
 
   private removePeer(id: string): void {
+    // Announced even when we never built an avatar for them, so an in-flight
+    // trade with a player who was never rendered still gets cancelled.
+    this.hooks.onPeerLeft?.(id)
     const avatar = this.peers.get(id)
     if (avatar) {
       this.scene.remove(avatar.group)
