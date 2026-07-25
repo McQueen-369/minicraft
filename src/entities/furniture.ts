@@ -6,6 +6,7 @@ export type FurnitureKind =
   | 'bed'
   | 'sofa'
   | 'campfire'
+  | 'lantern'
   | 'market'
   | 'arcadePuzzle'
   | 'arcadeRunner'
@@ -20,6 +21,7 @@ export const FURNITURE_KINDS: FurnitureKind[] = [
   'bed',
   'sofa',
   'campfire',
+  'lantern',
   'market',
   'arcadePuzzle',
   'arcadeRunner',
@@ -42,6 +44,14 @@ export interface Furniture {
 
 export type SavedFurniture = Furniture
 
+/** Horizontal half-extent of the pick box; pieces wider than their cell say so. */
+export const FURNITURE_HALF: Partial<Record<FurnitureKind, number>> = {
+  // The stall model is two blocks wide — players aim at the counter, not the
+  // one cell it is anchored to.
+  market: 1.15,
+}
+export const DEFAULT_FURNITURE_HALF = 0.48
+
 /** Approximate pick box (height + horizontal half-extent) for raycasting. */
 export const FURNITURE_HEIGHT: Record<FurnitureKind, number> = {
   door: 2,
@@ -51,6 +61,7 @@ export const FURNITURE_HEIGHT: Record<FurnitureKind, number> = {
   bed: 0.8,
   sofa: 0.9,
   campfire: 0.4,
+  lantern: 0.8,
   market: 2.5,
   arcadePuzzle: 2.5,
   arcadeRunner: 2.5,
@@ -66,6 +77,7 @@ export const FURNITURE_LABEL: Record<FurnitureKind, string> = {
   bed: 'Bed',
   sofa: 'Sofa',
   campfire: 'Campfire',
+  lantern: 'Lantern',
   market: 'Market',
   arcadePuzzle: 'Puzzle Kiosk',
   arcadeRunner: 'Runner Kiosk',

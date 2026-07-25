@@ -1,6 +1,13 @@
 import * as THREE from 'three'
 import type { Vec3 } from '../player/physics'
-import { FURNITURE_HEIGHT, type Furniture, type FurnitureKind, type SavedFurniture } from './furniture'
+import {
+  DEFAULT_FURNITURE_HALF,
+  FURNITURE_HALF,
+  FURNITURE_HEIGHT,
+  type Furniture,
+  type FurnitureKind,
+  type SavedFurniture,
+} from './furniture'
 import { buildFurnitureModel, disposeFurnitureModel, type FurnitureModel } from './furnitureModels'
 
 const OPEN_ANGLE = Math.PI / 2 * 0.95
@@ -81,7 +88,7 @@ export class FurnitureManager {
   raycast(origin: THREE.Vector3, dir: THREE.Vector3, maxDist: number): { furniture: Furniture; distance: number } | null {
     let best: { furniture: Furniture; distance: number } | null = null
     for (const f of this.items.values()) {
-      const half = 0.48
+      const half = FURNITURE_HALF[f.kind] ?? DEFAULT_FURNITURE_HALF
       const h = FURNITURE_HEIGHT[f.kind]
       const t = rayBox(origin, dir, f.x + 0.5 - half, f.y, f.z + 0.5 - half, f.x + 0.5 + half, f.y + h, f.z + 0.5 + half)
       if (t !== null && t <= maxDist && (!best || t < best.distance)) best = { furniture: f, distance: t }

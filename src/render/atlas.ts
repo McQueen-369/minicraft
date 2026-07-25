@@ -2,7 +2,11 @@ import * as THREE from 'three'
 import { Tile } from '../core/blocks'
 import { mulberry32 } from '../core/rng'
 
-export const TILE_PX = 16
+/** Atlas tile size. Tiles are authored on a 16px grid and rendered at 2× with
+ *  an extra detail pass, so blocks keep their pixel-art read but gain grain. */
+export const TILE_PX = 32
+/** Grid the tile art is authored on. */
+const SRC_PX = 16
 export const ATLAS_TILES = 4 // 4x4 grid
 export const ATLAS_PX = TILE_PX * ATLAS_TILES
 export const ATLAS_ROWS = 7
@@ -22,10 +26,10 @@ type Ctx = CanvasRenderingContext2D
 function speckle(ctx: Ctx, x0: number, y0: number, base: string, specks: string[], density: number, seed: number): void {
   const rand = mulberry32(seed)
   ctx.fillStyle = base
-  ctx.fillRect(x0, y0, TILE_PX, TILE_PX)
-  for (let i = 0; i < TILE_PX * TILE_PX * density; i++) {
+  ctx.fillRect(x0, y0, SRC_PX, SRC_PX)
+  for (let i = 0; i < SRC_PX * SRC_PX * density; i++) {
     ctx.fillStyle = specks[Math.floor(rand() * specks.length)]
-    ctx.fillRect(x0 + Math.floor(rand() * TILE_PX), y0 + Math.floor(rand() * TILE_PX), 1, 1)
+    ctx.fillRect(x0 + Math.floor(rand() * SRC_PX), y0 + Math.floor(rand() * SRC_PX), 1, 1)
   }
 }
 
@@ -38,9 +42,9 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
       speckle(ctx, x0, y0, '#8a6244', ['#7a5538', '#96704e', '#6e4c32'], 0.5, 2)
       speckle(ctx, x0, y0, '#0000', [], 0, 0)
       ctx.fillStyle = '#5cab46'
-      ctx.fillRect(x0, y0, TILE_PX, 3)
+      ctx.fillRect(x0, y0, SRC_PX, 3)
       const rand = mulberry32(3)
-      for (let x = 0; x < TILE_PX; x++) {
+      for (let x = 0; x < SRC_PX; x++) {
         const drip = 3 + Math.floor(rand() * 3)
         ctx.fillStyle = rand() < 0.5 ? '#4f9a3c' : '#5cab46'
         ctx.fillRect(x0 + x, y0 + 3, 1, drip - 3)
@@ -78,7 +82,7 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
     case Tile.WoodSide: {
       speckle(ctx, x0, y0, '#6b4a2a', ['#5e3f22', '#785633'], 0.3, 7)
       ctx.fillStyle = '#553a1f'
-      for (const x of [2, 6, 11, 14]) ctx.fillRect(x0 + x, y0, 1, TILE_PX)
+      for (const x of [2, 6, 11, 14]) ctx.fillRect(x0 + x, y0, 1, SRC_PX)
       break
     }
     case Tile.WoodTop: {
@@ -91,7 +95,7 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
         ctx.stroke()
       }
       ctx.fillStyle = '#553a1f'
-      ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE_PX - 1, TILE_PX - 1)
+      ctx.strokeRect(x0 + 0.5, y0 + 0.5, SRC_PX - 1, SRC_PX - 1)
       break
     }
     case Tile.Leaves: {
@@ -101,7 +105,7 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
     case Tile.Plank: {
       speckle(ctx, x0, y0, '#b08d5a', ['#a5814e', '#bb9866'], 0.25, 10)
       ctx.fillStyle = '#8a6b3e'
-      for (const y of [3, 7, 11, 15]) ctx.fillRect(x0, y0 + y, TILE_PX, 1)
+      for (const y of [3, 7, 11, 15]) ctx.fillRect(x0, y0 + y, SRC_PX, 1)
       ctx.fillRect(x0 + 4, y0, 1, 4)
       ctx.fillRect(x0 + 12, y0 + 4, 1, 4)
       ctx.fillRect(x0 + 7, y0 + 8, 1, 4)
@@ -109,12 +113,12 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
     }
     case Tile.Brick: {
       ctx.fillStyle = '#9e4a3a'
-      ctx.fillRect(x0, y0, TILE_PX, TILE_PX)
+      ctx.fillRect(x0, y0, SRC_PX, SRC_PX)
       ctx.fillStyle = '#c9c1b8'
-      for (const y of [0, 4, 8, 12]) ctx.fillRect(x0, y0 + y, TILE_PX, 1)
+      for (const y of [0, 4, 8, 12]) ctx.fillRect(x0, y0 + y, SRC_PX, 1)
       for (let row = 0; row < 4; row++) {
         const off = row % 2 === 0 ? 4 : 0
-        for (let x = off; x < TILE_PX; x += 8) ctx.fillRect(x0 + x, y0 + row * 4, 1, 4)
+        for (let x = off; x < SRC_PX; x += 8) ctx.fillRect(x0 + x, y0 + row * 4, 1, 4)
       }
       speckle(ctx, x0, y0, '#0000', [], 0, 0)
       break
@@ -122,18 +126,18 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
     case Tile.Glass: {
       // See-through pane: the tile is transparent except for a pale frame and
       // a few shine streaks (the material discards pixels via alphaTest).
-      ctx.clearRect(x0, y0, TILE_PX, TILE_PX)
+      ctx.clearRect(x0, y0, SRC_PX, SRC_PX)
       ctx.fillStyle = '#cfeff4'
-      ctx.fillRect(x0, y0, TILE_PX, 1)
-      ctx.fillRect(x0, y0 + TILE_PX - 1, TILE_PX, 1)
-      ctx.fillRect(x0, y0, 1, TILE_PX)
-      ctx.fillRect(x0 + TILE_PX - 1, y0, 1, TILE_PX)
+      ctx.fillRect(x0, y0, SRC_PX, 1)
+      ctx.fillRect(x0, y0 + SRC_PX - 1, SRC_PX, 1)
+      ctx.fillRect(x0, y0, 1, SRC_PX)
+      ctx.fillRect(x0 + SRC_PX - 1, y0, 1, SRC_PX)
       // Corner accents
       ctx.fillStyle = '#9fc9d4'
       ctx.fillRect(x0, y0, 2, 2)
-      ctx.fillRect(x0 + TILE_PX - 2, y0, 2, 2)
-      ctx.fillRect(x0, y0 + TILE_PX - 2, 2, 2)
-      ctx.fillRect(x0 + TILE_PX - 2, y0 + TILE_PX - 2, 2, 2)
+      ctx.fillRect(x0 + SRC_PX - 2, y0, 2, 2)
+      ctx.fillRect(x0, y0 + SRC_PX - 2, 2, 2)
+      ctx.fillRect(x0 + SRC_PX - 2, y0 + SRC_PX - 2, 2, 2)
       // Diagonal shine streaks
       ctx.fillStyle = '#ffffff'
       for (let i = 0; i < 5; i++) ctx.fillRect(x0 + 3 + i, y0 + 7 - i, 1, 2)
@@ -143,29 +147,29 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
     case Tile.ChestSide:
       speckle(ctx, x0, y0, '#9a7136', ['#8d662e', '#a87e40'], 0.25, 11)
       ctx.strokeStyle = '#5e4318'
-      ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE_PX - 1, TILE_PX - 1)
+      ctx.strokeRect(x0 + 0.5, y0 + 0.5, SRC_PX - 1, SRC_PX - 1)
       ctx.fillStyle = '#5e4318'
-      ctx.fillRect(x0, y0 + 6, TILE_PX, 1)
+      ctx.fillRect(x0, y0 + 6, SRC_PX, 1)
       break
     case Tile.ChestFront:
       speckle(ctx, x0, y0, '#9a7136', ['#8d662e', '#a87e40'], 0.25, 12)
       ctx.strokeStyle = '#5e4318'
-      ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE_PX - 1, TILE_PX - 1)
+      ctx.strokeRect(x0 + 0.5, y0 + 0.5, SRC_PX - 1, SRC_PX - 1)
       ctx.fillStyle = '#5e4318'
-      ctx.fillRect(x0, y0 + 6, TILE_PX, 1)
+      ctx.fillRect(x0, y0 + 6, SRC_PX, 1)
       ctx.fillStyle = '#c0c0c0'
       ctx.fillRect(x0 + 7, y0 + 5, 2, 3)
       break
     case Tile.ChestTop:
       speckle(ctx, x0, y0, '#9a7136', ['#8d662e', '#a87e40'], 0.25, 13)
       ctx.strokeStyle = '#5e4318'
-      ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE_PX - 1, TILE_PX - 1)
+      ctx.strokeRect(x0 + 0.5, y0 + 0.5, SRC_PX - 1, SRC_PX - 1)
       break
     case Tile.MysteryBoxSide: {
       ctx.fillStyle = '#1ab8c8'
-      ctx.fillRect(x0, y0, TILE_PX, TILE_PX)
+      ctx.fillRect(x0, y0, SRC_PX, SRC_PX)
       ctx.strokeStyle = '#0d8a96'
-      ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE_PX - 1, TILE_PX - 1)
+      ctx.strokeRect(x0 + 0.5, y0 + 0.5, SRC_PX - 1, SRC_PX - 1)
       // "?" pixel art in white (5×7 at position 5,4)
       ctx.fillStyle = '#ffffff'
       // top curve: row 4, cols 5-9
@@ -180,15 +184,15 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
     }
     case Tile.MysteryBoxTop:
       ctx.fillStyle = '#1ab8c8'
-      ctx.fillRect(x0, y0, TILE_PX, TILE_PX)
+      ctx.fillRect(x0, y0, SRC_PX, SRC_PX)
       ctx.strokeStyle = '#0d8a96'
-      ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE_PX - 1, TILE_PX - 1)
+      ctx.strokeRect(x0 + 0.5, y0 + 0.5, SRC_PX - 1, SRC_PX - 1)
       break
     case Tile.MysteryBoxRareSide: {
       ctx.fillStyle = '#9b45d4'
-      ctx.fillRect(x0, y0, TILE_PX, TILE_PX)
+      ctx.fillRect(x0, y0, SRC_PX, SRC_PX)
       ctx.strokeStyle = '#6e2fa0'
-      ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE_PX - 1, TILE_PX - 1)
+      ctx.strokeRect(x0 + 0.5, y0 + 0.5, SRC_PX - 1, SRC_PX - 1)
       ctx.fillStyle = '#ffffff'
       ctx.fillRect(x0 + 5, y0 + 4, 5, 1)
       ctx.fillRect(x0 + 9, y0 + 5, 1, 2)
@@ -198,15 +202,15 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
     }
     case Tile.MysteryBoxRareTop:
       ctx.fillStyle = '#9b45d4'
-      ctx.fillRect(x0, y0, TILE_PX, TILE_PX)
+      ctx.fillRect(x0, y0, SRC_PX, SRC_PX)
       ctx.strokeStyle = '#6e2fa0'
-      ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE_PX - 1, TILE_PX - 1)
+      ctx.strokeRect(x0 + 0.5, y0 + 0.5, SRC_PX - 1, SRC_PX - 1)
       break
     case Tile.MysteryBoxEpicSide: {
       ctx.fillStyle = '#e8a400'
-      ctx.fillRect(x0, y0, TILE_PX, TILE_PX)
+      ctx.fillRect(x0, y0, SRC_PX, SRC_PX)
       ctx.strokeStyle = '#b07800'
-      ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE_PX - 1, TILE_PX - 1)
+      ctx.strokeRect(x0 + 0.5, y0 + 0.5, SRC_PX - 1, SRC_PX - 1)
       ctx.fillStyle = '#ffffff'
       ctx.fillRect(x0 + 5, y0 + 4, 5, 1)
       ctx.fillRect(x0 + 9, y0 + 5, 1, 2)
@@ -216,22 +220,22 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
     }
     case Tile.MysteryBoxEpicTop:
       ctx.fillStyle = '#e8a400'
-      ctx.fillRect(x0, y0, TILE_PX, TILE_PX)
+      ctx.fillRect(x0, y0, SRC_PX, SRC_PX)
       ctx.strokeStyle = '#b07800'
-      ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE_PX - 1, TILE_PX - 1)
+      ctx.strokeRect(x0 + 0.5, y0 + 0.5, SRC_PX - 1, SRC_PX - 1)
       break
     case Tile.LadderSide: {
       // Light wooden background
       ctx.fillStyle = '#c8a060'
-      ctx.fillRect(x0, y0, TILE_PX, TILE_PX)
+      ctx.fillRect(x0, y0, SRC_PX, SRC_PX)
       // Two vertical side rails (dark brown)
       ctx.fillStyle = '#6b3e1a'
-      ctx.fillRect(x0, y0, 3, TILE_PX)
-      ctx.fillRect(x0 + TILE_PX - 3, y0, 3, TILE_PX)
+      ctx.fillRect(x0, y0, 3, SRC_PX)
+      ctx.fillRect(x0 + SRC_PX - 3, y0, 3, SRC_PX)
       // Horizontal rungs evenly spaced
       ctx.fillStyle = '#8a5a28'
       for (const ry of [2, 6, 10, 14]) {
-        ctx.fillRect(x0 + 3, y0 + ry, TILE_PX - 6, 2)
+        ctx.fillRect(x0 + 3, y0 + ry, SRC_PX - 6, 2)
       }
       break
     }
@@ -288,11 +292,11 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
       // Red sticks with a white "TNT" label band
       speckle(ctx, x0, y0, '#c8301e', ['#b52a1a', '#d63c26', '#a02416'], 0.35, 24)
       ctx.fillStyle = '#8a1c10'
-      ctx.fillRect(x0, y0, TILE_PX, 1)
-      ctx.fillRect(x0, y0 + TILE_PX - 1, TILE_PX, 1)
+      ctx.fillRect(x0, y0, SRC_PX, 1)
+      ctx.fillRect(x0, y0 + SRC_PX - 1, SRC_PX, 1)
       // Label band
       ctx.fillStyle = '#efe6d5'
-      ctx.fillRect(x0, y0 + 5, TILE_PX, 6)
+      ctx.fillRect(x0, y0 + 5, SRC_PX, 6)
       // "TNT" pixel letters in black
       ctx.fillStyle = '#1a1a1a'
       // T
@@ -312,7 +316,7 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
       // Bundled stick ends with a central fuse
       speckle(ctx, x0, y0, '#c8301e', ['#b52a1a', '#d63c26'], 0.3, 25)
       ctx.strokeStyle = '#8a1c10'
-      ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE_PX - 1, TILE_PX - 1)
+      ctx.strokeRect(x0 + 0.5, y0 + 0.5, SRC_PX - 1, SRC_PX - 1)
       // Stick ends (lighter circles drawn as squares)
       ctx.fillStyle = '#e06a50'
       for (const [sx, sy] of [[2, 2], [9, 2], [2, 9], [9, 9]] as const) {
@@ -326,21 +330,21 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
     case Tile.Fence: {
       // See-through picket fence: a central post and two horizontal rails on a
       // transparent background (the material discards pixels via alphaTest).
-      ctx.clearRect(x0, y0, TILE_PX, TILE_PX)
+      ctx.clearRect(x0, y0, SRC_PX, SRC_PX)
       // Centre post
       ctx.fillStyle = '#8a5a28'
-      ctx.fillRect(x0 + 6, y0, 4, TILE_PX)
+      ctx.fillRect(x0 + 6, y0, 4, SRC_PX)
       ctx.fillStyle = '#a06c34'
-      ctx.fillRect(x0 + 6, y0, 1, TILE_PX)
+      ctx.fillRect(x0 + 6, y0, 1, SRC_PX)
       ctx.fillStyle = '#6b3e1a'
-      ctx.fillRect(x0 + 9, y0, 1, TILE_PX)
+      ctx.fillRect(x0 + 9, y0, 1, SRC_PX)
       // Two horizontal rails
       ctx.fillStyle = '#9a6a30'
-      ctx.fillRect(x0, y0 + 3, TILE_PX, 3)
-      ctx.fillRect(x0, y0 + 10, TILE_PX, 3)
+      ctx.fillRect(x0, y0 + 3, SRC_PX, 3)
+      ctx.fillRect(x0, y0 + 10, SRC_PX, 3)
       ctx.fillStyle = '#6b3e1a'
-      ctx.fillRect(x0, y0 + 5, TILE_PX, 1)
-      ctx.fillRect(x0, y0 + 12, TILE_PX, 1)
+      ctx.fillRect(x0, y0 + 5, SRC_PX, 1)
+      ctx.fillRect(x0, y0 + 12, SRC_PX, 1)
       break
     }
     case Tile.DiamondOreSide: {
@@ -367,8 +371,34 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
     }
     default:
       ctx.fillStyle = '#ff00ff'
-      ctx.fillRect(x0, y0, TILE_PX, TILE_PX)
+      ctx.fillRect(x0, y0, SRC_PX, SRC_PX)
   }
+}
+
+/**
+ * Second pass over a finished tile: fine grain plus a lit top-left / shaded
+ * bottom-right edge. Composited source-atop so cut-out tiles (glass, fences)
+ * keep their transparent pixels transparent.
+ */
+function detailPass(ctx: Ctx, tile: number, x0: number, y0: number): void {
+  ctx.save()
+  ctx.beginPath()
+  ctx.rect(x0, y0, TILE_PX, TILE_PX)
+  ctx.clip()
+  ctx.globalCompositeOperation = 'source-atop'
+  const rand = mulberry32(0x9e37 + tile * 7919)
+  for (let i = 0; i < TILE_PX * TILE_PX * 0.4; i++) {
+    ctx.fillStyle = rand() < 0.5 ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.09)'
+    ctx.fillRect(x0 + Math.floor(rand() * TILE_PX), y0 + Math.floor(rand() * TILE_PX), 1, 1)
+  }
+  // Edge relief: catches the eye as a bevel and separates stacked blocks.
+  ctx.fillStyle = 'rgba(255,255,255,0.10)'
+  ctx.fillRect(x0, y0, TILE_PX, 1)
+  ctx.fillRect(x0, y0, 1, TILE_PX)
+  ctx.fillStyle = 'rgba(0,0,0,0.16)'
+  ctx.fillRect(x0, y0 + TILE_PX - 1, TILE_PX, 1)
+  ctx.fillRect(x0 + TILE_PX - 1, y0, 1, TILE_PX)
+  ctx.restore()
 }
 
 export function createAtlas(): Atlas {
@@ -376,8 +406,20 @@ export function createAtlas(): Atlas {
   canvas.width = ATLAS_PX
   canvas.height = TILE_PX * ATLAS_ROWS
   const ctx = canvas.getContext('2d')!
+  ctx.imageSmoothingEnabled = false
+  // Tiles are painted at their authored size, then blown up 2× so the detail
+  // pass can add sub-pixel texture without redrawing every tile by hand.
+  const scratch = document.createElement('canvas')
+  scratch.width = SRC_PX
+  scratch.height = SRC_PX
+  const sctx = scratch.getContext('2d')!
   for (let tile = 0; tile < ATLAS_TILES * ATLAS_ROWS; tile++) {
-    drawTile(ctx, tile, (tile % ATLAS_TILES) * TILE_PX, Math.floor(tile / ATLAS_TILES) * TILE_PX)
+    const x0 = (tile % ATLAS_TILES) * TILE_PX
+    const y0 = Math.floor(tile / ATLAS_TILES) * TILE_PX
+    sctx.clearRect(0, 0, SRC_PX, SRC_PX)
+    drawTile(sctx, tile, 0, 0)
+    ctx.drawImage(scratch, 0, 0, SRC_PX, SRC_PX, x0, y0, TILE_PX, TILE_PX)
+    detailPass(ctx, tile, x0, y0)
   }
   const texture = new THREE.CanvasTexture(canvas)
   texture.magFilter = THREE.NearestFilter

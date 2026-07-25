@@ -136,42 +136,96 @@ function buildCampfire(): FurnitureModel {
   return { group: g, pivot: null }
 }
 
+/** Warm hanging lantern: iron cage, glass panes and a glowing core. */
+function buildLantern(): FurnitureModel {
+  const g = new THREE.Group()
+  const iron = 0x3b3b42
+  // Cap and base.
+  part(g, 0.34, 0.06, 0.34, 0, 0.62, 0, iron)
+  part(g, 0.3, 0.05, 0.3, 0, 0.16, 0, iron)
+  // Corner bars.
+  for (const sx of [-1, 1]) {
+    for (const sz of [-1, 1]) part(g, 0.04, 0.42, 0.04, sx * 0.13, 0.4, sz * 0.13, iron)
+  }
+  // Glass housing.
+  part(g, 0.24, 0.4, 0.24, 0, 0.4, 0, 0xfff0c0, { opacity: 0.45 })
+  // The flame itself: emissive, so it reads as a light source after dark.
+  const coreMat = new THREE.MeshLambertMaterial({
+    color: 0xffcc55,
+    emissive: new THREE.Color(1.0, 0.72, 0.25),
+  })
+  const core = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.2, 0.14), coreMat)
+  core.position.set(0, 0.38, 0)
+  g.add(core)
+  // Hanging ring.
+  part(g, 0.04, 0.1, 0.04, 0, 0.7, 0, iron)
+  return { group: g, pivot: null }
+}
+
 function buildMarket(): FurnitureModel {
   const g = new THREE.Group()
   const wood = 0x7a5326
   const darkWood = 0x5a3c1a
-  const awningColor = 0xcc3333 // red awning
+  const cloth = 0xcc3333 // red-and-cream striped awning
+  const clothPale = 0xf0e2cd
 
-  // Four corner posts
+  // Four corner posts with feet.
   for (const sx of [-1, 1]) {
     for (const sz of [-1, 1]) {
       part(g, 0.1, 2.2, 0.1, sx * 0.9, 1.1, sz * 0.45, darkWood)
+      part(g, 0.18, 0.06, 0.18, sx * 0.9, 0.03, sz * 0.45, 0x4a3014)
     }
   }
-  // Counter / table top
+  // Counter top with a worn plank seam and a front panel of boards.
   part(g, 2.0, 0.1, 1.0, 0, 0.85, 0, 0x9a7136)
-  // Counter front panel
-  part(g, 2.0, 0.8, 0.08, 0, 0.45, 0.46, wood)
-  // Back wall shelf
+  part(g, 2.0, 0.03, 0.05, 0, 0.91, -0.12, 0x8a6330)
+  for (let i = -3; i <= 3; i++) part(g, 0.26, 0.78, 0.06, i * 0.28, 0.45, 0.47, i % 2 === 0 ? wood : 0x6f4a20)
+  // Back wall with shelving.
   part(g, 2.0, 1.2, 0.08, 0, 1.5, -0.46, darkWood)
-  // Small shelf on back wall
-  part(g, 1.8, 0.08, 0.2, 0, 1.2, -0.38, 0x8a6030)
-  // Awning / canopy
-  part(g, 2.2, 0.08, 1.3, 0, 2.2, 0, awningColor)
-  // Awning stripe detail (slightly darker bands)
-  for (let xi = -0.8; xi <= 0.8; xi += 0.4) {
-    part(g, 0.08, 0.09, 1.3, xi, 2.2, 0, 0x992222)
+  for (const [y, w] of [[1.2, 1.8], [1.68, 1.8]] as const) part(g, w, 0.06, 0.22, 0, y, -0.36, 0x8a6030)
+
+  // Awning: alternating cloth panels with a scalloped valance.
+  for (let i = -5; i <= 5; i++) {
+    part(g, 0.2, 0.07, 1.3, i * 0.2, 2.2, 0, i % 2 === 0 ? cloth : clothPale)
+    // Valance teeth hanging off the front lip.
+    part(g, 0.18, 0.14, 0.06, i * 0.2, 2.11, 0.66, i % 2 === 0 ? cloth : clothPale)
   }
-  // A sign hanging below the awning
-  part(g, 0.8, 0.3, 0.04, 0, 1.95, 0.52, 0xf4d88a)
-  // Sign "M" decoration (dark marks)
-  part(g, 0.06, 0.18, 0.05, -0.25, 1.95, 0.55, darkWood)
-  part(g, 0.06, 0.18, 0.05, 0.25, 1.95, 0.55, darkWood)
-  part(g, 0.36, 0.06, 0.05, 0, 2.04, 0.55, darkWood)
-  // A few decorative item blocks on the counter
-  part(g, 0.18, 0.18, 0.18, -0.55, 0.99, -0.1, 0xe8a400) // gold nugget
-  part(g, 0.16, 0.16, 0.16, 0.4, 0.99, -0.05, 0x9b45d4)  // purple box
-  part(g, 0.14, 0.22, 0.14, -0.1, 1.01, -0.15, 0x4a8a3a) // green item
+  part(g, 2.24, 0.05, 0.06, 0, 2.24, -0.64, darkWood)
+
+  // Hanging shop sign with painted marks.
+  part(g, 0.05, 0.16, 0.05, -0.3, 2.06, 0.52, darkWood)
+  part(g, 0.05, 0.16, 0.05, 0.3, 2.06, 0.52, darkWood)
+  part(g, 0.86, 0.32, 0.05, 0, 1.86, 0.52, 0xf4d88a)
+  part(g, 0.06, 0.18, 0.06, -0.22, 1.86, 0.55, darkWood)
+  part(g, 0.06, 0.18, 0.06, 0.22, 1.86, 0.55, darkWood)
+  part(g, 0.34, 0.06, 0.06, 0, 1.95, 0.55, darkWood)
+
+  // Goods on the counter: a coin tray, fruit crate, bottles and a wheel of cheese.
+  part(g, 0.34, 0.05, 0.24, -0.62, 0.93, -0.06, 0x6b4a2a)
+  for (const [dx, dz] of [[-0.7, -0.1], [-0.6, -0.02], [-0.54, -0.12]] as const) {
+    part(g, 0.09, 0.04, 0.09, dx, 0.97, dz, 0xe8a400)
+  }
+  part(g, 0.34, 0.16, 0.3, -0.1, 1.0, -0.08, 0x8a6030)
+  for (const [dx, dz] of [[-0.18, -0.14], [-0.02, -0.14], [-0.1, -0.02]] as const) {
+    part(g, 0.11, 0.11, 0.11, dx, 1.13, dz, 0xcc2214)
+  }
+  for (const [dx, c] of [[0.36, 0x3f7a3a], [0.48, 0x2f6fa0], [0.6, 0x8a4f9e]] as const) {
+    part(g, 0.09, 0.24, 0.09, dx, 1.02, -0.14, c)
+    part(g, 0.04, 0.06, 0.04, dx, 1.17, -0.14, 0xd9c27a)
+  }
+  part(g, 0.26, 0.12, 0.26, 0.72, 0.96, 0.08, 0xf0d070)
+
+  // Shelf stock behind the counter.
+  for (const [dx, c] of [[-0.7, 0x9b45d4], [-0.45, 0x4a8a3a], [0.45, 0xe8a400], [0.72, 0x2f6fa0]] as const) {
+    part(g, 0.2, 0.2, 0.16, dx, 1.33, -0.36, c)
+  }
+  part(g, 0.5, 0.22, 0.18, 0.05, 1.34, -0.36, 0xb08d5a)
+
+  // A lantern hung from the awning so the stall stays inviting at night.
+  const lantern = buildLantern().group
+  lantern.scale.setScalar(0.72)
+  lantern.position.set(-0.82, 1.42, 0.4)
+  g.add(lantern)
 
   return { group: g, pivot: null }
 }
@@ -256,6 +310,8 @@ export function buildFurnitureModel(kind: FurnitureKind): FurnitureModel {
       return buildDoor()
     case 'campfire':
       return buildCampfire()
+    case 'lantern':
+      return buildLantern()
     case 'market':
       return buildMarket()
     case 'arcadePuzzle':

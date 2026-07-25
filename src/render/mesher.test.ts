@@ -42,6 +42,99 @@ describe('meshChunk', () => {
     const verts = data.positions.length / 3
     expect(data.normals.length / 3).toBe(verts)
     expect(data.uvs.length / 2).toBe(verts)
+    expect(data.colors.length / 3).toBe(verts)
     expect(Math.max(...data.indices)).toBe(verts - 1)
+  })
+})
+
+/** Shade of the vertex at world position (x,y,z) on the face with the given normal. */
+function shadeAt(
+  data: ReturnType<typeof meshChunk>,
+  normal: [number, number, number],
+  x: number,
+  y: number,
+  z: number,
+): number | null {
+  for (let v = 0; v < data.positions.length / 3; v++) {
+    if (
+      data.positions[v * 3] === x &&
+      data.positions[v * 3 + 1] === y &&
+      data.positions[v * 3 + 2] === z &&
+      data.normals[v * 3] === normal[0] &&
+      data.normals[v * 3 + 1] === normal[1] &&
+      data.normals[v * 3 + 2] === normal[2]
+    ) {
+      return data.colors[v * 3]
+    }
+  }
+  return null
+}
+
+describe('meshChunk shading', () => {
+  it('tints top faces brighter than sides and sides brighter than bottoms', () => {
+    const data = meshChunk(0, 0, samplerFrom({ '5,10,5': BlockId.Stone }))
+    const top = shadeAt(data, [0, 1, 0], 5, 11, 5)!
+    const side = shadeAt(data, [1, 0, 0], 6, 10, 5)!
+    const bottom = shadeAt(data, [0, -1, 0], 5, 10, 5)!
+    expect(top).toBeGreaterThan(side)
+    expect(side).toBeGreaterThan(bottom)
+  })
+
+  it('writes a uniform shade for a block with no neighbours', () => {
+    const data = meshChunk(0, 0, samplerFrom({ '5,10,5': BlockId.Stone }))
+    const topShades = [
+      shadeAt(data, [0, 1, 0], 5, 11, 5),
+      shadeAt(data, [0, 1, 0], 6, 11, 5),
+      shadeAt(data, [0, 1, 0], 6, 11, 6),
+      shadeAt(data, [0, 1, 0], 5, 11, 6),
+    ]
+    expect(new Set(topShades).size).toBe(1)
+  })
+
+  it('darkens the corner of a top face that an adjacent block occludes', () => {
+    // A neighbour at +X shades the two top-face vertices along that edge.
+    const data = meshChunk(0, 0, samplerFrom({ '5,10,5': BlockId.Stone, '6,11,5': BlockId.Stone }))
+    const occluded = shadeAt(data, [0, 1, 0], 6, 11, 5)!
+    const open = shadeAt(data, [0, 1, 0], 5, 11, 5)!
+    expect(occluded).toBeLessThan(open)
+  })
+
+  it('darkens a corner most when both edges and the diagonal are filled', () => {
+    const base = { '5,10,5': BlockId.Stone }
+    const oneEdge = meshChunk(0, 0, samplerFrom({ ...base, '6,11,5': BlockId.Stone }))
+    const bothEdges = meshChunk(
+      0,
+      0,
+      samplerFrom({ ...base, '6,11,5': BlockId.Stone, '5,11,6': BlockId.Stone, '6,11,6': BlockId.Stone }),
+    )
+    expect(shadeAt(bothEdges, [0, 1, 0], 6, 11, 6)!).toBeLessThan(shadeAt(oneEdge, [0, 1, 0], 6, 11, 6)!)
+  })
+
+  it('leaves transparent blocks unoccluded so leaves and glass stay readable', () => {
+    const data = meshChunk(0, 0, samplerFrom({ '5,10,5': BlockId.Glass, '6,11,5': BlockId.Stone }))
+    const a = shadeAt(data, [0, 1, 0], 6, 11, 5)!
+    const b = shadeAt(data, [0, 1, 0], 5, 11, 5)!
+    expect(a).toBe(b)
+  })
+
+  it('flips the quad diagonal when occlusion is anisotropic', () => {
+    // The two vertices shared by both triangles are the ends of the split
+    // diagonal; it must run between the corners of matching brightness so the
+    // shadow does not tear across the quad.
+    const diagonalEnds = (blocks: Record<string, number>): Set<number> => {
+      const data = meshChunk(0, 0, samplerFrom(blocks))
+      const top: number[] = []
+      // Only the top face of the block at (5,10,5) — an occluder has one too.
+      for (let v = 0; v < data.positions.length / 3; v++) {
+        if (data.normals[v * 3 + 1] === 1 && data.positions[v * 3 + 1] === 11 && data.positions[v * 3] >= 5) top.push(v)
+      }
+      const idx = [...data.indices].filter((i) => top.includes(i))
+      expect(idx.length).toBe(6)
+      return new Set(idx.filter((i) => idx.filter((j) => j === i).length === 2).map((i) => i - top[0]))
+    }
+    // Unoccluded: the default 0–2 diagonal.
+    expect(diagonalEnds({ '5,10,5': BlockId.Stone })).toEqual(new Set([0, 2]))
+    // One dark corner (index 3, the -X/-Z corner): the split flips to 1–3.
+    expect(diagonalEnds({ '5,10,5': BlockId.Stone, '4,11,4': BlockId.Stone })).toEqual(new Set([1, 3]))
   })
 })

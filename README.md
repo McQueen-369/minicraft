@@ -10,8 +10,9 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 ### World & Exploration
 - **Infinite procedural terrain** — seeded simplex-noise hills, rivers, lakes with sand beaches, streamed in chunks as you explore
 - **Expanded render distance** — 12-chunk view radius for wide-open exploration
+- **Ambient occlusion & detailed textures** — corner shadows and directional face shading are baked into every chunk, and block textures are drawn at double resolution with a grain-and-relief pass, so terrain reads with real depth under filmic tone mapping
 - **Day/night cycle** — a bright sun disc and drifting clouds by day, moon and stars by night; a live HUD timer shows the day count and current phase
-- **Villages** — procedurally placed settlements with walled, gabled-roof houses, a campfire, a market stall, and villager NPCs. Villages always sit on solid ground, raising onto an island if the spot would otherwise be in water
+- **Villages** — procedurally placed settlements with three furnished cottages (stone plinths, timber-framed brick walls, pitched gable roofs, chimneys and porches), a market stall on a stone forecourt, a covered well, fenced kitchen gardens, lantern-lit stone lanes and villager NPCs. The whole site is levelled and packed down to the natural ground first, so nothing ever floats — over water the village stands on a sand-and-dirt embankment
 - **Secret Island** — a hidden dome of land tucked inside a ring-shaped lake a few hundred blocks from spawn, deterministic per world seed. Its plaza hosts an arcade of four educational mini-games plus bonus mystery boxes (see below)
 - **Carry villagers** — left-click a villager NPC to pick it up and carry it around; left-click again to set it back down (NPCs are never stored in your bag)
 - **Minimap** — press M to toggle; shows nearby animals, your home spawn, and (once discovered) the secret island
@@ -84,10 +85,11 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 
 ### Market
 - Visit the market stall in any village and **right-click** to open
-- Spend Gold to buy raw materials, food, tools, and furniture
+- **Buy** tab — spend Gold on raw materials, food, tools and furniture. Pick an amount with the −/+ stepper (or **Max**) and the trader's stock goes down as you buy; sold-out goods grey out until the next rotation
+- **Sell** tab — the trader buys back anything in your bags: blocks, food, tools, gems, even captured animals. Prices are half the shelf price, and rarities like Diamonds and upgraded swords are worth far more
 - The **smithy section** always stocks sword-upgrade materials, priced in Diamonds
 - Stock of 8 rotating items refreshes **hourly** (seeded by the world)
-- Gold is mined from Gold Ore deposits
+- Gold is mined from Gold Ore deposits, dropped by zombies, or earned by selling
 
 ### Crafting
 - Press **Z** to open the crafting table — craft planks from wood, glass from sand, and more
@@ -223,7 +225,7 @@ Click **Create Profile** on the main menu to save worlds to the cloud (username 
 - **Apple trees** show red apples in their canopy — only they drop Apples for taming pigs
 - **Fishing net** is in your starting hotbar — aim at water and right-click
 - **Horse** is the fastest way to explore. Tame with Wheat, right-click to ride, F to dismount
-- **Market** refreshes every real-world hour. Save up Gold and check back for new stock
+- **Market** refreshes every real-world hour. Save up Gold and check back for new stock — and clear out your spare blocks on the **Sell** tab while you are there
 - The **minimap** (M) marks animals in yellow/gold so you can find tamed ones
 - Pressing **I** while looking at a block or animal shows a tooltip with taming / drop info
 - Keep an eye on your **⚡ energy bar** — carry cooked food or head home to sleep before you run out mid-dig

@@ -1,73 +1,14 @@
-import { mulberry32 } from '../core/rng'
 import type { Inventory } from '../items/inventory'
 import { ItemId } from '../items/items'
+import {
+  rotatingStock,
+  sellableLots,
+  sellItems,
+  spendCurrency,
+  type SellLot,
+  type StockEntry,
+} from '../items/trading'
 import { drawItemIcon } from './icons'
-
-const MARKET_SEED = 0xf4a921
-const MARKET_COUNT = 8
-
-interface MarketEntry {
-  itemId: number
-  name: string
-  desc: string
-  price: number
-  qty: number
-  /** What the price is paid in (default gold). */
-  currency?: 'gold' | 'diamond'
-}
-
-/** Smithy stock: always available, paid for with mined diamonds. */
-const SMITHY: MarketEntry[] = [
-  {
-    itemId: ItemId.IronBlade,
-    name: 'Iron Blade',
-    desc: 'Smithing material. Combine with your Sword in the crafting menu to forge an Iron Sword (double damage).',
-    price: 4,
-    qty: 1,
-    currency: 'diamond',
-  },
-  {
-    itemId: ItemId.DiamondEdge,
-    name: 'Diamond Edge',
-    desc: 'Smithing material. Combine with an Iron Sword in the crafting menu to forge a Diamond Sword (the strongest weapon).',
-    price: 8,
-    qty: 1,
-    currency: 'diamond',
-  },
-]
-
-const POOL: MarketEntry[] = [
-  { itemId: ItemId.Stone, name: 'Stone', desc: 'Sturdy building material. Mine from hills.', price: 5, qty: 10 },
-  { itemId: ItemId.Wood, name: 'Wood', desc: 'Cut trees to get more. Crafts into planks.', price: 8, qty: 5 },
-  { itemId: ItemId.Sand, name: 'Sand', desc: 'Found near water shores and rivers.', price: 3, qty: 15 },
-  { itemId: ItemId.Brick, name: 'Brick', desc: 'Durable construction block for walls.', price: 12, qty: 8 },
-  { itemId: ItemId.Plank, name: 'Plank', desc: 'Versatile wood material. Craft from wood.', price: 10, qty: 8 },
-  { itemId: ItemId.Glass, name: 'Glass', desc: 'Lets light through walls. Craft from sand.', price: 15, qty: 6 },
-  { itemId: ItemId.Apple, name: 'Apple', desc: 'Tames pigs when fed. Fall from leaf trees.', price: 5, qty: 10 },
-  { itemId: ItemId.Fish, name: 'Fish', desc: 'Tames cats when fed. Catch with a net.', price: 8, qty: 8 },
-  { itemId: ItemId.Wheat, name: 'Wheat', desc: 'Tames sheep and horses when fed.', price: 6, qty: 10 },
-  { itemId: ItemId.Carrot, name: 'Carrot', desc: 'Tames rabbits when fed.', price: 6, qty: 10 },
-  { itemId: ItemId.Seeds, name: 'Seeds', desc: 'Tames chickens when fed.', price: 4, qty: 12 },
-  { itemId: ItemId.Bone, name: 'Bone', desc: 'Tames dogs when fed. Found by mining leaves.', price: 10, qty: 8 },
-  { itemId: ItemId.Egg, name: 'Egg', desc: 'Cooking ingredient. Tamed chickens lay one every 2 days.', price: 6, qty: 8 },
-  { itemId: ItemId.CookedFish, name: 'Cooked Fish', desc: 'Eat to restore 40 energy. Craft from fish + wood.', price: 14, qty: 6 },
-  { itemId: ItemId.FishStew, name: 'Fish Stew', desc: 'Hearty dish — restores 80 energy when eaten.', price: 30, qty: 3 },
-  { itemId: ItemId.Fence, name: 'Fence', desc: 'Classic wooden fencing for pens and yards.', price: 6, qty: 12 },
-  { itemId: ItemId.WoodPickaxe, name: 'Wood Pickaxe', desc: 'Speeds up mining stone blocks 4×.', price: 30, qty: 2 },
-  { itemId: ItemId.StonePickaxe, name: 'Stone Pickaxe', desc: 'Fastest stone-mining tool (8×).', price: 60, qty: 1 },
-  { itemId: ItemId.Axe, name: 'Axe', desc: 'Chop wood and planks quickly (4×).', price: 40, qty: 1 },
-  { itemId: ItemId.Shears, name: 'Shears', desc: 'Harvest leaves quickly (8×).', price: 45, qty: 1 },
-  { itemId: ItemId.Net, name: 'Fishing Net', desc: 'Right-click over water to catch fish.', price: 50, qty: 1 },
-  { itemId: ItemId.Door, name: 'Door', desc: 'Place at doorways. Right-click to open/close.', price: 25, qty: 3 },
-  { itemId: ItemId.Desk, name: 'Desk', desc: 'Decorative home furniture.', price: 35, qty: 2 },
-  { itemId: ItemId.Chair, name: 'Chair', desc: 'A seat for your home.', price: 20, qty: 3 },
-  { itemId: ItemId.Bed, name: 'Bed', desc: 'Cozy sleeping furniture.', price: 45, qty: 2 },
-  { itemId: ItemId.Sofa, name: 'Sofa', desc: 'Comfortable lounge seating.', price: 40, qty: 2 },
-  { itemId: ItemId.Window, name: 'Window', desc: 'See through walls in your home.', price: 22, qty: 4 },
-  { itemId: ItemId.Chest, name: 'Chest', desc: 'Store up to 27 extra items.', price: 15, qty: 3 },
-  { itemId: ItemId.Ladder, name: 'Ladder', desc: 'Climb vertical walls. Place on block faces.', price: 8, qty: 10 },
-  { itemId: ItemId.CapturedHorse, name: 'Horse', desc: 'Release and right-click to ride. Fastest travel. Feed wheat to keep tamed.', price: 80, qty: 1 },
-]
 
 const STYLE = `
 .mc-mkt-overlay {
@@ -77,19 +18,25 @@ const STYLE = `
 .mc-mkt-box {
   background: #c6c6c6; border: 3px solid; border-color: #fff #555 #555 #fff;
   color: #333; font-family: 'Courier New', monospace;
-  width: 390px; max-width: 95vw; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden;
+  width: 400px; max-width: 95vw; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden;
 }
 .mc-mkt-hdr {
   flex: 0 0 auto; padding: 9px 14px; border-bottom: 2px solid #555;
   display: flex; align-items: center; justify-content: space-between; font-size: 15px; font-weight: bold;
 }
+.mc-mkt-tabs { flex: 0 0 auto; display: flex; gap: 3px; padding: 5px 7px 0; background: #b8b8b8; }
+.mc-mkt-tab {
+  flex: 1; padding: 7px 0; text-align: center; cursor: pointer; font-size: 13px; font-weight: bold;
+  font-family: 'Courier New', monospace; color: #444;
+  background: #9d9d9d; border: 2px solid; border-color: #cfcfcf #555 #555 #cfcfcf;
+  -webkit-tap-highlight-color: transparent;
+}
+.mc-mkt-tab.active { background: #c6c6c6; color: #1c1c1c; border-bottom-color: #c6c6c6; }
 .mc-mkt-gold-bar {
   flex: 0 0 auto; padding: 5px 14px; background: #7a6520; color: #ffe060;
   border-bottom: 2px solid #555; font-size: 13px; font-weight: bold;
 }
-.mc-mkt-refresh {
-  font-size: 10px; color: #ccc0a0; font-weight: normal; margin-left: 8px;
-}
+.mc-mkt-refresh { font-size: 10px; color: #ccc0a0; font-weight: normal; margin-left: 8px; }
 .mc-mkt-list { flex: 1 1 auto; overflow-y: auto; padding: 7px; display: flex; flex-direction: column; gap: 4px; }
 .mc-mkt-row {
   display: flex; align-items: center; gap: 8px; padding: 5px 8px; cursor: pointer;
@@ -97,13 +44,16 @@ const STYLE = `
 }
 .mc-mkt-row:hover { background: #c2c2c2; }
 .mc-mkt-row.cant-afford { opacity: 0.55; }
+.mc-mkt-row.sold-out { opacity: 0.4; cursor: default; }
 .mc-mkt-icon {
   width: 32px; height: 32px; flex: 0 0 32px;
   background: #8b8b8b; border: 2px solid; border-color: #555 #fff #fff #555;
 }
 .mc-mkt-icon canvas { width: 100%; height: 100%; image-rendering: pixelated; }
 .mc-mkt-iname { flex: 1; font-size: 12px; font-weight: bold; }
-.mc-mkt-iprice { font-size: 11px; font-weight: bold; color: #5a3d00; white-space: nowrap; }
+.mc-mkt-isub { display: block; font-size: 10px; font-weight: normal; color: #555; }
+.mc-mkt-iprice { font-size: 11px; font-weight: bold; color: #5a3d00; white-space: nowrap; text-align: right; }
+.mc-mkt-empty { padding: 22px 14px; text-align: center; font-size: 12px; color: #555; line-height: 1.6; }
 .mc-mkt-detail { flex: 1 1 auto; overflow-y: auto; padding: 12px 15px; display: flex; flex-direction: column; gap: 10px; }
 .mc-mkt-detail-icon {
   width: 52px; height: 52px; flex: 0 0 52px;
@@ -116,6 +66,15 @@ const STYLE = `
   background: #b0b0b0; border: 2px solid; border-color: #888 #fff #fff #888;
   padding: 8px 10px; font-size: 12px; line-height: 1.7;
 }
+.mc-mkt-qty { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: bold; }
+.mc-mkt-step {
+  width: 30px; height: 28px; font-size: 15px; font-weight: bold; line-height: 1; cursor: pointer;
+  background: #888; border: 2px solid; border-color: #fff #555 #555 #fff; color: #222;
+  font-family: 'Courier New', monospace; -webkit-tap-highlight-color: transparent;
+}
+.mc-mkt-step:hover { background: #aaa; }
+.mc-mkt-step:disabled { opacity: 0.45; cursor: default; }
+.mc-mkt-qty-val { min-width: 44px; text-align: center; }
 .mc-mkt-btn {
   background: #888; border: 2px solid; border-color: #fff #555 #555 #fff;
   color: #333; font-family: 'Courier New', monospace; font-size: 12px;
@@ -130,19 +89,30 @@ const STYLE = `
 }
 .mc-mkt-trade-btn:hover { background: #3a7a4a; }
 .mc-mkt-trade-btn:disabled { background: #555; border-color: #444 #666 #666 #444; cursor: default; opacity: 0.6; }
+.mc-mkt-sell-btn { background: #7a5a12; border-color: #a67c1a #4a3608 #4a3608 #a67c1a; }
+.mc-mkt-sell-btn:hover { background: #a67c1a; }
 `
+
+type Tab = 'buy' | 'sell'
 
 export class MarketPanel {
   private readonly overlay: HTMLDivElement
+  private readonly tabsEl: HTMLDivElement
   private readonly goldBar: HTMLDivElement
   private readonly listEl: HTMLDivElement
   private readonly detailEl: HTMLDivElement
   private _isOpen = false
-  private items: MarketEntry[] = []
+  private tab: Tab = 'buy'
+  private items: StockEntry[] = []
+  /** Units left in this rotation, keyed by item id. */
+  private stockLeft = new Map<number, number>()
+  /** Identifies the rotation the stock counts belong to ("seed:hour"). */
+  private stockKey = ''
   private worldSeed = 0
 
   onClose: () => void = () => {}
-  onTrade: (name: string) => void = () => {}
+  onTrade: (name: string, count: number) => void = () => {}
+  onSell: (name: string, count: number, gold: number) => void = () => {}
 
   get isOpen(): boolean { return this._isOpen }
 
@@ -172,6 +142,17 @@ export class MarketPanel {
     closeBtn.addEventListener('click', () => this.close())
     hdr.append(title, closeBtn)
 
+    this.tabsEl = document.createElement('div')
+    this.tabsEl.className = 'mc-mkt-tabs'
+    for (const [tab, label] of [['buy', '🛒 Buy'], ['sell', '💰 Sell']] as const) {
+      const btn = document.createElement('button')
+      btn.className = 'mc-mkt-tab'
+      btn.dataset.tab = tab
+      btn.textContent = label
+      btn.addEventListener('click', () => this.showTab(tab))
+      this.tabsEl.appendChild(btn)
+    }
+
     this.goldBar = document.createElement('div')
     this.goldBar.className = 'mc-mkt-gold-bar'
 
@@ -182,7 +163,7 @@ export class MarketPanel {
     this.detailEl.className = 'mc-mkt-detail'
     this.detailEl.style.display = 'none'
 
-    box.append(hdr, this.goldBar, this.listEl, this.detailEl)
+    box.append(hdr, this.tabsEl, this.goldBar, this.listEl, this.detailEl)
     this.overlay.appendChild(box)
     root.appendChild(this.overlay)
   }
@@ -191,10 +172,8 @@ export class MarketPanel {
     this.worldSeed = worldSeed
     this._isOpen = true
     this.overlay.style.display = 'flex'
-    this.detailEl.style.display = 'none'
-    this.listEl.style.display = ''
     this.refreshItems()
-    this.renderList()
+    this.showTab('buy')
   }
 
   close(): void {
@@ -202,6 +181,16 @@ export class MarketPanel {
     this._isOpen = false
     this.overlay.style.display = 'none'
     this.onClose()
+  }
+
+  private showTab(tab: Tab): void {
+    this.tab = tab
+    for (const btn of this.tabsEl.children) {
+      btn.classList.toggle('active', (btn as HTMLElement).dataset.tab === tab)
+    }
+    this.detailEl.style.display = 'none'
+    this.listEl.style.display = ''
+    this.renderList()
   }
 
   private goldCount(): number {
@@ -213,77 +202,112 @@ export class MarketPanel {
   }
 
   /** How much of an entry's currency the player holds. */
-  private fundsFor(entry: MarketEntry): number {
+  private fundsFor(entry: StockEntry): number {
     return entry.currency === 'diamond' ? this.diamondCount() : this.goldCount()
   }
 
+  private stockOf(entry: StockEntry): number {
+    return this.stockLeft.get(entry.itemId) ?? entry.qty
+  }
+
+  /** Rebuild the shelf when the hourly rotation (or the world) changes. */
   private refreshItems(): void {
     const hour = Math.floor(Date.now() / 3600000)
-    const rng = mulberry32(this.worldSeed ^ MARKET_SEED ^ hour)
-    const arr = [...POOL]
-    // Fisher-Yates shuffle seeded by world + hour
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(rng() * (i + 1))
-      ;[arr[i], arr[j]] = [arr[j], arr[i]]
-    }
-    // The smithy is always open; the rotating stock follows it.
-    this.items = [...SMITHY, ...arr.slice(0, MARKET_COUNT)]
+    const key = `${this.worldSeed}:${hour}`
+    this.items = rotatingStock(this.worldSeed, hour)
+    if (key === this.stockKey) return
+    this.stockKey = key
+    this.stockLeft = new Map(this.items.map((e) => [e.itemId, e.qty]))
+  }
+
+  private renderGoldBar(withTimer: boolean): void {
+    const minsLeft = 60 - (Math.floor(Date.now() / 60000) % 60)
+    this.goldBar.innerHTML =
+      `🥇 Gold: <strong>${this.goldCount()}</strong> · 💎 Diamonds: <strong>${this.diamondCount()}</strong>` +
+      (withTimer ? `<span class="mc-mkt-refresh"> — stock refreshes in ${minsLeft}m</span>` : '')
   }
 
   private renderList(): void {
-    const gold = this.goldCount()
-    const minsLeft = 60 - (Math.floor(Date.now() / 60000) % 60)
-    this.goldBar.innerHTML =
-      `🥇 Gold: <strong>${gold}</strong> · 💎 Diamonds: <strong>${this.diamondCount()}</strong>` +
-      `<span class="mc-mkt-refresh"> — refreshes in ${minsLeft}m</span>`
+    this.renderGoldBar(this.tab === 'buy')
     this.listEl.innerHTML = ''
+    if (this.tab === 'buy') this.renderBuyList()
+    else this.renderSellList()
+  }
+
+  private row(itemId: number, name: string, sub: string, price: string): HTMLDivElement {
+    const row = document.createElement('div')
+    row.className = 'mc-mkt-row'
+
+    const icon = document.createElement('div')
+    icon.className = 'mc-mkt-icon'
+    const iconCanvas = document.createElement('canvas')
+    iconCanvas.width = 32
+    iconCanvas.height = 32
+    drawItemIcon(iconCanvas, itemId, this.atlasCanvas)
+    icon.appendChild(iconCanvas)
+
+    const nameEl = document.createElement('span')
+    nameEl.className = 'mc-mkt-iname'
+    nameEl.innerHTML = `${name}<span class="mc-mkt-isub">${sub}</span>`
+
+    const priceEl = document.createElement('span')
+    priceEl.className = 'mc-mkt-iprice'
+    priceEl.innerHTML = price
+
+    row.append(icon, nameEl, priceEl)
+    return row
+  }
+
+  private renderBuyList(): void {
     for (const entry of this.items) {
-      const canAfford = this.fundsFor(entry) >= entry.price
-      const row = document.createElement('div')
-      row.className = 'mc-mkt-row' + (canAfford ? '' : ' cant-afford')
-
-      const icon = document.createElement('div')
-      icon.className = 'mc-mkt-icon'
-      const iconCanvas = document.createElement('canvas')
-      iconCanvas.width = 32
-      iconCanvas.height = 32
-      drawItemIcon(iconCanvas, entry.itemId, this.atlasCanvas)
-      icon.appendChild(iconCanvas)
-
-      const name = document.createElement('span')
-      name.className = 'mc-mkt-iname'
-      name.textContent = entry.name
-
-      const price = document.createElement('span')
-      price.className = 'mc-mkt-iprice'
-      price.textContent = `${entry.price} ${entry.currency === 'diamond' ? '💎' : '🥇'} ×${entry.qty}`
-
-      row.append(icon, name, price)
-      row.addEventListener('click', () => this.showDetail(entry))
+      const left = this.stockOf(entry)
+      const icon = entry.currency === 'diamond' ? '💎' : '🥇'
+      const row = this.row(
+        entry.itemId,
+        entry.name,
+        left > 0 ? `${left} in stock` : 'sold out',
+        `${entry.price} ${icon}`,
+      )
+      if (left <= 0) row.classList.add('sold-out')
+      else if (this.fundsFor(entry) < entry.price) row.classList.add('cant-afford')
+      if (left > 0) row.addEventListener('click', () => this.showBuyDetail(entry))
       this.listEl.appendChild(row)
     }
   }
 
-  private showDetail(entry: MarketEntry): void {
+  private renderSellList(): void {
+    const lots = sellableLots(this.inventory)
+    if (lots.length === 0) {
+      const empty = document.createElement('div')
+      empty.className = 'mc-mkt-empty'
+      empty.innerHTML =
+        'Your bags hold nothing the trader wants.<br>Mine, farm or craft something and come back — ' +
+        'they buy blocks, food, tools, gems and captured animals.'
+      this.listEl.appendChild(empty)
+      return
+    }
+    for (const lot of lots) {
+      const row = this.row(
+        lot.itemId,
+        lot.name,
+        `you have ${lot.count}`,
+        `+${lot.unit} 🥇 <span class="mc-mkt-isub">each</span>`,
+      )
+      row.addEventListener('click', () => this.showSellDetail(lot))
+      this.listEl.appendChild(row)
+    }
+  }
+
+  /** Shared detail scaffold: back button, big icon, title and description. */
+  private beginDetail(itemId: number, title: string, desc: string): void {
     this.listEl.style.display = 'none'
     this.detailEl.style.display = 'flex'
-
-    const funds = this.fundsFor(entry)
-    const canAfford = funds >= entry.price
-    const currencyName = entry.currency === 'diamond' ? 'Diamonds' : 'Gold'
-    const currencyIcon = entry.currency === 'diamond' ? '💎' : '🥇'
-
-    this.goldBar.innerHTML = `🥇 Gold: <strong>${this.goldCount()}</strong> · 💎 Diamonds: <strong>${this.diamondCount()}</strong>`
     this.detailEl.innerHTML = ''
 
     const back = document.createElement('button')
     back.className = 'mc-mkt-btn'
     back.textContent = '← Back'
-    back.addEventListener('click', () => {
-      this.detailEl.style.display = 'none'
-      this.listEl.style.display = ''
-      this.renderList()
-    })
+    back.addEventListener('click', () => this.showTab(this.tab))
 
     const iconRow = document.createElement('div')
     iconRow.style.cssText = 'display:flex;align-items:center;gap:12px;'
@@ -292,49 +316,137 @@ export class MarketPanel {
     const iconCanvas = document.createElement('canvas')
     iconCanvas.width = 32
     iconCanvas.height = 32
-    drawItemIcon(iconCanvas, entry.itemId, this.atlasCanvas)
+    drawItemIcon(iconCanvas, itemId, this.atlasCanvas)
     icon.appendChild(iconCanvas)
     const titleEl = document.createElement('div')
     titleEl.className = 'mc-mkt-detail-title'
-    titleEl.textContent = entry.name
+    titleEl.textContent = title
     iconRow.append(icon, titleEl)
 
-    const desc = document.createElement('p')
-    desc.className = 'mc-mkt-detail-desc'
-    desc.textContent = entry.desc
+    const descEl = document.createElement('p')
+    descEl.className = 'mc-mkt-detail-desc'
+    descEl.textContent = desc
 
-    const infoBox = document.createElement('div')
-    infoBox.className = 'mc-mkt-info-box'
-    infoBox.innerHTML =
-      `<strong>How to trade:</strong><br>` +
-      `Hand over <strong>${entry.price} ${currencyName}</strong> to receive 1 × ${entry.name}.<br>` +
-      `Stock available: <strong>×${entry.qty}</strong><br>` +
-      `Your ${currencyName.toLowerCase()}: <strong style="color:${canAfford ? '#2a6a3a' : '#882222'}">${funds}</strong>`
+    this.detailEl.append(back, iconRow, descEl)
+  }
 
+  /**
+   * A −/+ stepper bound to [1, max]. Returns a live getter for the amount;
+   * onChange fires whenever the value moves so totals can follow.
+   */
+  private stepper(max: number, onChange: (n: number) => void): { el: HTMLDivElement; get: () => number } {
+    let value = Math.min(1, max)
+    const el = document.createElement('div')
+    el.className = 'mc-mkt-qty'
+    const minus = document.createElement('button')
+    minus.className = 'mc-mkt-step'
+    minus.textContent = '−'
+    const val = document.createElement('span')
+    val.className = 'mc-mkt-qty-val'
+    const plus = document.createElement('button')
+    plus.className = 'mc-mkt-step'
+    plus.textContent = '+'
+    const allBtn = document.createElement('button')
+    allBtn.className = 'mc-mkt-btn'
+    allBtn.textContent = 'Max'
+
+    const sync = () => {
+      value = Math.max(1, Math.min(max, value))
+      val.textContent = `×${value}`
+      minus.disabled = value <= 1
+      plus.disabled = value >= max
+      allBtn.disabled = max <= 1
+      onChange(value)
+    }
+    minus.addEventListener('click', () => { value -= 1; sync() })
+    plus.addEventListener('click', () => { value += 1; sync() })
+    allBtn.addEventListener('click', () => { value = max; sync() })
+    el.append(minus, val, plus, allBtn)
+    sync()
+    return { el, get: () => value }
+  }
+
+  private showBuyDetail(entry: StockEntry): void {
+    const left = this.stockOf(entry)
+    if (left <= 0) return this.showTab('buy')
+    this.beginDetail(entry.itemId, entry.name, entry.desc)
+
+    const funds = this.fundsFor(entry)
+    const currencyName = entry.currency === 'diamond' ? 'Diamonds' : 'Gold'
+    const currencyIcon = entry.currency === 'diamond' ? '💎' : '🥇'
+    const affordable = Math.floor(funds / entry.price)
+    const max = Math.max(1, Math.min(left, affordable))
+    this.renderGoldBar(false)
+
+    const info = document.createElement('div')
+    info.className = 'mc-mkt-info-box'
     const tradeBtn = document.createElement('button')
     tradeBtn.className = 'mc-mkt-trade-btn'
-    tradeBtn.textContent = `Trade  (${entry.price} ${currencyIcon})`
-    if (!canAfford) tradeBtn.disabled = true
+
+    const update = (n: number) => {
+      const total = entry.price * n
+      const canAfford = funds >= total
+      info.innerHTML =
+        `Unit price: <strong>${entry.price} ${currencyIcon}</strong><br>` +
+        `In stock: <strong>×${left}</strong><br>` +
+        `Your ${currencyName.toLowerCase()}: <strong style="color:${canAfford ? '#2a6a3a' : '#882222'}">${funds}</strong>`
+      tradeBtn.textContent = `Buy ×${n}  (${total} ${currencyIcon})`
+      tradeBtn.disabled = !canAfford || n > left
+    }
+    const qty = this.stepper(affordable === 0 ? 1 : max, update)
+
     tradeBtn.addEventListener('click', () => {
-      if (this.fundsFor(entry) < entry.price) return
-      // Deduct the currency from inventory slots
+      const n = qty.get()
       const currencyItem = entry.currency === 'diamond' ? ItemId.Diamond : ItemId.Gold
-      let remaining = entry.price
-      for (let i = 0; i < this.inventory.slots.length && remaining > 0; i++) {
-        const slot = this.inventory.slots[i]
-        if (slot && slot.itemId === currencyItem) {
-          const take = Math.min(slot.count, remaining)
-          this.inventory.removeFrom(i, take)
-          remaining -= take
-        }
-      }
-      // Add purchased item
-      this.inventory.add(entry.itemId, 1)
-      this.onTrade(entry.name)
-      // Refresh the detail view to show updated gold count
-      this.showDetail(entry)
+      if (n > this.stockOf(entry)) return
+      if (!spendCurrency(this.inventory, currencyItem, entry.price * n)) return
+      this.inventory.add(entry.itemId, n)
+      this.stockLeft.set(entry.itemId, this.stockOf(entry) - n)
+      this.onTrade(entry.name, n)
+      // Re-open the detail so stock, funds and limits all reflect the purchase.
+      if (this.stockOf(entry) > 0) this.showBuyDetail(entry)
+      else this.showTab('buy')
     })
 
-    this.detailEl.append(back, iconRow, desc, infoBox, tradeBtn)
+    this.detailEl.append(qty.el, info, tradeBtn)
+    update(qty.get())
+  }
+
+  private showSellDetail(lot: SellLot): void {
+    const held = this.inventory.countOf(lot.itemId)
+    if (held <= 0) return this.showTab('sell')
+    this.beginDetail(
+      lot.itemId,
+      lot.name,
+      `The trader pays ${lot.unit} gold apiece for these. Sold goods leave your bags immediately.`,
+    )
+    this.renderGoldBar(false)
+
+    const info = document.createElement('div')
+    info.className = 'mc-mkt-info-box'
+    const sellBtn = document.createElement('button')
+    sellBtn.className = 'mc-mkt-trade-btn mc-mkt-sell-btn'
+
+    const update = (n: number) => {
+      info.innerHTML =
+        `They pay: <strong>${lot.unit} 🥇</strong> each<br>` +
+        `You carry: <strong>×${held}</strong><br>` +
+        `You receive: <strong style="color:#2a6a3a">${lot.unit * n} 🥇</strong>`
+      sellBtn.textContent = `Sell ×${n}  (+${lot.unit * n} 🥇)`
+      sellBtn.disabled = n > held
+    }
+    const qty = this.stepper(held, update)
+
+    sellBtn.addEventListener('click', () => {
+      const n = qty.get()
+      const earned = sellItems(this.inventory, lot.itemId, n)
+      if (earned === 0) return
+      this.onSell(lot.name, n, earned)
+      if (this.inventory.countOf(lot.itemId) > 0) this.showSellDetail({ ...lot, count: this.inventory.countOf(lot.itemId) })
+      else this.showTab('sell')
+    })
+
+    this.detailEl.append(qty.el, info, sellBtn)
+    update(qty.get())
   }
 }
