@@ -219,7 +219,8 @@ export function buildVillage(
     // Just outside the porch of each side house (their doors face north).
     { dx: HOUSES[1].ox + 1, dz: HOUSES[1].oz - HOUSE_HD - 2 },
     { dx: HOUSES[2].ox - 1, dz: HOUSES[2].oz - HOUSE_HD - 2 },
-    { dx: MARKET.ox, dz: MARKET.oz - 2 },
+    // The trader stands behind the counter, not in the customer's spot.
+    { dx: MARKET.ox, dz: MARKET.oz + 1 },
   ]
   for (const { dx, dz } of villagerSpots) {
     const id = `villager-${cx},${cz},${dx},${dz}`
@@ -256,10 +257,9 @@ function buildWell(set: SetBlock, x: number, z: number, floorY: number): void {
       set(x + dx, floorY + 1, z + dz, BlockId.Stone)
     }
   }
-  // Shaft: a dark hollow two blocks deep under the rim.
+  // Shaft: one block deep, so a villager that hops the rim can hop back out.
   set(x, floorY, z, BlockId.Air)
-  set(x, floorY - 1, z, BlockId.Air)
-  set(x, floorY - 2, z, BlockId.Stone)
+  set(x, floorY - 1, z, BlockId.Stone)
   // Canopy posts and roof.
   for (const dx of [-1, 1]) {
     set(x + dx, floorY + 2, z, BlockId.Wood)

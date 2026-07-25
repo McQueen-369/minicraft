@@ -150,10 +150,22 @@ const STYLE = `
 @media (max-width: 900px), (max-height: 500px) {
   .mc-debug { display: none; }
 }
+/* Sits clear of the hotbar stack (and above it) so messages stay readable. */
 .mc-toast {
-  position: absolute; left: 50%; bottom: 100px; transform: translateX(-50%);
-  color: #fff; font-size: 14px; text-shadow: 1px 1px 0 #000; z-index: 5;
+  position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%);
+  color: #fff; font-size: 14px; text-shadow: 1px 1px 0 #000; z-index: 8;
+  max-width: min(560px, 90vw); text-align: center; line-height: 1.4;
+  background: rgba(12,12,14,0.62); padding: 6px 14px; border-radius: 6px;
   pointer-events: none; transition: opacity 0.5s; opacity: 0;
+}
+/* On phones the bottom half belongs to the touch controls, so messages drop
+   below the minimap and the music/help buttons instead. */
+@media (max-width: 900px) {
+  .mc-toast { bottom: auto; top: 200px; font-size: 13px; max-width: 86vw; }
+}
+/* Landscape phones have no room up top; go back above the hotbar. */
+@media (max-height: 560px) {
+  .mc-toast { top: auto; bottom: 120px; font-size: 13px; }
 }
 .mc-daytimer {
   position: absolute; left: 50%; top: calc(8px + env(safe-area-inset-top, 0px)); transform: translateX(-50%);

@@ -44,6 +44,14 @@ export interface Furniture {
 
 export type SavedFurniture = Furniture
 
+/** Horizontal half-extent of the pick box; pieces wider than their cell say so. */
+export const FURNITURE_HALF: Partial<Record<FurnitureKind, number>> = {
+  // The stall model is two blocks wide — players aim at the counter, not the
+  // one cell it is anchored to.
+  market: 1.15,
+}
+export const DEFAULT_FURNITURE_HALF = 0.48
+
 /** Approximate pick box (height + horizontal half-extent) for raycasting. */
 export const FURNITURE_HEIGHT: Record<FurnitureKind, number> = {
   door: 2,
