@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { decodeMessage, encodeMessage, generateRoomCode, isValidRoomCode, type GameMessage } from './protocol'
+import {
+  decodeMessage,
+  encodeMessage,
+  generateRoomCode,
+  isValidRoomCode,
+  MAX_TRADE_LOTS,
+  PROTOCOL_VERSION,
+  type GameMessage,
+} from './protocol'
 
 describe('protocol', () => {
   it('roundtrips every message type', () => {
@@ -51,5 +59,40 @@ describe('protocol', () => {
     }
     expect(isValidRoomCode('MC-12345')).toBe(false)
     expect(isValidRoomCode('mc-1234')).toBe(false)
+  })
+})
+
+describe('trade messages', () => {
+  const base = { t: 'trade' as const, ev: 'invite' as const, from: 'a', to: 'b' }
+
+  it('round-trips a trade invite', () => {
+    expect(decodeMessage(encodeMessage(base))).toEqual(base)
+  })
+
+  it('round-trips an offer with lots', () => {
+    const msg = { ...base, ev: 'offer' as const, lots: [{ itemId: 3, count: 12 }] }
+    expect(decodeMessage(encodeMessage(msg))).toEqual(msg)
+  })
+
+  it('rejects a trade with no addressing', () => {
+    expect(decodeMessage(encodeMessage({ ...base, to: '' }))).toBeNull()
+    expect(decodeMessage({ v: PROTOCOL_VERSION, m: { t: 'trade', ev: 'invite', from: 'a' } })).toBeNull()
+  })
+
+  it('rejects an unknown trade event', () => {
+    expect(decodeMessage({ v: PROTOCOL_VERSION, m: { ...base, ev: 'steal' } })).toBeNull()
+  })
+
+  it('rejects an offer without lots and malformed lots', () => {
+    expect(decodeMessage({ v: PROTOCOL_VERSION, m: { ...base, ev: 'offer' } })).toBeNull()
+    expect(decodeMessage({ v: PROTOCOL_VERSION, m: { ...base, ev: 'offer', lots: [{ itemId: 3 }] } })).toBeNull()
+    expect(decodeMessage({ v: PROTOCOL_VERSION, m: { ...base, ev: 'offer', lots: [{ itemId: 3, count: 0 }] } })).toBeNull()
+    expect(decodeMessage({ v: PROTOCOL_VERSION, m: { ...base, ev: 'offer', lots: [{ itemId: 3, count: 1.5 }] } })).toBeNull()
+    expect(decodeMessage({ v: PROTOCOL_VERSION, m: { ...base, ev: 'offer', lots: 'all' } })).toBeNull()
+  })
+
+  it('caps how many lots one message may carry', () => {
+    const lots = Array.from({ length: MAX_TRADE_LOTS + 1 }, () => ({ itemId: 3, count: 1 }))
+    expect(decodeMessage({ v: PROTOCOL_VERSION, m: { ...base, ev: 'offer', lots } })).toBeNull()
   })
 })

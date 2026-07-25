@@ -20,6 +20,7 @@ import { Minimap, type MapMarker } from './ui/minimap'
 import * as cloud from './net/cloud'
 import { isSessionExpired, loadStoredProfile, storeProfile, type Profile, type WorldMeta } from './net/cloud'
 import { connectChannel, Multiplayer } from './net/multiplayer'
+import { TradeManager, type TradeView } from './net/trade'
 import { generateRoomCode, isValidRoomCode, type SnapshotMsg } from './net/protocol'
 import { supabaseConfigured } from './net/supabase'
 import { MultiWorldStore, type SaveData } from './persist/storage'
@@ -38,6 +39,7 @@ import { ArcadePanel } from './ui/arcade'
 import { Chat } from './ui/chat'
 import { CraftingPanel } from './ui/crafting'
 import { MarketPanel } from './ui/market'
+import { TradePanel, type TradePeer } from './ui/trade'
 import { playAnimalSound, playExplosionSound } from './audio/sounds'
 import { FishSchool } from './render/fish'
 import { BirdFlock } from './render/birds'
@@ -45,6 +47,9 @@ import { Terrain } from './world/terrain'
 import { World } from './world/world'
 
 type Mode = 'single' | 'host' | 'guest'
+
+/** How close two players must be to trade (blocks). */
+const TRADE_RANGE = 24
 
 interface Session {
   world: World
@@ -77,6 +82,7 @@ export class Game {
   private readonly chat: Chat
   private readonly crafting: CraftingPanel
   private readonly market: MarketPanel
+  private readonly trade: TradePanel
   private readonly arcade: ArcadePanel
   private readonly music = new Music()
   /** Player stamina 0–100: spent by mining, restored by food and sleep. */
@@ -95,6 +101,8 @@ export class Game {
 
   private session: Session | null = null
   private mp: Multiplayer | null = null
+  /** Player-to-player trading; exists only while a multiplayer session runs. */
+  private trading: TradeManager | null = null
   private mode: Mode = 'single'
   private activeSlotIndex: number | null = null
   private activeSlotName: string | null = null
@@ -129,6 +137,7 @@ export class Game {
     this.chat = new Chat(root)
     this.crafting = new CraftingPanel(root, this.inventory, this.atlas.canvas)
     this.market = new MarketPanel(root, this.inventory, this.atlas.canvas)
+    this.trade = new TradePanel(root, this.inventory, this.atlas.canvas)
     this.arcade = new ArcadePanel(root, this.inventory)
     this.arcade.onClose = () => {
       this.updateInputState()
@@ -217,6 +226,19 @@ export class Game {
     this.market.onSell = (name, count, gold) => {
       this.hud.showToast(`💰 Sold ${count > 1 ? `${count}× ` : ''}${name} for ${gold} gold!`)
     }
+    this.trade.onClose = () => {
+      this.hud.setTradeOpen(false)
+      this.updateInputState()
+      if (this.playing && !this.panels.isOpen && !this.menu.isOpen) this.controls.requestLock()
+    }
+    this.trade.onInvite = (peerId, peerName) => this.trading?.invite(peerId, peerName)
+    this.trade.onAccept = () => this.trading?.accept()
+    this.trade.onDecline = () => this.trading?.decline()
+    this.trade.onCancel = () => this.trading?.cancel()
+    this.trade.onConfirm = () => this.trading?.confirm()
+    this.trade.onOffer = (itemId, count) => this.trading?.offer(itemId, count)
+    this.trade.onWithdraw = (itemId, count) => this.trading?.withdraw(itemId, count)
+    this.hud.onTradeToggle = () => this.toggleTrade()
     this.hud.onInfoClose = () => {
       if (this.playing && !this.menu.isOpen && !this.panels.isOpen) this.controls.requestLock()
     }
@@ -277,6 +299,7 @@ export class Game {
         !this.hud.isInfoOpen &&
         !this.crafting.isOpen &&
         !this.market.isOpen &&
+        !this.trade.isOpen &&
         !this.arcade.isOpen
       ) {
         this.menu.showPause(
@@ -325,6 +348,17 @@ export class Game {
           this.hud.setCraftOpen(true)
           this.updateInputState()
         }
+      }
+      if (
+        e.code === 'KeyT' &&
+        !this.menu.isOpen &&
+        !this.panels.isOpen &&
+        !this.chat.isOpen &&
+        !this.crafting.isOpen &&
+        !this.market.isOpen
+      ) {
+        e.preventDefault()
+        this.toggleTrade()
       }
       if (e.code === 'KeyM' && !this.menu.isOpen) {
         e.preventDefault()
@@ -656,6 +690,7 @@ export class Game {
     this.cloudWorld = null
     this.createSession(save?.seed ?? randomSeed(), save)
     this.mp = new Multiplayer('host', roomCode, transport, this.session!.scene, this.playerId, playerName, this.hooks(), loadAppearance(localStorage))
+    this.startTrading(this.mp)
     this.beginPlay()
     this.hud.showToast(`Hosting room ${roomCode} — share the code!`)
   }
@@ -672,6 +707,7 @@ export class Game {
       this.cloudWorld = { id: w.id, name: w.name }
       this.createSession(save.seed, save)
       this.mp = new Multiplayer('host', code, transport, this.session!.scene, this.playerId, profile.username, this.hooks(), loadAppearance(localStorage))
+      this.startTrading(this.mp)
       this.beginPlay()
       this.hud.showToast(`Hosting "${w.name}" in room ${code} — the session saves to your profile`)
     } else {
@@ -729,6 +765,7 @@ export class Game {
     // multiplayer avatars into the real scene.
     this.mp = mp
     mp.setScene(this.session!.scene)
+    this.startTrading(mp)
     this.beginPlay()
     this.hud.showToast(`Joined room ${code}`)
   }
@@ -794,6 +831,7 @@ export class Game {
       onHostLeft: () => {
         this.hud.showToast('Host left the room — continuing offline')
         setTimeout(() => {
+          this.stopTrading()
           this.mp?.dispose()
           this.mp = null
           this.mode = 'single'
@@ -823,6 +861,12 @@ export class Game {
       onChat: (playerId: string, name: string, text: string) => {
         void playerId
         this.chat.showMessage(name, text)
+      },
+      onTrade: (msg: import('./net/protocol').TradeMsg) => {
+        this.trading?.handle(msg)
+      },
+      onPeerLeft: (playerId: string) => {
+        this.trading?.peerLeft(playerId)
       },
     }
   }
@@ -867,6 +911,7 @@ export class Game {
         this.save()
       }
     }
+    this.stopTrading()
     this.mp?.dispose()
     this.mp = null
     this.playing = false
@@ -875,6 +920,7 @@ export class Game {
     this.panels.close()
     this.crafting.close()
     this.market.close()
+    this.trade.close()
     this.arcade.close()
     this.teardownSession()
     this.menu.showMain(showProfileCta)
@@ -887,7 +933,85 @@ export class Game {
 
   private updateInputState(): void {
     this.controls.gameplayInput =
-      !this.panels.isOpen && !this.menu.isOpen && !this.chat.isOpen && !this.market.isOpen && !this.arcade.isOpen
+      !this.panels.isOpen &&
+      !this.menu.isOpen &&
+      !this.chat.isOpen &&
+      !this.market.isOpen &&
+      !this.arcade.isOpen &&
+      !this.trade.isOpen
+  }
+
+  /** Attach player-to-player trading to a freshly connected session. */
+  private startTrading(mp: Multiplayer): void {
+    const trading = new TradeManager(this.playerId, mp.selfName, this.inventory, (msg) => this.mp?.sendTrade(msg))
+    trading.onChange = (view) => this.onTradeChanged(view)
+    trading.onNotice = (text) => this.hud.showToast(`🤝 ${text}`)
+    trading.onComplete = (view) => {
+      const got = view.theirs.reduce((n, l) => n + l.count, 0)
+      const gave = view.mine.reduce((n, l) => n + l.count, 0)
+      this.hud.showToast(`🤝 Trade with ${view.peerName} complete — gave ${gave}, received ${got}`)
+    }
+    this.trading = trading
+    this.hud.setTradeAvailable(true)
+  }
+
+  private stopTrading(): void {
+    this.trading?.cancel('left the game')
+    this.trading = null
+    this.trade.close()
+    this.hud.setTradeAvailable(false)
+  }
+
+  /** Keep the window in step with the session, taking input when it opens. */
+  private onTradeChanged(view: TradeView): void {
+    if (view.phase === 'idle' && !this.trade.isOpen) return
+    const wasOpen = this.trade.isOpen
+    this.trade.render(view)
+    if (this.trade.isOpen && !wasOpen) {
+      this.controls.releaseLock()
+      this.hud.setTradeOpen(true)
+    }
+    this.updateInputState()
+  }
+
+  /** Players close enough to trade with, nearest first. */
+  private nearbyPeers(): TradePeer[] {
+    const pos = this.session?.player.state.pos
+    if (!this.mp || !pos) return []
+    return this.mp
+      .peerList()
+      .map((p) => ({ id: p.id, name: p.name, distance: Math.hypot(p.x - pos.x, p.y - pos.y, p.z - pos.z) }))
+      .filter((p) => p.distance <= TRADE_RANGE)
+      .sort((a, b) => a.distance - b.distance)
+  }
+
+  /** T / the TRADE button: open the picker, or close whatever is showing. */
+  private toggleTrade(): void {
+    if (!this.playing || this.menu.isOpen) return
+    if (this.trade.isOpen) {
+      if (this.trading?.isOpen) this.trading.cancel()
+      this.trade.close()
+      return
+    }
+    if (!this.mp || !this.trading) {
+      this.hud.showToast('Trading needs another player — host or join a room first')
+      return
+    }
+    if (this.trading.isOpen) {
+      this.onTradeChanged(this.trading.state)
+      return
+    }
+    const peers = this.nearbyPeers()
+    // With exactly one player in range, skip the list and invite them.
+    if (peers.length === 1) {
+      this.trading.invite(peers[0].id, peers[0].name)
+      this.hud.showToast(`🤝 Invited ${peers[0].name} to trade`)
+      return
+    }
+    this.controls.releaseLock()
+    this.hud.setTradeOpen(true)
+    this.trade.openPicker(peers)
+    this.updateInputState()
   }
 
   private dismountHorse(): void {

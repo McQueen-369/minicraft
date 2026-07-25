@@ -88,6 +88,31 @@ export interface ChatMsg {
   text: string
 }
 
+/** One stack put on the table during a player-to-player trade. */
+export interface TradeLot {
+  itemId: number
+  count: number
+}
+
+export type TradeEvent = 'invite' | 'accept' | 'decline' | 'offer' | 'confirm' | 'cancel'
+
+/**
+ * Player-to-player trading. Every message names both ends, so the other
+ * peers on the room's broadcast channel can ignore it.
+ */
+export interface TradeMsg {
+  t: 'trade'
+  ev: TradeEvent
+  from: string
+  to: string
+  /** Sender's display name, sent with an invite so the prompt can name them. */
+  fromName?: string
+  /** The sender's whole offer, resent on every change. */
+  lots?: TradeLot[]
+  /** Why an invite was declined or a session cancelled. */
+  reason?: string
+}
+
 export type GameMessage =
   | PlayerStateMsg
   | HelloMsg
@@ -99,6 +124,7 @@ export type GameMessage =
   | FurnitureMsg
   | LeaveMsg
   | ChatMsg
+  | TradeMsg
 
 interface Envelope {
   v: number
@@ -137,9 +163,29 @@ export function decodeMessage(payload: unknown): GameMessage | null {
       return typeof m.id === 'string' ? m : null
     case 'chat':
       return typeof m.playerId === 'string' && typeof m.text === 'string' ? m : null
+    case 'trade':
+      return isTradeMsg(m) ? m : null
     default:
       return null
   }
+}
+
+const TRADE_EVENTS: TradeEvent[] = ['invite', 'accept', 'decline', 'offer', 'confirm', 'cancel']
+/** Nobody can put more than this on the table, so a bad peer cannot flood us. */
+export const MAX_TRADE_LOTS = 8
+
+function isTradeMsg(m: TradeMsg): boolean {
+  if (typeof m.from !== 'string' || typeof m.to !== 'string' || !m.from || !m.to) return false
+  if (!TRADE_EVENTS.includes(m.ev)) return false
+  if (m.lots === undefined) return m.ev !== 'offer'
+  if (!Array.isArray(m.lots) || m.lots.length > MAX_TRADE_LOTS) return false
+  return m.lots.every(
+    (l) =>
+      typeof l?.itemId === 'number' &&
+      Number.isInteger(l.count) &&
+      l.count > 0 &&
+      Number.isFinite(l.itemId),
+  )
 }
 
 export function generateRoomCode(): string {
