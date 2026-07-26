@@ -170,11 +170,12 @@ export function buildVillage(
       set(sx + dx, floorY, sz + dz, BlockId.Stone)
     }
   }
-  // Sand shoulders soften the edge where the lanes meet the grass.
+  // Sand shoulders soften the edge where the lanes meet the open ground.
+  const surface = world.terrain.surfaceBlock
   for (let i = -SQUARE_R; i <= SQUARE_R; i++) {
     for (const w of [-2, 2]) {
-      if (world.getBlock(sx + i, floorY, sz + w) === BlockId.Grass) set(sx + i, floorY, sz + w, BlockId.Sand)
-      if (world.getBlock(sx + w, floorY, sz + i) === BlockId.Grass) set(sx + w, floorY, sz + i, BlockId.Sand)
+      if (world.getBlock(sx + i, floorY, sz + w) === surface) set(sx + i, floorY, sz + w, BlockId.Sand)
+      if (world.getBlock(sx + w, floorY, sz + i) === surface) set(sx + w, floorY, sz + i, BlockId.Sand)
     }
   }
 

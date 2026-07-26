@@ -1,6 +1,14 @@
 import type { LocalWorldMeta } from '../persist/storage'
 import type { Profile, WorldMeta } from '../net/cloud'
 import { generateRoomCode } from '../net/protocol'
+import {
+  normalizeWorldKind,
+  WORLD_KIND_BLURB,
+  WORLD_KIND_ICON,
+  WORLD_KIND_LABEL,
+  WORLD_KINDS,
+  type WorldKind,
+} from '../world/worldKind'
 import { CharacterEditor } from './character'
 
 const STYLE = `
@@ -35,6 +43,16 @@ const STYLE = `
 .mc-menu-box .world-row .meta { flex: 1; text-align: left; min-width: 0; }
 .mc-menu-box .world-row .meta .name { font-size: var(--mc-fs-md, 16px); color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mc-menu-box .world-row .meta .when { font-size: var(--mc-fs-xs, 12.5px); color: #888; }
+.mc-menu-box .world-kind {
+  display: inline-block; font-size: var(--mc-fs-xs, 12.5px); color: #cfe4ff;
+  background: rgba(60,110,170,0.25); border: 1px solid #4b7bb0; border-radius: 3px;
+  padding: 0 5px; margin-right: 6px;
+}
+.mc-menu-box .world-kind.robot { color: #ffd9c2; background: rgba(180,90,40,0.25); border-color: #b06a3a; }
+.mc-menu-box .kind-choice { display: flex; gap: 6px; margin: 8px 0; }
+.mc-menu-box .kind-choice button { margin: 0; flex: 1; padding: 8px 6px; font-size: var(--mc-fs-sm, 14px); }
+.mc-menu-box .kind-choice button.selected { background: #4a7d5a; border-color: #8fd3a5 #24402c #24402c #8fd3a5; }
+.mc-menu-box .kind-blurb { color: #9aa; font-size: var(--mc-fs-xs, 12.5px); text-align: left; min-height: 16px; }
 .mc-menu-box .world-row button { width: auto; margin: 0; padding: 8px 10px; font-size: var(--mc-fs-sm, 14px); flex-shrink: 0; }
 .mc-menu-box .world-row button.danger:hover { background: #a33; }
 .mc-menu-box .empty { color: #888; font-size: var(--mc-fs-sm, 14px); margin: 10px 0; }
@@ -52,7 +70,7 @@ const STYLE = `
 export interface MenuCallbacks {
   listLocalSlots: () => (LocalWorldMeta | null)[]
   onPlaySlot: (index: number) => void
-  onNewSlot: (index: number, name: string) => void
+  onNewSlot: (index: number, name: string, kind: WorldKind) => void
   onDeleteSlot: (index: number) => void
   onHostSlot: (index: number, playerName: string, roomCode: string) => Promise<void>
   onJoin: (name: string, code: string) => Promise<void>
@@ -69,7 +87,7 @@ export interface MenuCallbacks {
   listWorlds: () => Promise<WorldMeta[]>
   onPlayCloud: (world: WorldMeta) => Promise<void>
   onHostCloud: (world: WorldMeta, roomCode: string) => Promise<void>
-  onCreateCloud: (name: string) => Promise<void>
+  onCreateCloud: (name: string, kind: WorldKind) => Promise<void>
   onDeleteCloud: (world: WorldMeta) => Promise<void>
 }
 
@@ -205,10 +223,11 @@ export class Menu {
       const worldNameInput = input(`World ${firstEmpty + 1}`, 32)
       worldNameInput.placeholder = `World ${firstEmpty + 1}`
       createForm.appendChild(worldNameInput)
+      const pickKind = this.kindChooser(createForm)
       const createBtn = document.createElement('button')
       createBtn.textContent = 'Create'
       createBtn.addEventListener('click', () => {
-        this.cb.onNewSlot(firstEmpty, worldNameInput.value.trim() || `World ${firstEmpty + 1}`)
+        this.cb.onNewSlot(firstEmpty, worldNameInput.value.trim() || `World ${firstEmpty + 1}`, pickKind())
       })
       createForm.appendChild(createBtn)
       const cancelCreate = document.createElement('button')
@@ -296,7 +315,10 @@ export class Menu {
     if (slot) {
       const meta = el('div', '', 'meta')
       meta.appendChild(el('div', slot.name, 'name'))
-      meta.appendChild(el('div', `saved ${new Date(slot.savedAt).toLocaleString()}`, 'when'))
+      const when = el('div', '', 'when')
+      when.appendChild(Menu.kindBadge(slot.kind))
+      when.appendChild(document.createTextNode(`saved ${new Date(slot.savedAt).toLocaleString()}`))
+      meta.appendChild(when)
       row.appendChild(meta)
       const playBtn = document.createElement('button')
       playBtn.textContent = '▶ Play'
@@ -338,15 +360,20 @@ export class Menu {
 
   private showNewSlotForm(row: HTMLElement, index: number): void {
     while (row.firstChild) row.removeChild(row.firstChild)
+    // The row is a flex line; the world-type chooser needs its own block below
+    // the name, so the form gets a column of its own inside the row.
+    row.style.display = 'block'
     const nameInput = document.createElement('input')
     nameInput.placeholder = `World ${index + 1}`
     nameInput.maxLength = 32
-    nameInput.style.flex = '1'
+    nameInput.style.width = '100%'
+    nameInput.style.boxSizing = 'border-box'
     row.appendChild(nameInput)
+    const pickKind = this.kindChooser(row)
     const createBtn = document.createElement('button')
     createBtn.textContent = 'Create'
     createBtn.addEventListener('click', () => {
-      this.cb.onNewSlot(index, nameInput.value.trim() || `World ${index + 1}`)
+      this.cb.onNewSlot(index, nameInput.value.trim() || `World ${index + 1}`, pickKind())
     })
     row.appendChild(createBtn)
     const cancelBtn = document.createElement('button')
@@ -354,6 +381,40 @@ export class Menu {
     cancelBtn.addEventListener('click', () => this.showMain())
     row.appendChild(cancelBtn)
     nameInput.focus()
+  }
+
+  /**
+   * World-type picker for a create-world form: one button per kind plus a line
+   * describing the highlighted choice. Returns a getter for the current pick.
+   */
+  private kindChooser(parent: HTMLElement): () => WorldKind {
+    let selected: WorldKind = 'terrain'
+    parent.appendChild(el('div', 'World type', 'section-title'))
+    const choice = el('div', '', 'kind-choice')
+    const blurb = el('div', WORLD_KIND_BLURB[selected], 'kind-blurb')
+    const buttons = new Map<WorldKind, HTMLButtonElement>()
+    for (const kind of WORLD_KINDS) {
+      const b = document.createElement('button')
+      b.textContent = `${WORLD_KIND_ICON[kind]} ${WORLD_KIND_LABEL[kind]}`
+      b.classList.toggle('selected', kind === selected)
+      b.addEventListener('click', () => {
+        selected = kind
+        for (const [k, other] of buttons) other.classList.toggle('selected', k === kind)
+        blurb.textContent = WORLD_KIND_BLURB[kind]
+      })
+      buttons.set(kind, b)
+      choice.appendChild(b)
+    }
+    parent.appendChild(choice)
+    parent.appendChild(blurb)
+    return () => selected
+  }
+
+  /** The "Terrain World" / "Robot World" badge shown on every saved world row. */
+  private static kindBadge(kind: WorldKind | undefined): HTMLElement {
+    const k = normalizeWorldKind(kind)
+    const badge = el('span', `${WORLD_KIND_ICON[k]} ${WORLD_KIND_LABEL[k]}`, `world-kind ${k}`)
+    return badge
   }
 
   private showHostScreen(
@@ -418,9 +479,10 @@ export class Menu {
     createForm.style.display = 'none'
     const newName = input('New world name', 32)
     createForm.appendChild(newName)
+    const pickKind = this.kindChooser(createForm)
     const createError = el('div', '', 'error')
     this.asyncButton(createForm, 'Create', createError, async () => {
-      await this.cb.onCreateCloud(newName.value.trim() || `World ${new Date().toLocaleDateString()}`)
+      await this.cb.onCreateCloud(newName.value.trim() || `World ${new Date().toLocaleDateString()}`, pickKind())
     })
     createForm.appendChild(createError)
     const createBtn = this.button(worlds, 'Create New World', () => {
@@ -580,7 +642,10 @@ export class Menu {
     const row = el('div', '', 'world-row')
     const meta = el('div', '', 'meta')
     meta.appendChild(el('div', w.name, 'name'))
-    meta.appendChild(el('div', `saved ${new Date(w.updatedAt).toLocaleString()}`, 'when'))
+    const when = el('div', '', 'when')
+    when.appendChild(Menu.kindBadge(w.kind))
+    when.appendChild(document.createTextNode(`saved ${new Date(w.updatedAt).toLocaleString()}`))
+    meta.appendChild(when)
     row.appendChild(meta)
     this.asyncButton(row, 'Play', error, () => this.cb.onPlayCloud(w))
     this.button(row, 'Host', () => {

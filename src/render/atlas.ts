@@ -9,7 +9,7 @@ export const TILE_PX = 32
 const SRC_PX = 16
 export const ATLAS_TILES = 4 // 4x4 grid
 export const ATLAS_PX = TILE_PX * ATLAS_TILES
-export const ATLAS_ROWS = 7
+export const ATLAS_ROWS = 8
 
 /** Half-texel inset keeps neighboring tiles from bleeding at quad edges. */
 export const UV_EPSILON = 0.5 / ATLAS_PX
@@ -388,6 +388,82 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
       ctx.fillStyle = '#ffe07a'
       ctx.fillRect(x0 + 7, y0 + 4, 1, 2)
       ctx.fillRect(x0 + 3, y0 + 8, 2, 1)
+      break
+    }
+    case Tile.MetalPanelTop: {
+      // Brushed alloy decking: a seam cross, corner rivets and a few scuffs.
+      speckle(ctx, x0, y0, '#8f9aa6', ['#849099', '#9aa6b2', '#79848d'], 0.45, 28)
+      ctx.fillStyle = '#5f6a75'
+      ctx.fillRect(x0 + 7, y0, 2, SRC_PX)
+      ctx.fillRect(x0, y0 + 7, SRC_PX, 2)
+      ctx.fillStyle = '#aeb9c4'
+      ctx.fillRect(x0 + 7, y0, 1, SRC_PX)
+      ctx.fillRect(x0, y0 + 7, SRC_PX, 1)
+      // Rivets in each quadrant.
+      for (const [rx, ry] of [[2, 2], [12, 2], [2, 12], [12, 12]] as const) {
+        ctx.fillStyle = '#5f6a75'
+        ctx.fillRect(x0 + rx, y0 + ry, 2, 2)
+        ctx.fillStyle = '#c7d2dc'
+        ctx.fillRect(x0 + rx, y0 + ry, 1, 1)
+      }
+      break
+    }
+    case Tile.MetalPanelSide: {
+      // Cut edge of the decking: a bright top lip over darker plating.
+      speckle(ctx, x0, y0, '#6f7a85', ['#657078', '#7b8792', '#5b656e'], 0.45, 29)
+      ctx.fillStyle = '#9aa6b2'
+      ctx.fillRect(x0, y0, SRC_PX, 3)
+      ctx.fillStyle = '#c7d2dc'
+      ctx.fillRect(x0, y0, SRC_PX, 1)
+      ctx.fillStyle = '#4d565f'
+      ctx.fillRect(x0, y0 + 3, SRC_PX, 1)
+      // Vertical ribs down the plating.
+      ctx.fillStyle = '#5b656e'
+      for (const x of [3, 8, 13]) ctx.fillRect(x0 + x, y0 + 4, 1, SRC_PX - 4)
+      break
+    }
+    case Tile.CanTop: {
+      // The label sits on the lid: a steel rim around a red disc with a white
+      // bowl-and-steam mark, so a can reads as food from above.
+      speckle(ctx, x0, y0, '#9aa6b2', ['#8d99a4', '#a8b4bf'], 0.3, 30)
+      ctx.fillStyle = '#5f6a75'
+      ctx.fillRect(x0 + 1, y0 + 1, SRC_PX - 2, 1)
+      ctx.fillRect(x0 + 1, y0 + SRC_PX - 2, SRC_PX - 2, 1)
+      ctx.fillRect(x0 + 1, y0 + 1, 1, SRC_PX - 2)
+      ctx.fillRect(x0 + SRC_PX - 2, y0 + 1, 1, SRC_PX - 2)
+      // Red label disc.
+      ctx.fillStyle = '#c0392b'
+      ctx.fillRect(x0 + 4, y0 + 3, 8, 10)
+      ctx.fillRect(x0 + 3, y0 + 4, 10, 8)
+      ctx.fillStyle = '#e05a48'
+      ctx.fillRect(x0 + 4, y0 + 4, 4, 2)
+      // White bowl with steam curls.
+      ctx.fillStyle = '#f4f1e6'
+      ctx.fillRect(x0 + 5, y0 + 9, 6, 2)
+      ctx.fillRect(x0 + 6, y0 + 11, 4, 1)
+      ctx.fillRect(x0 + 6, y0 + 5, 1, 3)
+      ctx.fillRect(x0 + 9, y0 + 5, 1, 3)
+      break
+    }
+    case Tile.CanSide: {
+      // Tin wall: ribbed steel top and bottom with a red label band in between.
+      speckle(ctx, x0, y0, '#9aa6b2', ['#8d99a4', '#a8b4bf', '#7f8b96'], 0.35, 31)
+      ctx.fillStyle = '#6b7681'
+      ctx.fillRect(x0, y0 + 1, SRC_PX, 1)
+      ctx.fillRect(x0, y0 + SRC_PX - 2, SRC_PX, 1)
+      // Label band.
+      ctx.fillStyle = '#c0392b'
+      ctx.fillRect(x0, y0 + 4, SRC_PX, 8)
+      ctx.fillStyle = '#e05a48'
+      ctx.fillRect(x0, y0 + 4, SRC_PX, 1)
+      ctx.fillStyle = '#8e2a1f'
+      ctx.fillRect(x0, y0 + 11, SRC_PX, 1)
+      // "FOOD" suggested as four white ticks — legible as lettering at block size.
+      ctx.fillStyle = '#f4f1e6'
+      for (const x of [2, 6, 9, 12]) ctx.fillRect(x0 + x, y0 + 6, 2, 4)
+      ctx.fillStyle = '#c0392b'
+      ctx.fillRect(x0 + 3, y0 + 7, 1, 1)
+      ctx.fillRect(x0 + 10, y0 + 8, 1, 1)
       break
     }
     default:

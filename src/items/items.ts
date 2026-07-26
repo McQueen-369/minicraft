@@ -2,7 +2,17 @@ import { MAX_STACK } from '../constants'
 import { BlockId, blockDef, NON_ITEM_BLOCKS, type ToolType } from '../core/blocks'
 import type { FurnitureKind } from '../entities/furniture'
 
-export type AnimalKind = 'pig' | 'chicken' | 'sheep' | 'rabbit' | 'cat' | 'dog' | 'villager' | 'horse' | 'zombie'
+export type AnimalKind =
+  | 'pig'
+  | 'chicken'
+  | 'sheep'
+  | 'rabbit'
+  | 'cat'
+  | 'dog'
+  | 'villager'
+  | 'horse'
+  | 'zombie'
+  | 'robot'
 
 export const ItemId = {
   // Items 1..99 are placeable blocks and share BlockId values.
@@ -35,6 +45,7 @@ export const ItemId = {
   Egg: 116,
   CookedFish: 117,
   FishStew: 118,
+  CannedFood: 119,
   CapturedPig: 120,
   CapturedChicken: 121,
   CapturedSheep: 122,
@@ -109,6 +120,7 @@ ITEMS.set(ItemId.Bone, { name: 'Bone', kind: 'food', food: 'dog', maxStack: MAX_
 ITEMS.set(ItemId.Egg, { name: 'Egg', kind: 'food', maxStack: MAX_STACK })
 ITEMS.set(ItemId.CookedFish, { name: 'Cooked Fish', kind: 'food', energy: 40, maxStack: MAX_STACK })
 ITEMS.set(ItemId.FishStew, { name: 'Fish Stew', kind: 'food', energy: 80, maxStack: MAX_STACK })
+ITEMS.set(ItemId.CannedFood, { name: 'Canned Food', kind: 'food', food: 'pig', energy: 45, maxStack: MAX_STACK })
 ITEMS.set(ItemId.CapturedRabbit, { name: 'Rabbit (captured)', kind: 'capture', animal: 'rabbit', maxStack: 1 })
 ITEMS.set(ItemId.CapturedCat, { name: 'Cat (captured)', kind: 'capture', animal: 'cat', maxStack: 1 })
 ITEMS.set(ItemId.CapturedDog, { name: 'Dog (captured)', kind: 'capture', animal: 'dog', maxStack: 1 })

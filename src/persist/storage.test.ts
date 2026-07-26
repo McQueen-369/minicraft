@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ItemId } from '../items/items'
-import { deserialize, SaveStore, serialize, type SaveData, type StringStorage } from './storage'
+import { deserialize, MultiWorldStore, SaveStore, serialize, type SaveData, type StringStorage } from './storage'
 
 function sample(): SaveData {
   return {
@@ -19,6 +19,7 @@ function sample(): SaveData {
     skyDay: 3,
     energy: 76,
     islandFound: true,
+    worldKind: 'terrain',
   }
 }
 
@@ -35,6 +36,14 @@ function memoryStorage(): StringStorage & { data: Map<string, string> } {
 describe('save serialization', () => {
   it('roundtrips', () => {
     expect(deserialize(serialize(sample()))).toEqual(sample())
+  })
+
+  it('keeps a robot world\'s kind, and reads older saves as terrain worlds', () => {
+    const robot = { ...sample(), worldKind: 'robot' as const }
+    expect(deserialize(serialize(robot))?.worldKind).toBe('robot')
+    const legacy = JSON.parse(serialize(sample())) as Record<string, unknown>
+    delete legacy.worldKind
+    expect(deserialize(JSON.stringify(legacy))?.worldKind).toBe('terrain')
   })
 
   it('rejects corrupt or missing data', () => {
@@ -79,5 +88,22 @@ describe('SaveStore', () => {
     )
     expect(store.load()).toBeNull()
     expect(store.save(sample())).toBe(false)
+  })
+})
+
+describe('MultiWorldStore', () => {
+  it('records each slot\'s world kind, defaulting older slots to terrain', () => {
+    const storage = memoryStorage()
+    const store = new MultiWorldStore(storage)
+    store.saveSlot(0, 'Green Hills', sample())
+    store.saveSlot(1, 'Scrapyard', { ...sample(), worldKind: 'robot' })
+    const slots = store.listSlots()
+    expect(slots[0]).toMatchObject({ name: 'Green Hills', kind: 'terrain' })
+    expect(slots[1]).toMatchObject({ name: 'Scrapyard', kind: 'robot' })
+    expect(store.loadSlot(1)?.worldKind).toBe('robot')
+
+    // A slot written by an older build carries no kind at all.
+    storage.setItem('minicraft-slots-v1', JSON.stringify([{ name: 'Old', savedAt: '2026-01-01T00:00:00Z' }]))
+    expect(store.listSlots()[0]).toMatchObject({ name: 'Old', kind: 'terrain' })
   })
 })

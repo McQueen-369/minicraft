@@ -54,10 +54,25 @@ const ANIMAL_FACTS: Record<AnimalKind, string[]> = {
     'Real "zombies" exist in nature: the fungus Ophiocordyceps takes over an ant\'s behaviour before it dies.',
     'The word zombie reached English from West African and Caribbean folklore in the early 1800s.',
   ],
+  robot: [
+    'The word "robot" comes from the Czech play R.U.R. (1920); it is built on robota, meaning forced labour.',
+    'Most factory robots are arms bolted to the floor — walking on two legs is far harder than it looks.',
+    'Robots find their way with sensors that measure distance many times a second, a bit like a bat using echoes.',
+  ],
 }
 
 /** Facts about placed blocks and carried items, keyed by item/block id. */
 const ITEM_FACTS: Record<number, string[]> = {
+  // ---- robot world ----
+  [ItemId.CannedFood]: [
+    'Canning was invented in 1809 for Napoleon\'s armies — the can opener only turned up about 50 years later.',
+    'Heating food inside a sealed can kills the microbes that spoil it, which is why tins keep for years.',
+    'Tin cans are mostly steel with a micro-thin tin lining that stops the food reacting with the metal.',
+  ],
+  [BlockId.MetalPanel]: [
+    'Steel is iron with a pinch of carbon — under 2% of it — and that pinch is what makes it hard.',
+    'Rivets held ships and bridges together long before welding: each one is hammered flat to lock two plates.',
+  ],
   // ---- plants & living things ----
   [BlockId.Grass]: [
     'Grasses cover about a quarter of all the land on Earth, from lawns to prairies to bamboo forests.',

@@ -1,6 +1,7 @@
 import type { SavedAnimal } from '../entities/entityManager'
 import { FURNITURE_KINDS, type SavedFurniture } from '../entities/furniture'
 import { itemDef, type ChestContents, type Slot } from '../items/items'
+import { normalizeWorldKind, type WorldKind } from '../world/worldKind'
 
 export interface SaveData {
   version: 1
@@ -18,6 +19,8 @@ export interface SaveData {
   energy?: number
   /** Whether the secret mini-game island has been discovered. */
   islandFound?: boolean
+  /** Which flavour of world this is; absent in saves made before robot worlds. */
+  worldKind?: WorldKind
 }
 
 export function serialize(data: SaveData): string {
@@ -54,6 +57,7 @@ export function deserialize(json: string | null): SaveData | null {
       skyDay: typeof data.skyDay === 'number' ? data.skyDay : 0,
       energy: typeof data.energy === 'number' ? Math.max(0, Math.min(100, data.energy)) : 100,
       islandFound: !!data.islandFound,
+      worldKind: normalizeWorldKind(data.worldKind),
     }
   } catch {
     return null
@@ -137,6 +141,8 @@ export const MAX_LOCAL_SLOTS = 10
 export interface LocalWorldMeta {
   name: string
   savedAt: string
+  /** Terrain or robot world; absent on slots saved before robot worlds existed. */
+  kind?: WorldKind
 }
 
 const SLOTS_INDEX_KEY = 'minicraft-slots-v1'
@@ -154,7 +160,8 @@ export class MultiWorldStore {
       const parsed: (LocalWorldMeta | null)[] = raw ? (JSON.parse(raw) as (LocalWorldMeta | null)[]) : []
       const result: (LocalWorldMeta | null)[] = Array(MAX_LOCAL_SLOTS).fill(null)
       for (let i = 0; i < MAX_LOCAL_SLOTS; i++) {
-        result[i] = parsed[i] ?? null
+        const meta = parsed[i]
+        result[i] = meta ? { ...meta, kind: normalizeWorldKind(meta.kind) } : null
       }
       return result
     } catch {
@@ -175,7 +182,7 @@ export class MultiWorldStore {
       this.storage.setItem(`${SLOT_KEY_PREFIX}${index}`, serialize(data))
       const slots = this.listSlots()
       const updated = [...slots] as (LocalWorldMeta | null)[]
-      updated[index] = { name, savedAt: new Date().toISOString() }
+      updated[index] = { name, savedAt: new Date().toISOString(), kind: normalizeWorldKind(data.worldKind) }
       this.storage.setItem(SLOTS_INDEX_KEY, JSON.stringify(updated))
       return true
     } catch {

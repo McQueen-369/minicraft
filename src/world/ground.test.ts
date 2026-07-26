@@ -5,8 +5,8 @@ import { flattenSite, supportColumn } from './ground'
 import type { Terrain } from './terrain'
 
 /** Terrain stub with a controllable surface height. */
-function terrainAt(heightAt: (x: number, z: number) => number): Terrain {
-  return { heightAt } as unknown as Terrain
+function terrainAt(heightAt: (x: number, z: number) => number, surfaceBlock: BlockId = BlockId.Grass): Terrain {
+  return { heightAt, surfaceBlock } as unknown as Terrain
 }
 
 function recorder() {
@@ -25,6 +25,12 @@ describe('flattenSite', () => {
     for (let y = 41; y <= 44; y++) expect(rec.at(0, y, 0)).toBe(BlockId.Dirt)
     expect(rec.at(0, 45, 0)).toBe(BlockId.Grass)
     expect(rec.at(0, 40, 0)).toBeUndefined() // natural ground is left alone
+  })
+
+  it('caps the site with the world\'s own surface block', () => {
+    const rec = recorder()
+    flattenSite(terrainAt(() => 40, BlockId.MetalPanel), rec.set, { x0: 0, x1: 0, z0: 0, z1: 0, floorY: 45 })
+    expect(rec.at(0, 45, 0)).toBe(BlockId.MetalPanel)
   })
 
   it('uses sand for the part of the embankment below the waterline', () => {

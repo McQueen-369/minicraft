@@ -2,6 +2,7 @@ import type { SavedAnimal } from '../entities/entityManager'
 import type { SavedFurniture } from '../entities/furniture'
 import type { ChestContents, Slot } from '../items/items'
 import type { Appearance } from '../player/appearance'
+import type { WorldKind } from '../world/worldKind'
 
 export const PROTOCOL_VERSION = 1
 
@@ -31,6 +32,8 @@ export interface SnapshotMsg {
   /** Host's own player id, so guests can detect when the host disconnects. */
   hostId: string
   seed: number
+  /** Terrain or robot world; absent from hosts running an older build. */
+  worldKind?: WorldKind
   skyTime: number
   edits: Record<string, number>
   chests: Record<string, ChestContents>

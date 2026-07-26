@@ -29,10 +29,20 @@ export interface Animal extends PhysicsState {
   nextEggDay?: number
   /** Tamed chickens: an egg is waiting to be collected (right-click). */
   eggReady?: boolean
-  /** Zombies: remaining hit points; dies at 0. */
+  /** Hostile mobs: remaining hit points; dies at 0. */
   health?: number
-  /** Zombies: seconds until this mob may strike the player again. */
+  /** Hostile mobs: seconds until this mob may strike the player again. */
   attackCooldown?: number
+}
+
+/**
+ * Mobs that hunt the player after dark: zombies in a terrain world, bad robots
+ * in a robot world. They share every rule — spawning, chasing, striking, loot.
+ */
+export const HOSTILE_KINDS: readonly AnimalKind[] = ['zombie', 'robot']
+
+export function isHostile(kind: AnimalKind): boolean {
+  return kind === 'zombie' || kind === 'robot'
 }
 
 export const ANIMAL_DIMS: Record<AnimalKind, BoxDims> = {
@@ -45,6 +55,7 @@ export const ANIMAL_DIMS: Record<AnimalKind, BoxDims> = {
   villager: { width: 0.5, height: 1.8 },
   horse: { width: 1.0, height: 1.7 },
   zombie: { width: 0.6, height: 1.8 },
+  robot: { width: 0.7, height: 1.8 },
 }
 
 export const ANIMAL_SPEED: Record<AnimalKind, number> = {
@@ -57,6 +68,7 @@ export const ANIMAL_SPEED: Record<AnimalKind, number> = {
   villager: 0.9,
   horse: 2.5,
   zombie: 2.2,
+  robot: 2.2,
 }
 
 const SPAWN_SEED = 0xa21

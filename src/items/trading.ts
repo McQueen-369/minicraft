@@ -53,6 +53,7 @@ export const POOL: StockEntry[] = [
   { itemId: ItemId.Egg, name: 'Egg', desc: 'Cooking ingredient. Tamed chickens lay one every 2 days.', price: 6, qty: 8 },
   { itemId: ItemId.CookedFish, name: 'Cooked Fish', desc: 'Eat to restore 40 energy. Craft from fish + wood.', price: 14, qty: 6 },
   { itemId: ItemId.FishStew, name: 'Fish Stew', desc: 'Hearty dish — restores 80 energy when eaten.', price: 30, qty: 3 },
+  { itemId: ItemId.CannedFood, name: 'Canned Food', desc: 'Sealed ration — restores 45 energy. Tins stand around in robot worlds.', price: 16, qty: 6 },
   { itemId: ItemId.Fence, name: 'Fence', desc: 'Classic wooden fencing for pens and yards.', price: 6, qty: 12 },
   { itemId: ItemId.WoodPickaxe, name: 'Wood Pickaxe', desc: 'Speeds up mining stone blocks 4×.', price: 30, qty: 2 },
   { itemId: ItemId.StonePickaxe, name: 'Stone Pickaxe', desc: 'Fastest stone-mining tool (8×).', price: 60, qty: 1 },
