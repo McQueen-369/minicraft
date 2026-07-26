@@ -5,7 +5,7 @@ import type { AnimalKind } from '../items/items'
 import { mulberry32 } from '../core/rng'
 import type { Vec3 } from '../player/physics'
 import type { World } from '../world/world'
-import { ANIMAL_DIMS, animalsForChunk, type Animal, type AnimalMode } from './animal'
+import { ANIMAL_DIMS, animalsForChunk, isHostile, type Animal, type AnimalMode } from './animal'
 import { stepAnimal } from './animalAI'
 import { buildAnimalModel, disposeModel, type AnimalModel } from './animalModels'
 
@@ -14,19 +14,19 @@ const VIEW_DISTANCE = 96
 /** Tamed chickens lay an egg every this many in-game days. */
 export const EGG_INTERVAL_DAYS = 2
 
-/** Most zombies allowed alive at once (per simulating session). */
-const ZOMBIE_MAX = 8
-/** Seconds between night-time zombie spawn attempts. */
-const ZOMBIE_SPAWN_INTERVAL = 5
-/** Zombies appear this far from the player (never right on top of them). */
-const ZOMBIE_SPAWN_MIN = 18
-const ZOMBIE_SPAWN_MAX = 36
-/** Full health of a freshly spawned zombie. */
-export const ZOMBIE_HEALTH = 24
-/** Horizontal reach of a zombie's strike. */
-const ZOMBIE_STRIKE_RANGE = 1.4
-/** Seconds a zombie waits between strikes. */
-const ZOMBIE_STRIKE_COOLDOWN = 1.2
+/** Most hostile mobs allowed alive at once (per simulating session). */
+const HOSTILE_MAX = 8
+/** Seconds between night-time hostile spawn attempts. */
+const HOSTILE_SPAWN_INTERVAL = 5
+/** Hostile mobs appear this far from the player (never right on top of them). */
+const HOSTILE_SPAWN_MIN = 18
+const HOSTILE_SPAWN_MAX = 36
+/** Full health of a freshly spawned hostile mob. */
+export const HOSTILE_HEALTH = 24
+/** Horizontal reach of a hostile mob's strike. */
+const HOSTILE_STRIKE_RANGE = 1.4
+/** Seconds a hostile mob waits between strikes. */
+const HOSTILE_STRIKE_COOLDOWN = 1.2
 
 export interface SavedAnimal {
   id: string
@@ -47,18 +47,20 @@ export class EntityManager {
   private readonly models = new Map<string, AnimalModel>()
   private readonly rand = mulberry32(Date.now() & 0xffffffff)
   private releaseCounter = 0
-  private zombieCounter = 0
-  private zombieSpawnTimer = 0
+  private hostileCounter = 0
+  private hostileSpawnTimer = 0
   /** Called when a tamed chicken finishes laying (egg is ready to collect). */
   onEggReady: (animal: Animal) => void = () => {}
-  /** Called when a zombie lands a strike on the local player. */
-  onZombieAttack: () => void = () => {}
-  /** Called when the first zombie of a night rises. */
-  onZombieNight: () => void = () => {}
+  /** Called when a hostile mob lands a strike on the local player. */
+  onHostileAttack: () => void = () => {}
+  /** Called when the first hostile mob of a night rises. */
+  onHostileNight: () => void = () => {}
 
   constructor(
     private readonly scene: THREE.Scene,
     private readonly world: World,
+    /** Which mob comes out at night here: zombies, or a robot world's bad robots. */
+    private readonly hostileKind: AnimalKind = 'zombie',
   ) {}
 
   /**
@@ -77,7 +79,7 @@ export class EntityManager {
           this.animals.set(animal.id, animal)
         }
       }
-      this.updateZombiePopulation(dt, viewerPos, night)
+      this.updateHostilePopulation(dt, viewerPos, night)
     }
 
     const isSolidAt = (x: number, y: number, z: number) => isSolid(this.world.getBlock(x, y, z))
@@ -96,39 +98,39 @@ export class EntityManager {
           [...ownerPositions.values()].some((p) => dist2(animal.pos, p) < SIM_DISTANCE * SIM_DISTANCE)
         if (nearAnyone) {
           const ownerPos = animal.owner !== null ? (ownerPositions.get(animal.owner) ?? null) : null
-          const huntPos = animal.kind === 'zombie' ? nearestOf(animal.pos, viewerPos, ownerPositions) : null
+          const huntPos = isHostile(animal.kind) ? nearestOf(animal.pos, viewerPos, ownerPositions) : null
           stepAnimal(animal, dt, { isSolid: isSolidAt, ownerPos, huntPos, rand: this.rand })
         }
-        if (animal.kind === 'zombie') this.updateZombieStrike(animal, dt, viewerPos)
+        if (isHostile(animal.kind)) this.updateHostileStrike(animal, dt, viewerPos)
       }
       this.syncModel(animal, viewerPos)
     }
   }
 
-  /** Night: keep zombies rising near the player. Day: they all crumble away. */
-  private updateZombiePopulation(dt: number, viewerPos: Vec3, night: boolean): void {
+  /** Night: keep hostile mobs rising near the player. Day: they all crumble away. */
+  private updateHostilePopulation(dt: number, viewerPos: Vec3, night: boolean): void {
     if (!night) {
       for (const [id, a] of [...this.animals]) {
-        if (a.kind === 'zombie') this.capture(id)
+        if (isHostile(a.kind)) this.capture(id)
       }
-      this.zombieSpawnTimer = 0
+      this.hostileSpawnTimer = 0
       return
     }
-    this.zombieSpawnTimer -= dt
-    if (this.zombieSpawnTimer > 0) return
-    this.zombieSpawnTimer = ZOMBIE_SPAWN_INTERVAL
+    this.hostileSpawnTimer -= dt
+    if (this.hostileSpawnTimer > 0) return
+    this.hostileSpawnTimer = HOSTILE_SPAWN_INTERVAL
     let count = 0
-    for (const a of this.animals.values()) if (a.kind === 'zombie') count++
-    if (count >= ZOMBIE_MAX) return
+    for (const a of this.animals.values()) if (isHostile(a.kind)) count++
+    if (count >= HOSTILE_MAX) return
     const ang = this.rand() * Math.PI * 2
-    const dist = ZOMBIE_SPAWN_MIN + this.rand() * (ZOMBIE_SPAWN_MAX - ZOMBIE_SPAWN_MIN)
+    const dist = HOSTILE_SPAWN_MIN + this.rand() * (HOSTILE_SPAWN_MAX - HOSTILE_SPAWN_MIN)
     const x = Math.floor(viewerPos.x + Math.cos(ang) * dist)
     const z = Math.floor(viewerPos.z + Math.sin(ang) * dist)
     const h = this.world.terrain.heightAt(x, z)
-    if (h <= WATER_LEVEL + 1) return // zombies don't rise from lakes
-    const zombie: Animal = {
-      id: `zmb-${Date.now()}-${this.zombieCounter++}`,
-      kind: 'zombie',
+    if (h <= WATER_LEVEL + 1) return // nothing rises out of a lake
+    const mob: Animal = {
+      id: `hst-${Date.now()}-${this.hostileCounter++}`,
+      kind: this.hostileKind,
       pos: { x: x + 0.5, y: h + 1.01, z: z + 0.5 },
       vel: { x: 0, y: 0, z: 0 },
       yaw: this.rand() * Math.PI * 2,
@@ -138,43 +140,43 @@ export class EntityManager {
       decideIn: 0,
       walking: false,
       walkPhase: 0,
-      health: ZOMBIE_HEALTH,
+      health: HOSTILE_HEALTH,
     }
-    this.animals.set(zombie.id, zombie)
-    if (count === 0) this.onZombieNight()
+    this.animals.set(mob.id, mob)
+    if (count === 0) this.onHostileNight()
   }
 
-  /** Let a zombie strike the local player when close enough. */
-  private updateZombieStrike(zombie: Animal, dt: number, viewerPos: Vec3): void {
-    zombie.attackCooldown = Math.max(0, (zombie.attackCooldown ?? 0) - dt)
-    const dx = zombie.pos.x - viewerPos.x
-    const dz = zombie.pos.z - viewerPos.z
-    const dy = zombie.pos.y - viewerPos.y
-    if (dx * dx + dz * dz > ZOMBIE_STRIKE_RANGE * ZOMBIE_STRIKE_RANGE || Math.abs(dy) > 2) return
-    if (zombie.attackCooldown > 0) return
-    zombie.attackCooldown = ZOMBIE_STRIKE_COOLDOWN
-    this.onZombieAttack()
+  /** Let a hostile mob strike the local player when close enough. */
+  private updateHostileStrike(mob: Animal, dt: number, viewerPos: Vec3): void {
+    mob.attackCooldown = Math.max(0, (mob.attackCooldown ?? 0) - dt)
+    const dx = mob.pos.x - viewerPos.x
+    const dz = mob.pos.z - viewerPos.z
+    const dy = mob.pos.y - viewerPos.y
+    if (dx * dx + dz * dz > HOSTILE_STRIKE_RANGE * HOSTILE_STRIKE_RANGE || Math.abs(dy) > 2) return
+    if (mob.attackCooldown > 0) return
+    mob.attackCooldown = HOSTILE_STRIKE_COOLDOWN
+    this.onHostileAttack()
   }
 
   /**
-   * Apply weapon damage to a zombie, knocking it back from the attacker.
+   * Apply weapon damage to a hostile mob, knocking it back from the attacker.
    * Returns 'died' when the hit finished it off, 'hurt' otherwise.
    */
-  hurtZombie(id: string, damage: number, from: Vec3): 'died' | 'hurt' | null {
-    const zombie = this.animals.get(id)
-    if (!zombie || zombie.kind !== 'zombie') return null
-    zombie.health = (zombie.health ?? ZOMBIE_HEALTH) - damage
-    if (zombie.health <= 0) {
+  hurtHostile(id: string, damage: number, from: Vec3): 'died' | 'hurt' | null {
+    const mob = this.animals.get(id)
+    if (!mob || !isHostile(mob.kind)) return null
+    mob.health = (mob.health ?? HOSTILE_HEALTH) - damage
+    if (mob.health <= 0) {
       this.capture(id)
       return 'died'
     }
     // Knockback away from the attacker, with a little pop upward.
-    const dx = zombie.pos.x - from.x
-    const dz = zombie.pos.z - from.z
+    const dx = mob.pos.x - from.x
+    const dz = mob.pos.z - from.z
     const d = Math.hypot(dx, dz) || 1
-    zombie.vel.x = (dx / d) * 7
-    zombie.vel.z = (dz / d) * 7
-    zombie.vel.y = 4
+    mob.vel.x = (dx / d) * 7
+    mob.vel.z = (dz / d) * 7
+    mob.vel.y = 4
     return 'hurt'
   }
 

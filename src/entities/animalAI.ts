@@ -1,5 +1,5 @@
 import { stepPhysics, type SolidSampler, type Vec3 } from '../player/physics'
-import { ANIMAL_DIMS, ANIMAL_SPEED, type Animal } from './animal'
+import { ANIMAL_DIMS, ANIMAL_SPEED, isHostile, type Animal } from './animal'
 
 export interface AnimalContext {
   isSolid: SolidSampler
@@ -14,10 +14,10 @@ export interface AnimalContext {
 const FOLLOW_STOP = 2.5
 const FOLLOW_TELEPORT = 24
 const HOP_SPEED = 7
-/** How far a zombie can smell a player and start chasing. */
-export const ZOMBIE_AGGRO_RANGE = 28
-/** A zombie stops advancing once this close (it is striking distance). */
-const ZOMBIE_STOP = 1.1
+/** How far a hostile mob can sense a player and start chasing. */
+export const HOSTILE_AGGRO_RANGE = 28
+/** A hostile mob stops advancing once this close (it is striking distance). */
+const HOSTILE_STOP = 1.1
 
 /** Advance one animal by dt seconds. Pure given its context. */
 export function stepAnimal(a: Animal, dt: number, ctx: AnimalContext): void {
@@ -34,23 +34,23 @@ export function stepAnimal(a: Animal, dt: number, ctx: AnimalContext): void {
   }
 
   let speed = 0
-  const hunt = a.kind === 'zombie' ? ctx.huntPos : null
+  const hunt = isHostile(a.kind) ? ctx.huntPos : null
   if (hunt) {
     const dx = hunt.x - a.pos.x
     const dz = hunt.z - a.pos.z
     const d = Math.hypot(dx, dz)
-    if (d > ZOMBIE_STOP && d < ZOMBIE_AGGRO_RANGE) {
+    if (d > HOSTILE_STOP && d < HOSTILE_AGGRO_RANGE) {
       a.yaw = Math.atan2(dx, dz)
-      speed = ANIMAL_SPEED.zombie
-    } else if (d >= ZOMBIE_AGGRO_RANGE) {
-      // Out of smelling range: shamble around like a wanderer.
+      speed = ANIMAL_SPEED[a.kind]
+    } else if (d >= HOSTILE_AGGRO_RANGE) {
+      // Out of sensing range: shamble around like a wanderer.
       a.decideIn -= dt
       if (a.decideIn <= 0) {
         a.decideIn = 2 + ctx.rand() * 4
         a.walking = ctx.rand() < 0.6
         if (a.walking) a.yaw = ctx.rand() * Math.PI * 2
       }
-      if (a.walking) speed = ANIMAL_SPEED.zombie * 0.5
+      if (a.walking) speed = ANIMAL_SPEED[a.kind] * 0.5
     }
   } else if (a.mode === 'follow' && ctx.ownerPos) {
     const dx = ctx.ownerPos.x - a.pos.x

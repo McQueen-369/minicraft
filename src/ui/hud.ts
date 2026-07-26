@@ -2,6 +2,7 @@ import { HOTBAR_SIZE } from '../constants'
 import type { Inventory } from '../items/inventory'
 import { itemDef } from '../items/items'
 import { drawItemIcon } from './icons'
+import type { WorldKind } from '../world/worldKind'
 import type { InfoContent } from './info'
 
 const STYLE = `
@@ -246,6 +247,8 @@ export class HUD {
   private readonly sleepFade: HTMLDivElement
   private readonly playerList: HTMLDivElement
   private readonly instructionsOverlay: HTMLDivElement
+  private readonly worldHelp: HTMLDivElement
+  private worldKind: WorldKind = 'terrain'
   private readonly nameplate: HTMLDivElement
   private readonly nameplateName: HTMLSpanElement
   private readonly infoOverlay: HTMLDivElement
@@ -488,16 +491,7 @@ export class HUD {
       <p>USE — Place / Interact &nbsp; FLY — Toggle fly</p>
       <p>Double-tap the look area while aiming at your animal — Store it in the bag</p>
       <p>Tap the BAG slot by the hotbar — Open inventory &nbsp; Tap hotbar slot — Select item</p>
-      <h3>Energy, Food &amp; Sleep</h3>
-      <p>Mining costs energy (⚡ bar above the hotbar) — at 0 you're too tired to mine</p>
-      <p>Eat to refuel: Apple +20 &nbsp; Cooked Fish +40 &nbsp; Fish Stew +80 (USE with the food held)</p>
-      <p>Cook in the crafting menu: Fish + Wood → Cooked Fish; Cooked Fish + Egg + Apple → Fish Stew</p>
-      <p>Or go home and USE your bed to sleep until morning — restores full energy</p>
-      <h3>Zombies &amp; Swords</h3>
-      <p>Zombies rise at night and crumble at dawn — they chase you and their hits drain energy</p>
-      <p>Attack them exactly like mining: aim and hold left-click (mobile: hold the red ⛏ button)</p>
-      <p>You start with a Sword in your bag — hold it to hit much harder than bare hands</p>
-      <p>Defeated zombies drop Gold and sometimes a Diamond</p>
+      <div class="mc-help-world"></div>
       <h3>Digging Deep &amp; Lava</h3>
       <p>Keep digging and the stone gives way to glowing lava lakes, at least 12 blocks under the deepest ore</p>
       <p>Lava cannot be mined or picked up, and standing in it burns energy fast — hold Space to paddle back out</p>
@@ -549,6 +543,11 @@ export class HUD {
     hint.className = 'mc-instructions-hint'
     hint.textContent = 'Press Esc, click outside this card, or use ✕ Close to get back to the game.'
     box.appendChild(hint)
+
+    // Food and night-mob help depend on which kind of world is loaded, so that
+    // stretch of the card is rendered separately (see setWorldKind).
+    this.worldHelp = box.querySelector('.mc-help-world') as HTMLDivElement
+    this.renderWorldHelp()
 
     const closeBtn = box.querySelector('.mc-instructions-close')!
     const closeInstructions = (e?: Event) => { e?.preventDefault(); this.closeInstructions() }
@@ -680,6 +679,40 @@ export class HUD {
       this.toastTimer -= dt
       if (this.toastTimer <= 0) this.toast.style.opacity = '0'
     }
+  }
+
+  /** Retune the instructions card for the world that just loaded. */
+  setWorldKind(kind: WorldKind): void {
+    if (kind === this.worldKind) return
+    this.worldKind = kind
+    this.renderWorldHelp()
+  }
+
+  /** The food and night-mob help, which differ between terrain and robot worlds. */
+  private renderWorldHelp(): void {
+    const robot = this.worldKind === 'robot'
+    this.worldHelp.innerHTML = `
+      <h3>Energy, Food &amp; Sleep</h3>
+      <p>Mining costs energy (⚡ bar above the hotbar) — at 0 you're too tired to mine</p>
+      <p>Eat to refuel: ${
+        robot ? 'Canned Food +45' : 'Apple +20'
+      } &nbsp; Cooked Fish +40 &nbsp; Fish Stew +80 (USE with the food held)</p>
+      ${
+        robot
+          ? '<p>Canned Food tins stand out on the metal ground — MINE one to open it and pocket the meal</p>'
+          : '<p>Cook in the crafting menu: Fish + Wood → Cooked Fish; Cooked Fish + Egg + Apple → Fish Stew</p>'
+      }
+      <p>Or go home and USE your bed to sleep until morning — restores full energy</p>
+      <h3>${robot ? 'Bad Robots' : 'Zombies'} &amp; Swords</h3>
+      <p>${
+        robot
+          ? 'Bad robots power up at night and shut down at dawn — they chase you and their hits drain energy'
+          : 'Zombies rise at night and crumble at dawn — they chase you and their hits drain energy'
+      }</p>
+      <p>Attack them exactly like mining: aim and hold left-click (mobile: hold the red ⛏ button)</p>
+      <p>You start with a Sword in your bag — hold it to hit much harder than bare hands</p>
+      <p>Defeated ${robot ? 'bad robots' : 'zombies'} drop Gold and sometimes a Diamond</p>
+    `
   }
 
   get isInstructionsOpen(): boolean {

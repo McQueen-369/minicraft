@@ -7,6 +7,18 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 
 ## Features
 
+### World Types
+Every new world is created as one of two types — pick one on the landing page, and the saved-world list labels each world with the type it was made as (🌍 Terrain World / 🤖 Robot World).
+
+| | 🌍 Terrain World | 🤖 Robot World |
+|---|---|---|
+| Ground | Grass, dirt, sand | Riveted **metal panelling** over the same dirt and stone |
+| Food | Apples from apple trees | **Canned food** — tins with a label on the lid, standing on the ground |
+| Night mob | Zombies | **Bad robots** — metal chassis, red visor, antenna lamp |
+| Everything else | — identical — | Same terrain shape, ores, lava, villages, market, crafting, energy rules and the **Secret Island** |
+
+Both types share one seed-driven generator, so a robot world is the same landscape you would have explored in a terrain world, re-skinned and re-stocked. Saves record their type, so a world always reloads as what it was created as.
+
 ### World & Exploration
 - **Infinite procedural terrain** — seeded simplex-noise hills, rivers, lakes with sand beaches, streamed in chunks as you explore
 - **Expanded render distance** — 12-chunk view radius for wide-open exploration
@@ -18,7 +30,7 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 - **Navigation map** — the corner radar tracks you and shows nearby animals, with 🏠/🏝 distance readouts underneath; landmarks off the edge become direction arrows rather than icons pinned to the border. Press M (or tap the radar) for the expanded map, which auto-zooms to frame you, home and the island together, so every marker always sits on its true coordinate, with live coordinates and distances listed below it
 
 ### Blocks & Resources
-- **12+ block types** — Grass, Dirt, Stone, Sand, Wood, Leaves, Apple Leaves, Planks, Brick, Glass, Fence, Ladder, TNT (plus Lava, which lives in the world but is never an item)
+- **12+ block types** — Grass, Dirt, Stone, Sand, Wood, Leaves, Apple Leaves, Planks, Brick, Glass, Fence, Ladder, TNT, Metal Panel (plus Lava and Canned Food tins, which live in the world but are never carried as blocks)
 - **Gold Ore** — shiny yellow spots appear on the surface; rich veins run through deep stone layers
 - **Diamond Ore** — rare sparkling veins hidden 6+ blocks below the surface; drops Diamond gems used at the market smithy to strengthen your sword
 - **Lava** — glowing molten lakes pooled in the deepest stone. They always sit at least 12 blocks below the deepest ore, so breaking into one is the reward for a real dig. Lava lights its own cavern (the mesher skips face shading and occlusion on self-lit blocks, and a warm point light follows you into the chamber), cannot be mined, placed or collected, and burns your energy fast if you fall in — you sink slowly and paddle out with Space, so a scorching costs you stamina, never the session
@@ -52,9 +64,15 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 - About 30% of trees are apple trees — recognisable by the **red apples** visible in their leaf canopy
 - Breaking apple leaves drops an Apple; regular leaves drop a Leaf block (and occasionally a Bone)
 
+### Canned Food *(robot worlds)*
+- Robot worlds grow no apple trees; instead **canned food tins** stand on the metal ground, easy to spot by their red label
+- Every tin carries its **label on the lid**, so you can pick one out from above as well as head-on
+- **MINE a tin to open it** — it drops one Canned Food, worth **+45⚡** when eaten (USE with it held)
+- Tins also fill robot-world chests and mystery boxes, and the market trader stocks them in either kind of world
+
 ### Energy, Food & Sleep
 - A ⚡ **energy bar** (0–100) sits above the hotbar — mining costs energy, and at 0 you're too tired to mine
-- **Eat food to refuel**: Apple (+20), Cooked Fish (+40), Fish Stew (+80) — right-click with the food held
+- **Eat food to refuel**: Apple (+20), Cooked Fish (+40), Canned Food (+45), Fish Stew (+80) — right-click with the food held
 - **Cook** in the crafting panel: Fish + Wood → Cooked Fish; Cooked Fish + Egg + Apple → Fish Stew
 - **Sleep** in a bed (right-click) to jump straight to the next morning with a fully restored bar — the screen dims like closing your eyes, then fades back in at dawn
 - Energy, the day count, and island discovery all persist in your save
@@ -90,16 +108,17 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 - Aim at water and **right-click** to cast — works if the ray hits an underwater block or crosses the water surface
 - Visible **fish schools** swim beneath the surface
 
-### Zombies & Combat
-- **Zombies rise at night** and crumble to dust at dawn — they chase you and each strike drains 8⚡ energy
-- **Attacking is the mining action**: aim at a zombie and hold left-click (mobile: hold the red ⛏ button)
+### Night Mobs & Combat
+- **Zombies rise at night** in a terrain world; a robot world sends **bad robots** instead — same rules, different chassis
+- They crumble (or power down) at dawn, chase you meanwhile, and each strike drains 8⚡ energy
+- **Attacking is the mining action**: aim at the mob and hold left-click (mobile: hold the red ⛏ button)
 - **Every player starts with a Sword** in the bag — swords hit far harder than bare hands
-- Defeated zombies drop **2 Gold**, with a 30% chance of a bonus **Diamond**
+- Defeated mobs drop **2 Gold**, with a 30% chance of a bonus **Diamond**
 
 ### Sword Upgrades
 - Mine **Diamonds** deep underground, then spend them at the market **smithy**:
   - **Iron Blade** (4 💎) + Sword → **Iron Sword** (double damage) in the crafting menu
-  - **Diamond Edge** (8 💎) + Iron Sword → **Diamond Sword** (one-swing zombie kills)
+  - **Diamond Edge** (8 💎) + Iron Sword → **Diamond Sword** (one-swing kills on any night mob)
 
 ### Market
 - Visit the market stall in any village and **right-click** to open
@@ -184,6 +203,7 @@ Click **Create Profile** on the main menu to save worlds to the cloud (username 
 - Worlds autosave every 30 seconds and appear on any device you sign in from
 - Host a profile world online; the session saves back to your profile automatically
 - **Account settings** — once signed in, open **⚙ Settings** on the main menu to change your username or reset your password. Your saved worlds are keyed to your profile, so changing either leaves every world untouched
+- Cloud world rows show their world type. Apply `supabase/migrations/0002_world_kind.sql` so the server reports it; until then the type falls back to what this device remembers (and to Terrain World for anything older)
 
 ---
 
@@ -262,14 +282,14 @@ Click **Create Profile** on the main menu to save worlds to the cloud (username 
 ```
 src/
 ├── core/      blocks, chunk-coordinate math, seeded RNG
-├── world/     noise, terrain generation, chunked world with edit diffs, village + secret island builders
+├── world/     world kinds (terrain / robot), noise, terrain generation, chunked world with edit diffs, village + secret island builders
 ├── render/    procedural texture atlas, chunk mesher, day-night sky (with day counter), fish school, bird flock
 ├── player/    pointer-lock + touch controls, AABB voxel physics
 ├── interact/  voxel DDA raycast, mining / placing / animal / furniture / eating / sleeping interaction
 ├── items/     item registry, inventory (200 slots × 200 stack), crafting recipes, chest loot tables
-├── entities/  animal AI (wander / follow / stay / ridden), egg-laying chickens, blocky 3D models, entity manager
+├── entities/  animal AI (wander / follow / stay / ridden), night mobs (zombie / bad robot), egg-laying chickens, blocky 3D models, entity manager
 ├── net/       Supabase Realtime transport, remote avatars, multiplayer protocol, cloud-save API
 ├── ui/        HUD (energy bar, day timer), inventory / chest / crafting / market / arcade panels, minimap, menus, mobile controls,
 │           info cards + fun facts, challenge difficulty tiers
-└── persist/   localStorage save/load, 5-slot MultiWorldStore
+└── persist/   localStorage save/load (world kind included), 10-slot MultiWorldStore
 ```

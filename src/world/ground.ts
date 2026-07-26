@@ -20,7 +20,7 @@ export interface SiteOptions {
   z1: number
   /** Y of the finished walking surface. */
   floorY: number
-  /** Block laid on the surface (grass by default). */
+  /** Block laid on the surface (the world's own surface block by default). */
   cap?: number
   /** Air is cleared this far above the floor, on top of any terrain overhead. */
   clearance?: number
@@ -39,7 +39,7 @@ export interface SiteOptions {
  */
 export function flattenSite(terrain: Terrain, set: SetBlock, opts: SiteOptions): void {
   const { x0, x1, z0, z1, floorY } = opts
-  const cap = opts.cap ?? BlockId.Grass
+  const cap = opts.cap ?? terrain.surfaceBlock
   const clearance = opts.clearance ?? 4
   for (let x = x0; x <= x1; x++) {
     for (let z = z0; z <= z1; z++) {

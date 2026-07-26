@@ -67,6 +67,35 @@ describe('Menu signed out', () => {
     expect(b.has('Join a Friend')).toBe(true) // action button
   })
 
+  it('labels each local slot with its world type', () => {
+    const slots: (LocalWorldMeta | null)[] = [
+      { name: 'My World', savedAt: '2026-01-01T00:00:00Z', kind: 'terrain' },
+      { name: 'Scrapyard', savedAt: '2026-01-02T00:00:00Z', kind: 'robot' },
+      ...Array(3).fill(null),
+    ]
+    new Menu(document.body, makeCallbacks({ listLocalSlots: () => slots }))
+    const badges = [...document.querySelectorAll('.world-kind')].map((b) => b.textContent)
+    expect(badges[0]).toContain('Terrain World')
+    expect(badges[1]).toContain('Robot World')
+  })
+
+  it('creates a local world of the chosen type', () => {
+    const cb = makeCallbacks()
+    new Menu(document.body, cb)
+    buttons(document.body).get('Create New World')!.click()
+    buttons(document.body).get('🤖 Robot World')!.click()
+    buttons(document.body).get('Create')!.click()
+    expect(cb.onNewSlot).toHaveBeenCalledWith(0, 'World 1', 'robot')
+  })
+
+  it('defaults a new local world to the terrain type', () => {
+    const cb = makeCallbacks()
+    new Menu(document.body, cb)
+    buttons(document.body).get('Create New World')!.click()
+    buttons(document.body).get('Create')!.click()
+    expect(cb.onNewSlot).toHaveBeenCalledWith(0, 'World 1', 'terrain')
+  })
+
   it('shows profile prompt when Play is clicked, then calls onPlaySlot after skipping', () => {
     const slots: (LocalWorldMeta | null)[] = [
       { name: 'My World', savedAt: '2026-01-01T00:00:00Z' },
@@ -137,8 +166,8 @@ describe('Menu signed out', () => {
 
 describe('Menu signed in', () => {
   const WORLDS: WorldMeta[] = [
-    { id: 'w1', name: 'Hill Fort', updatedAt: '2026-06-12T10:00:00Z' },
-    { id: 'w2', name: 'Sea Base', updatedAt: '2026-06-11T10:00:00Z' },
+    { id: 'w1', name: 'Hill Fort', updatedAt: '2026-06-12T10:00:00Z', kind: 'terrain' },
+    { id: 'w2', name: 'Sea Base', updatedAt: '2026-06-11T10:00:00Z', kind: 'robot' },
   ]
   const signedIn = (over: Partial<MenuCallbacks> = {}) =>
     makeCallbacks({
@@ -194,7 +223,28 @@ describe('Menu signed in', () => {
     name.value = 'Castle'
     buttons(document.body).get('Create')!.click()
     await flush()
-    expect(cb.onCreateCloud).toHaveBeenCalledWith('Castle')
+    expect(cb.onCreateCloud).toHaveBeenCalledWith('Castle', 'terrain')
+  })
+
+  it('creates a robot world when that type is picked', async () => {
+    const cb = signedIn()
+    new Menu(document.body, cb)
+    await flush()
+    buttons(document.body).get('Create New World')!.click()
+    const name = [...document.querySelectorAll('input')].find((i) => i.placeholder === 'New world name')!
+    name.value = 'Scrapyard'
+    buttons(document.body).get('🤖 Robot World')!.click()
+    buttons(document.body).get('Create')!.click()
+    await flush()
+    expect(cb.onCreateCloud).toHaveBeenCalledWith('Scrapyard', 'robot')
+  })
+
+  it('labels each cloud world with its type', async () => {
+    new Menu(document.body, signedIn())
+    await flush()
+    const rows = document.querySelectorAll('.world-row')
+    expect(rows[0].querySelector('.world-kind')!.textContent).toContain('Terrain World')
+    expect(rows[1].querySelector('.world-kind')!.textContent).toContain('Robot World')
   })
 
   it('deletes only after confirmation', async () => {

@@ -1,4 +1,5 @@
 import { deserialize, serialize, type SaveData } from '../persist/storage'
+import { normalizeWorldKind, type WorldKind } from '../world/worldKind'
 import { getSupabase } from './supabase'
 
 /**
@@ -17,9 +18,38 @@ export interface WorldMeta {
   id: string
   name: string
   updatedAt: string
+  /** Terrain or robot world. */
+  kind: WorldKind
 }
 
 export const PROFILE_KEY = 'minicraft-profile-v1'
+const WORLD_KINDS_KEY = 'minicraft-cloud-world-kinds-v1'
+
+/**
+ * World kinds remembered on this device, keyed by cloud world id.
+ *
+ * `minicraft_list_worlds` reports the kind straight from the save (see the
+ * 0002 migration), but a project still running the older function returns rows
+ * without it. Everything created before robot worlds is a terrain world, so the
+ * only rows that would be mislabelled are robot worlds this device made — and
+ * those are exactly the ones this cache covers.
+ */
+function readKindCache(): Record<string, WorldKind> {
+  try {
+    const raw = localStorage.getItem(WORLD_KINDS_KEY)
+    return raw ? (JSON.parse(raw) as Record<string, WorldKind>) : {}
+  } catch {
+    return {}
+  }
+}
+
+export function rememberWorldKind(worldId: string, kind: WorldKind): void {
+  try {
+    localStorage.setItem(WORLD_KINDS_KEY, JSON.stringify({ ...readKindCache(), [worldId]: kind }))
+  } catch {
+    // ignore
+  }
+}
 
 export function loadStoredProfile(): Profile | null {
   try {
@@ -89,7 +119,14 @@ export async function changePassword(token: string, currentPassword: string, new
 }
 
 export async function listWorlds(token: string): Promise<WorldMeta[]> {
-  return rpc<WorldMeta[]>('minicraft_list_worlds', { p_token: token })
+  const rows = await rpc<(Omit<WorldMeta, 'kind'> & { kind?: unknown })[]>('minicraft_list_worlds', { p_token: token })
+  const cache = readKindCache()
+  return rows.map((w) => ({
+    id: w.id,
+    name: w.name,
+    updatedAt: w.updatedAt,
+    kind: normalizeWorldKind(w.kind ?? cache[w.id]),
+  }))
 }
 
 /** Create (worldId null) or overwrite a world; returns the world id. */
@@ -99,12 +136,14 @@ export async function saveWorld(
   name: string | null,
   data: SaveData,
 ): Promise<string> {
-  return rpc<string>('minicraft_save_world', {
+  const id = await rpc<string>('minicraft_save_world', {
     p_token: token,
     p_world_id: worldId,
     p_name: name,
     p_data: JSON.parse(serialize(data)),
   })
+  rememberWorldKind(id, normalizeWorldKind(data.worldKind))
+  return id
 }
 
 export async function loadWorld(token: string, worldId: string): Promise<SaveData> {

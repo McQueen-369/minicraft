@@ -236,6 +236,55 @@ function buildZombie(): AnimalModel {
   return { group, legs }
 }
 
+/**
+ * The robot world's night mob: a boxy chassis with a visor of red optics, a
+ * blinking antenna and grabber arms held out like a zombie's, so its silhouette
+ * still reads as "hostile" at a distance.
+ */
+function buildRobot(): AnimalModel {
+  const group = new THREE.Group()
+  const shell = 0x8f9aa6
+  const dark = 0x4d565f
+  const glow = 0xff3b30
+  const torso = box(0.56, 0.75, 0.34, shell)
+  torso.position.y = 1.05
+  // Chest panel with a power core.
+  const panel = box(0.3, 0.3, 0.04, dark)
+  panel.position.set(0, 1.12, 0.19)
+  const core = box(0.12, 0.12, 0.04, glow)
+  core.position.set(0, 1.12, 0.21)
+  // Head: a visor band of optics across a metal skull.
+  const head = box(0.44, 0.4, 0.42, shell)
+  head.position.set(0, 1.67, 0)
+  const visor = box(0.38, 0.14, 0.04, dark)
+  visor.position.set(0, 1.7, 0.22)
+  const eyeL = box(0.1, 0.08, 0.05, glow)
+  eyeL.position.set(-0.1, 1.7, 0.23)
+  const eyeR = box(0.1, 0.08, 0.05, glow)
+  eyeR.position.set(0.1, 1.7, 0.23)
+  // Antenna with a signal lamp.
+  const mast = box(0.05, 0.22, 0.05, dark)
+  mast.position.set(0.12, 1.98, 0)
+  const lamp = box(0.1, 0.1, 0.1, glow)
+  lamp.position.set(0.12, 2.13, 0)
+  // Grabber arms reaching forward.
+  const armL = box(0.15, 0.15, 0.55, shell)
+  armL.position.set(-0.33, 1.32, 0.3)
+  const armR = box(0.15, 0.15, 0.55, shell)
+  armR.position.set(0.33, 1.32, 0.3)
+  const clawL = box(0.17, 0.17, 0.1, dark)
+  clawL.position.set(-0.33, 1.32, 0.6)
+  const clawR = box(0.17, 0.17, 0.1, dark)
+  clawR.position.set(0.33, 1.32, 0.6)
+  group.add(torso, panel, core, head, visor, eyeL, eyeR, mast, lamp, armL, armR, clawL, clawR)
+  const legs = [
+    leg(0.19, 0.62, dark, -0.13, 0, 0.62),
+    leg(0.19, 0.62, dark, 0.13, 0, 0.62),
+  ]
+  group.add(...legs)
+  return { group, legs }
+}
+
 export function buildAnimalModel(kind: AnimalKind): AnimalModel {
   if (kind === 'pig') return buildPig()
   if (kind === 'sheep') return buildSheep()
@@ -245,6 +294,7 @@ export function buildAnimalModel(kind: AnimalKind): AnimalModel {
   if (kind === 'villager') return buildVillager()
   if (kind === 'horse') return buildHorse()
   if (kind === 'zombie') return buildZombie()
+  if (kind === 'robot') return buildRobot()
   return buildChicken()
 }
 

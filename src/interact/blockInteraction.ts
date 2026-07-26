@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { REACH, WATER_LEVEL } from '../constants'
 import { BlockId, blockDef, isSolid } from '../core/blocks'
+import { isHostile } from '../entities/animal'
 import type { EntityManager } from '../entities/entityManager'
 import type { FurnitureManager } from '../entities/furnitureManager'
 import type { Furniture, SavedFurniture } from '../entities/furniture'
@@ -73,10 +74,10 @@ export class BlockInteraction {
   onOpenArcade: (kind: string) => void = () => {}
   /** Called when the player collects a waiting egg from their chicken. */
   onCollectEgg: (animalId: string) => void = () => {}
-  /** Called when a swing lands on a zombie that survives the hit. */
-  onZombieHit: () => void = () => {}
-  /** Called when the player's swing finishes a zombie off. */
-  onZombieKilled: (pos: Vec3) => void = () => {}
+  /** Called when a swing lands on a hostile mob that survives the hit. */
+  onHostileHit: () => void = () => {}
+  /** Called when the player's swing finishes a hostile mob off. */
+  onHostileKilled: (pos: Vec3) => void = () => {}
 
   private leftDown = false
   /** Seconds into the current weapon swing (null = not attacking). */
@@ -261,12 +262,13 @@ export class BlockInteraction {
   }
 
   /**
-   * Attacking is the mining action pointed at a zombie: hold MINE / left-click
-   * to swing the held weapon; each completed swing lands one hit.
+   * Attacking is the mining action pointed at a hostile mob (zombie or bad
+   * robot): hold MINE / left-click to swing the held weapon; each completed
+   * swing lands one hit.
    */
   private updateAttack(dt: number): void {
     const target = this.targetAnimal
-    if (!this.leftDown || !target || target.kind !== 'zombie') {
+    if (!this.leftDown || !target || !isHostile(target.kind)) {
       this.attackSwing = null
       return
     }
@@ -276,13 +278,13 @@ export class BlockInteraction {
     this.attackSwing = 0
     const damage = (this.inventory.heldItemId !== null ? itemDef(this.inventory.heldItemId)?.damage : undefined) ?? 1
     const pos = { ...target.pos }
-    const result = this.entities.hurtZombie(target.id, damage, this.player.state.pos)
+    const result = this.entities.hurtHostile(target.id, damage, this.player.state.pos)
     if (result === 'died') {
       this.onAnimalEvent({ type: 'capture', animalId: target.id })
       this.targetAnimal = null
-      this.onZombieKilled(pos)
+      this.onHostileKilled(pos)
     } else if (result === 'hurt') {
-      this.onZombieHit()
+      this.onHostileHit()
     }
   }
 
@@ -369,7 +371,7 @@ export class BlockInteraction {
   }
 
   private collectMysteryBoxLoot(id: number, x: number, y: number, z: number): void {
-    const loot = mysteryBoxLoot(id)
+    const loot = mysteryBoxLoot(id, this.world.terrain.kind)
     for (const slot of loot) {
       if (slot) this.inventory.add(slot.itemId, slot.count)
     }

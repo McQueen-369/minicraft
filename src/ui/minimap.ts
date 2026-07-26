@@ -1,5 +1,6 @@
 import { WATER_LEVEL } from '../constants'
 import type { Terrain } from '../world/terrain'
+import type { WorldKind } from '../world/worldKind'
 
 export interface MapMarker {
   x: number
@@ -185,6 +186,8 @@ export class Minimap {
   private readonly scratch: HTMLCanvasElement
   private redrawIn = 0
   private terrain: Terrain | null = null
+  private readonly surfaceSwatch!: HTMLSpanElement
+  private readonly surfaceLabel!: Text
   private pos = { x: 0, z: 0 }
   private yaw = 0
   private markers: MapMarker[] = []
@@ -237,7 +240,7 @@ export class Minimap {
       ['#7ad0ff', 'Players'],
       ['#2e6fae', 'Water'],
       ['#d9cfa0', 'Sand'],
-      ['#5cab46', 'Grass'],
+      [SURFACE_SWATCH.terrain, SURFACE_LABEL.terrain],
       ['#9a9a9a', 'Hills'],
     ] as const) {
       const item = document.createElement('span')
@@ -246,6 +249,11 @@ export class Minimap {
       sw.className = 'sw'
       sw.style.background = color
       item.append(sw, document.createTextNode(text))
+      // The open-ground swatch is restyled per world kind once a world loads.
+      if (text === SURFACE_LABEL.terrain) {
+        this.surfaceSwatch = sw
+        this.surfaceLabel = item.lastChild as Text
+      }
       legend.appendChild(item)
     }
     const close = document.createElement('button')
@@ -309,6 +317,10 @@ export class Minimap {
   }
 
   update(terrain: Terrain, pos: { x: number; z: number }, yaw: number, markers: MapMarker[], dt: number): void {
+    if (terrain !== this.terrain) {
+      this.surfaceSwatch.style.background = SURFACE_SWATCH[terrain.kind]
+      this.surfaceLabel.data = SURFACE_LABEL[terrain.kind]
+    }
     this.terrain = terrain
     this.pos = { x: pos.x, z: pos.z }
     this.yaw = yaw
@@ -433,7 +445,7 @@ export class Minimap {
       const wz = view.cz - view.half + (py + 0.5) * step
       for (let px = 0; px < samples; px++) {
         const wx = view.cx - view.half + (px + 0.5) * step
-        const [r, g, b] = terrainColor(terrain.heightAt(Math.round(wx), Math.round(wz)))
+        const [r, g, b] = terrainColor(terrain.heightAt(Math.round(wx), Math.round(wz)), terrain.kind)
         img.data[i++] = r
         img.data[i++] = g
         img.data[i++] = b
@@ -590,12 +602,19 @@ function drawPlayerArrow(ctx: CanvasRenderingContext2D, x: number, y: number, ya
   ctx.restore()
 }
 
-function terrainColor(h: number): [number, number, number] {
+/** Legend swatch and label for a world's open ground. */
+const SURFACE_SWATCH: Record<WorldKind, string> = { terrain: '#5cab46', robot: '#8f9aa6' }
+const SURFACE_LABEL: Record<WorldKind, string> = { terrain: 'Grass', robot: 'Metal panelling' }
+
+function terrainColor(h: number, kind: WorldKind = 'terrain'): [number, number, number] {
   if (h <= WATER_LEVEL) return [46, 111, 174] // water
   if (h <= WATER_LEVEL + 1) return [217, 207, 160] // sand
   if (h >= 62) return [232, 232, 232] // snowy peaks
   if (h >= 52) return [154, 154, 154] // bare stone hills
-  // Grass, darkening with elevation.
+  // Open ground, darkening with elevation: grass, or alloy decking in a robot world.
   const t = Math.min(1, (h - (WATER_LEVEL + 2)) / 26)
+  if (kind === 'robot') {
+    return [Math.round(143 - t * 45), Math.round(154 - t * 48), Math.round(166 - t * 50)]
+  }
   return [Math.round(92 - t * 30), Math.round(171 - t * 60), Math.round(70 - t * 25)]
 }

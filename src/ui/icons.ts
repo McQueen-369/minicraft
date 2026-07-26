@@ -139,6 +139,19 @@ export function drawItemIcon(canvas: HTMLCanvasElement, itemId: number, atlasCan
       p(10, 2, 1, 3, 'rgba(232,232,232,0.7)')
       break
     }
+    case ItemId.CannedFood: {
+      // Tin with the label wrapped round it and the lid label on top.
+      p(4, 2, 8, 2, '#9aa6b2')      // lid rim
+      p(5, 2, 6, 1, '#c7d2dc')      // lid shine
+      p(5, 3, 6, 1, '#c0392b')      // lid label
+      p(4, 4, 8, 9, '#9aa6b2')      // body
+      p(4, 5, 8, 6, '#c0392b')      // label band
+      p(4, 5, 8, 1, '#e05a48')      // label highlight
+      p(5, 7, 2, 2, '#f4f1e6')      // bowl mark
+      p(8, 7, 2, 2, '#f4f1e6')
+      p(4, 12, 8, 1, '#6b7681')     // base shadow
+      break
+    }
     case ItemId.Bone: {
       for (let i = 0; i < 7; i++) p(4 + i, 4 + i, 2.5, 2.5, '#f0ede5')  // shaft
       p(2, 2, 5, 4, '#f0ede5')    // end knob A

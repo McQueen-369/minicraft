@@ -7,7 +7,7 @@ import type { SolidSampler } from '../player/physics'
 import { Terrain } from '../world/terrain'
 import { WATER_LEVEL } from '../constants'
 import type { Animal } from './animal'
-import { stepAnimal, ZOMBIE_AGGRO_RANGE, type AnimalContext } from './animalAI'
+import { stepAnimal, HOSTILE_AGGRO_RANGE, type AnimalContext } from './animalAI'
 
 const floor: SolidSampler = (_x, y) => y < 10
 
@@ -51,7 +51,7 @@ describe('zombie AI', () => {
 
   it('does not chase players beyond its aggro range', () => {
     const z = zombie()
-    const far = ZOMBIE_AGGRO_RANGE + 20
+    const far = HOSTILE_AGGRO_RANGE + 20
     const c = ctx({ huntPos: { x: far + 0.5, y: 10, z: 0.5 } })
     for (let i = 0; i < 300; i++) stepAnimal(z, 1 / 30, c)
     // Shambling randomly, it should not have closed in on the distant target.

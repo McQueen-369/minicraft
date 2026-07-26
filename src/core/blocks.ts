@@ -20,6 +20,8 @@ export const BlockId = {
   Fence: 18,
   DiamondOre: 19,
   Lava: 20,
+  MetalPanel: 21,
+  CannedFood: 22,
 } as const
 
 export type BlockId = (typeof BlockId)[keyof typeof BlockId]
@@ -54,6 +56,10 @@ export const Tile = {
   Fence: 25,
   DiamondOreSide: 26,
   Lava: 27,
+  MetalPanelTop: 28,
+  MetalPanelSide: 29,
+  CanTop: 30,
+  CanSide: 31,
 } as const
 
 export type ToolType = 'pickaxe' | 'axe' | 'shears'
@@ -149,10 +155,20 @@ export const BLOCKS: Record<BlockId, BlockDef | null> = {
     solid: false,
     emissive: true,
   }),
+  // Robot worlds pave their surface with riveted alloy instead of grass.
+  [BlockId.MetalPanel]: def('Metal Panel', { top: Tile.MetalPanelTop, side: Tile.MetalPanelSide, bottom: Tile.MetalPanelSide }, 1.2, 'pickaxe', {
+    id: BlockId.MetalPanel,
+  }),
+  // A supply tin standing on the surface of a robot world — the world's food
+  // source. Breaking it opens the can (it drops the food, never the tin).
+  [BlockId.CannedFood]: def('Canned Food', { top: Tile.CanTop, side: Tile.CanSide, bottom: Tile.CanSide }, 0.6, null, {
+    id: BlockId.CannedFood,
+    drops: 119, // ItemId.CannedFood — the meal inside, not the container
+  }),
 }
 
 /** Blocks that exist in the world but can never be held or placed. */
-export const NON_ITEM_BLOCKS: ReadonlySet<number> = new Set<number>([BlockId.Lava])
+export const NON_ITEM_BLOCKS: ReadonlySet<number> = new Set<number>([BlockId.Lava, BlockId.CannedFood])
 
 export function isOpaque(id: number): boolean {
   return BLOCKS[id as BlockId]?.opaque ?? false

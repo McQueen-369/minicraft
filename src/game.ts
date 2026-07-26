@@ -30,7 +30,7 @@ import { createAtlas, type Atlas } from './render/atlas'
 import { ChunkRenderer } from './render/chunkRenderer'
 import { Sky } from './render/sky'
 import { HUD } from './ui/hud'
-import { animalInfo, itemInfo } from './ui/info'
+import { animalInfo, animalLabel, itemInfo } from './ui/info'
 import { Menu } from './ui/menu'
 import { MobileControls } from './ui/mobileControls'
 import { Panels } from './ui/panels'
@@ -43,6 +43,7 @@ import { FishSchool } from './render/fish'
 import { BirdFlock } from './render/birds'
 import { LAVA_MAX_Y, Terrain } from './world/terrain'
 import { World } from './world/world'
+import { normalizeWorldKind, WORLD_KIND_LABEL, type WorldKind } from './world/worldKind'
 
 type Mode = 'single' | 'host' | 'guest'
 
@@ -60,9 +61,14 @@ interface Session {
   fish: FishSchool
   birds: BirdFlock
   seed: number
+  kind: WorldKind
   spawn: { x: number; z: number }
   builtVillages: Set<string>
 }
+
+/** How the night mob is named in toasts, per world kind. */
+const HOSTILE_NAME: Record<WorldKind, string> = { terrain: 'Zombie', robot: 'Bad Robot' }
+const HOSTILE_EMOJI: Record<WorldKind, string> = { terrain: '🧟', robot: '🤖' }
 
 export class Game {
   private readonly renderer: THREE.WebGLRenderer
@@ -142,7 +148,7 @@ export class Game {
     this.menu = new Menu(root, {
       listLocalSlots: () => this.worldStore.listSlots(),
       onPlaySlot: (index) => this.startSlot(index),
-      onNewSlot: (index, name) => this.newSlot(index, name),
+      onNewSlot: (index, name, kind) => this.newSlot(index, name, kind),
       onDeleteSlot: (index) => this.worldStore.deleteSlot(index),
       onHostSlot: (index, playerName, roomCode) => this.startHostSlot(index, playerName, roomCode),
       onJoin: (name, code) => this.startJoin(name, code),
@@ -173,7 +179,7 @@ export class Game {
       listWorlds: () => this.guarded(() => cloud.listWorlds(this.profile!.token)),
       onPlayCloud: (w) => this.guarded(() => this.startCloud(w, 'single')),
       onHostCloud: (w, roomCode) => this.guarded(() => this.startCloud(w, 'host', roomCode)),
-      onCreateCloud: (name) => this.guarded(() => this.createCloudWorld(name)),
+      onCreateCloud: (name, kind) => this.guarded(() => this.createCloudWorld(name, kind)),
       onDeleteCloud: (w) => this.guarded(() => cloud.deleteWorld(this.profile!.token, w.id)),
     })
 
@@ -277,6 +283,7 @@ export class Game {
       if (!this.controls.isLocked && this.playing && !this.overlayOpen) {
         this.menu.showPause(
           [
+            this.session ? WORLD_KIND_LABEL[this.session.kind] : null,
             this.cloudWorld ? `"${this.cloudWorld.name}" saves to ${this.profile?.username ?? 'your profile'}` : null,
             this.mp ? `Room ${this.mp.roomCode} stays open` : null,
           ]
@@ -385,12 +392,17 @@ export class Game {
 
   // ---------------------------------------------------------------- sessions
 
-  private createSession(seed: number, save: SaveData | null, spawnOverride?: { x: number; y: number; z: number }): void {
+  private createSession(
+    seed: number,
+    save: SaveData | null,
+    kind: WorldKind,
+    spawnOverride?: { x: number; y: number; z: number },
+  ): void {
     this.teardownSession()
-    const terrain = new Terrain(seed)
+    const terrain = new Terrain(seed, kind)
     const edits = new Map<string, number>(Object.entries(save?.edits ?? {}))
     const chests = new Map<string, ChestContents>(Object.entries(save?.chests ?? {}))
-    const world = new World(terrain, { edits, chests, chestLoot: (x, _y, z) => chestLoot(seed, x, z) })
+    const world = new World(terrain, { edits, chests, chestLoot: (x, _y, z) => chestLoot(seed, x, z, kind) })
     const scene = new THREE.Scene()
     const sky = new Sky(scene)
     if (save) {
@@ -401,7 +413,7 @@ export class Game {
     this.islandFound = save?.islandFound ?? false
     const chunkRenderer = new ChunkRenderer(scene, world, this.atlas)
     const player = new Player(world)
-    const entities = new EntityManager(scene, world)
+    const entities = new EntityManager(scene, world, kind === 'robot' ? 'robot' : 'zombie')
     if (save) entities.load(save.animals)
     const furniture = new FurnitureManager(scene)
     if (save) furniture.load(save.furniture)
@@ -426,14 +438,14 @@ export class Game {
     if (!save) this.inventory.add(ItemId.Net, 1)
     if (!save) {
       // Fresh world: start with every sword tier already forged so players
-      // can fight night zombies at full strength immediately. Crafting
+      // can fight the night mobs at full strength immediately. Crafting
       // recipes stay available to replace a blade that's lost or given away.
       this.inventory.add(ItemId.Sword, 1)
       this.inventory.add(ItemId.IronSword, 1)
       this.inventory.add(ItemId.DiamondSword, 1)
     } else {
-      // Returning players always keep at least a basic sword so night
-      // zombies remain fightable even if every sword was lost or dropped.
+      // Returning players always keep at least a basic sword so the night
+      // mobs remain fightable even if every sword was lost or dropped.
       const hasSword = [ItemId.Sword, ItemId.IronSword, ItemId.DiamondSword].some((id) => this.inventory.countOf(id) > 0)
       if (!hasSword) this.inventory.add(ItemId.Sword, 1)
     }
@@ -521,17 +533,22 @@ export class Game {
       }
     }
     entities.onEggReady = () => this.hud.showToast('🥚 One of your chickens laid an egg — right-click it to collect!')
-    // ---- Zombies: they rise at night, strike drains energy, kills pay loot. ----
-    entities.onZombieNight = () => this.hud.showToast('🌙 Zombies are rising — ready your sword!')
-    entities.onZombieAttack = () => {
-      this.energy = Math.max(0, this.energy - ZOMBIE_HIT_ENERGY)
-      this.hud.showToast(`🧟 A zombie hit you! (-${ZOMBIE_HIT_ENERGY}⚡) Fight back or run!`)
+    // ---- Night mobs: they rise at night, strike drains energy, kills pay loot.
+    // Terrain worlds send zombies; robot worlds send bad robots. ----
+    const mob = HOSTILE_NAME[kind]
+    const mobEmoji = HOSTILE_EMOJI[kind]
+    entities.onHostileNight = () => this.hud.showToast(`🌙 ${mob}s are rising — ready your sword!`)
+    entities.onHostileAttack = () => {
+      this.energy = Math.max(0, this.energy - HOSTILE_HIT_ENERGY)
+      this.hud.showToast(`${mobEmoji} A ${mob.toLowerCase()} hit you! (-${HOSTILE_HIT_ENERGY}⚡) Fight back or run!`)
     }
-    interaction.onZombieKilled = () => {
+    interaction.onHostileKilled = () => {
       this.inventory.add(ItemId.Gold, 2)
       const bonusDiamond = Math.random() < 0.3
       if (bonusDiamond) this.inventory.add(ItemId.Diamond, 1)
-      this.hud.showToast(bonusDiamond ? '⚔️ Zombie defeated! +2 Gold +1 Diamond' : '⚔️ Zombie defeated! +2 Gold')
+      this.hud.showToast(
+        bonusDiamond ? `⚔️ ${mob} defeated! +2 Gold +1 Diamond` : `⚔️ ${mob} defeated! +2 Gold`,
+      )
     }
     interaction.onOpenMarket = () => {
       this.market.open(seed)
@@ -617,7 +634,7 @@ export class Game {
 
     const fish = new FishSchool(scene, seed)
     const birds = new BirdFlock(scene, seed)
-    this.session = { world, scene, player, chunkRenderer, entities, furniture, decorations, interaction, sky, water, fish, birds, seed, spawn, builtVillages: new Set() }
+    this.session = { world, scene, player, chunkRenderer, entities, furniture, decorations, interaction, sky, water, fish, birds, seed, kind, spawn, builtVillages: new Set() }
     this.worldReady = false
     this.saveTimer = 0
   }
@@ -646,16 +663,16 @@ export class Game {
     const slots = this.worldStore.listSlots()
     this.activeSlotName = slots[index]?.name ?? `World ${index + 1}`
     const save = this.worldStore.loadSlot(index)
-    this.createSession(save?.seed ?? randomSeed(), save)
+    this.createSession(save?.seed ?? randomSeed(), save, normalizeWorldKind(save?.worldKind ?? slots[index]?.kind))
     this.beginPlay()
   }
 
-  private newSlot(index: number, name: string): void {
+  private newSlot(index: number, name: string, kind: WorldKind): void {
     this.mode = 'single'
     this.cloudWorld = null
     this.activeSlotIndex = index
     this.activeSlotName = name
-    this.createSession(randomSeed(), null)
+    this.createSession(randomSeed(), null, kind)
     this.worldStore.saveSlot(index, name, this.buildSaveData())
     this.beginPlay()
   }
@@ -668,7 +685,7 @@ export class Game {
     const transport = await connectChannel(roomCode)
     this.mode = 'host'
     this.cloudWorld = null
-    this.createSession(save?.seed ?? randomSeed(), save)
+    this.createSession(save?.seed ?? randomSeed(), save, normalizeWorldKind(save?.worldKind ?? slots[index]?.kind))
     this.mp = new Multiplayer('host', roomCode, transport, this.session!.scene, this.playerId, playerName, this.hooks(), loadAppearance(localStorage))
     this.beginPlay()
     this.hud.showToast(`Hosting room ${roomCode} — share the code!`)
@@ -684,25 +701,25 @@ export class Game {
       const transport = await connectChannel(code)
       this.mode = 'host'
       this.cloudWorld = { id: w.id, name: w.name }
-      this.createSession(save.seed, save)
+      this.createSession(save.seed, save, normalizeWorldKind(save.worldKind ?? w.kind))
       this.mp = new Multiplayer('host', code, transport, this.session!.scene, this.playerId, profile.username, this.hooks(), loadAppearance(localStorage))
       this.beginPlay()
       this.hud.showToast(`Hosting "${w.name}" in room ${code} — the session saves to your profile`)
     } else {
       this.mode = 'single'
       this.cloudWorld = { id: w.id, name: w.name }
-      this.createSession(save.seed, save)
+      this.createSession(save.seed, save, normalizeWorldKind(save.worldKind ?? w.kind))
       this.beginPlay()
     }
   }
 
   /** Generate a fresh world and persist it to the profile before playing. */
-  private async createCloudWorld(name: string): Promise<void> {
+  private async createCloudWorld(name: string, kind: WorldKind): Promise<void> {
     const profile = this.profile
     if (!profile) throw new Error('Sign in first')
     this.mode = 'single'
     this.cloudWorld = null
-    this.createSession(randomSeed(), null)
+    this.createSession(randomSeed(), null, kind)
     try {
       const id = await cloud.saveWorld(profile.token, null, name, this.buildSaveData())
       this.cloudWorld = { id, name }
@@ -754,6 +771,7 @@ export class Game {
         void forId
         return {
           seed: s.seed,
+          worldKind: s.kind,
           skyTime: s.sky.time,
           edits: Object.fromEntries(s.world.edits),
           chests: Object.fromEntries(s.world.chests),
@@ -773,8 +791,9 @@ export class Game {
           animals: snap.animals,
           furniture: snap.furniture ?? [],
           skyTime: snap.skyTime,
+          worldKind: normalizeWorldKind(snap.worldKind),
         }
-        this.createSession(snap.seed, save, snap.spawn)
+        this.createSession(snap.seed, save, normalizeWorldKind(snap.worldKind), snap.spawn)
       },
       applyEdit: (x: number, y: number, z: number, id: number) => {
         this.session?.world.setBlock(x, y, z, id)
@@ -851,6 +870,7 @@ export class Game {
     this.minimap.show()
     this.chat.show()
     if (this.session) {
+      this.hud.setWorldKind(this.session.kind)
       this.minimap.setHome(this.session.spawn.x, this.session.spawn.z)
       this.minimap.setIsland(this.session.world.terrain.island.x, this.session.world.terrain.island.z)
     }
@@ -1190,7 +1210,7 @@ export class Game {
       const tb = s.interaction.targetBlock
       if (animal) {
         key = `a:${animal.kind}${animal.eggReady ? ':egg' : ''}`
-        name = animal.kind.charAt(0).toUpperCase() + animal.kind.slice(1)
+        name = animalLabel(animal.kind)
         if (animal.eggReady) name += ' 🥚 (egg ready!)'
         info = animalInfo(animal.kind)
       } else if (furn) {
@@ -1307,14 +1327,15 @@ export class Game {
       skyDay: s.sky.day,
       energy: this.energy,
       islandFound: this.islandFound,
+      worldKind: s.kind,
     }
   }
 }
 
 /** TNT is a free explosive freebie every session starts topped up to. */
 const TNT_SESSION_COUNT = 200
-/** Energy lost each time a zombie lands a strike. */
-const ZOMBIE_HIT_ENERGY = 8
+/** Energy lost each time a night mob lands a strike. */
+const HOSTILE_HIT_ENERGY = 8
 /** Energy burned away per second of standing in lava. */
 const LAVA_ENERGY_PER_SECOND = 14
 /** How far the molten glow reaches, in blocks. */

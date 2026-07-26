@@ -3,6 +3,7 @@ import { BlockId } from '../core/blocks'
 import { localIndex } from '../core/coords'
 import { hash2D } from '../core/rng'
 import { makeNoise2D, type Noise2D } from './noise'
+import type { WorldKind } from './worldKind'
 
 const TREE_PROB = 0.008
 const CHEST_PROB = 0.0006
@@ -10,6 +11,13 @@ const TREE_SEED = 0x7ee5
 const CHEST_SEED = 0xc4e5
 const APPLE_TREE_SEED = 0x3e7a1b
 const APPLE_TREE_PROB = 0.30
+const CAN_SEED = 0xca77ed
+/**
+ * Robot worlds have no apple trees, so supply tins take their place as the
+ * world's food source. They are far more common than loot chests — food has to
+ * be findable by walking around, not by hunting.
+ */
+const CAN_PROB = 0.006
 const MYSTERY_BOX_PROB = 0.0002
 const MYSTERY_RARE_PROB = 0.00008
 const MYSTERY_EPIC_PROB = 0.00002
@@ -59,8 +67,14 @@ export class Terrain {
   private readonly lava: Noise2D
   /** Centre of the secret mini-game island (deterministic per seed). */
   readonly island: { x: number; z: number }
+  /** Block laid on top of every dry column — grass, or alloy decking in a robot world. */
+  readonly surfaceBlock: BlockId
 
-  constructor(readonly seed: number) {
+  constructor(
+    readonly seed: number,
+    readonly kind: WorldKind = 'terrain',
+  ) {
+    this.surfaceBlock = kind === 'robot' ? BlockId.MetalPanel : BlockId.Grass
     this.hills = makeNoise2D(seed, 4, 1 / 160)
     this.detail = makeNoise2D(seed ^ 0x5eed, 2, 1 / 31)
     // Broad, smooth field: lava gathers in a few large basins rather than
@@ -130,9 +144,21 @@ export class Terrain {
     return { trunkHeight: Math.min(trunkHeight, MAX_TRUNK) }
   }
 
-  /** Returns true if the tree at (x,z) is an apple tree (~30% of trees). */
+  /** Returns true if the tree at (x,z) is an apple tree (~30% of trees, terrain worlds only). */
   isAppleTree(x: number, z: number): boolean {
+    if (this.kind === 'robot') return false
     return this.treeAt(x, z) !== null && hash2D(this.seed ^ APPLE_TREE_SEED, x, z) < APPLE_TREE_PROB
+  }
+
+  /**
+   * Deterministic canned-food tin standing on the surface (robot worlds only,
+   * sits at heightAt + 1, like a chest).
+   */
+  cannedFoodAt(x: number, z: number): boolean {
+    if (this.kind !== 'robot') return false
+    if (hash2D(this.seed ^ CAN_SEED, x, z) >= CAN_PROB) return false
+    if (this.chestAt(x, z) || this.treeAt(x, z) || this.mysteryBoxAt(x, z) !== null) return false
+    return this.heightAt(x, z) > WATER_LEVEL + 1
   }
 
   /** Deterministic naturally generated chest (sits at heightAt + 1). */
@@ -166,7 +192,7 @@ export class Terrain {
       if (y === h) {
         // Rare gold-spotted surface outcrop (visual hint for underground gold)
         if (h > WATER_LEVEL + 2 && hash2D(this.seed ^ (GOLD_SEED + 1), x, z) < GOLD_SURFACE_PROB) return BlockId.GoldOre
-        return BlockId.Grass
+        return this.surfaceBlock
       }
       if (y >= h - 2) return BlockId.Dirt
       // Molten basins replace the deepest stone entirely, ore included.
@@ -180,6 +206,7 @@ export class Terrain {
     if (this.chestAt(x, z) && y === h + 1) return BlockId.Chest
     const mbox = this.mysteryBoxAt(x, z)
     if (mbox !== null && y === h + 1) return mbox
+    if (this.cannedFoodAt(x, z) && y === h + 1) return BlockId.CannedFood
     // Trunk of a tree rooted in this column.
     const own = this.treeAt(x, z)
     if (own && y <= h + own.trunkHeight) return BlockId.Wood
@@ -227,7 +254,7 @@ export class Terrain {
           if (y >= h - 2 && sandy) id = BlockId.Sand
           else if (y === h) {
             if (!sandy && hash2D(this.seed ^ (GOLD_SEED + 1), wx, wz) < GOLD_SURFACE_PROB) id = BlockId.GoldOre
-            else id = BlockId.Grass
+            else id = this.surfaceBlock
           }
           else if (y >= h - 2) id = BlockId.Dirt
           else if (y >= 1 && y <= lavaTop) id = BlockId.Lava
@@ -242,6 +269,9 @@ export class Terrain {
         const mbox = this.mysteryBoxAt(wx, wz)
         if (mbox !== null && h + 1 < WORLD_HEIGHT) {
           data[localIndex(lx, h + 1, lz)] = mbox
+        }
+        if (this.cannedFoodAt(wx, wz) && h + 1 < WORLD_HEIGHT) {
+          data[localIndex(lx, h + 1, lz)] = BlockId.CannedFood
         }
       }
     }
