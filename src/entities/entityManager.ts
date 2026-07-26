@@ -5,6 +5,7 @@ import type { AnimalKind } from '../items/items'
 import { mulberry32 } from '../core/rng'
 import type { Vec3 } from '../player/physics'
 import type { World } from '../world/world'
+import type { WorldKind } from '../world/worldKind'
 import { ANIMAL_DIMS, animalsForChunk, isHostile, type Animal, type AnimalMode } from './animal'
 import { stepAnimal } from './animalAI'
 import { buildAnimalModel, disposeModel, type AnimalModel } from './animalModels'
@@ -59,9 +60,14 @@ export class EntityManager {
   constructor(
     private readonly scene: THREE.Scene,
     private readonly world: World,
-    /** Which mob comes out at night here: zombies, or a robot world's bad robots. */
-    private readonly hostileKind: AnimalKind = 'zombie',
+    /** Which world this is: it decides the night mob and how every mob looks. */
+    private readonly worldKind: WorldKind = 'terrain',
   ) {}
+
+  /** The mob that comes out at night here. */
+  private get hostileKind(): AnimalKind {
+    return this.worldKind === 'robot' ? 'robot' : 'zombie'
+  }
 
   /**
    * Spawn wild animals from newly generated chunks, advance AI (when
@@ -192,7 +198,7 @@ export class EntityManager {
       return
     }
     if (!model) {
-      model = buildAnimalModel(animal.kind)
+      model = buildAnimalModel(animal.kind, this.worldKind)
       this.models.set(animal.id, model)
       this.scene.add(model.group)
     }

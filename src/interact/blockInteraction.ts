@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { REACH, WATER_LEVEL } from '../constants'
 import { BlockId, blockDef, isSolid } from '../core/blocks'
 import { isHostile } from '../entities/animal'
+import { placedBlockFor } from '../world/palette'
 import type { EntityManager } from '../entities/entityManager'
 import type { FurnitureManager } from '../entities/furnitureManager'
 import type { Furniture, SavedFurniture } from '../entities/furniture'
@@ -521,19 +522,22 @@ export class BlockInteraction {
     if (def.kind !== 'block' || def.block === undefined) return
     if (hit.distance === 0) return // standing inside the targeted voxel
     if (this.world.getBlock(px, py, pz) !== BlockId.Air) return
+    // Fencing takes the local form: picket in a terrain world, steel railing
+    // in a robot world. Everything else places as itself.
+    const placed = placedBlockFor(def.block, this.world.terrain.kind)
     // Walk-through blocks (ladders) can be stacked freely — even where the
     // player or animals stand — so you can build a climbable column upward.
-    if (isSolid(def.block)) {
+    if (isSolid(placed)) {
       if (boxOverlapsVoxel(this.player.state.pos, px, py, pz)) return
       for (const animal of this.entities.animals.values()) {
         if (boxOverlapsVoxel(animal.pos, px, py, pz, ANIMAL_DIMS[animal.kind])) return
       }
     }
     this.inventory.removeFrom(this.inventory.selected)
-    this.world.setBlock(px, py, pz, def.block)
-    this.onBlockEdit(px, py, pz, def.block)
+    this.world.setBlock(px, py, pz, placed)
+    this.onBlockEdit(px, py, pz, placed)
     // Placing TNT lights its fuse immediately — step back!
-    if (def.block === BlockId.TNT) this.primeTnt(px, py, pz)
+    if (placed === BlockId.TNT) this.primeTnt(px, py, pz)
   }
 
   /**

@@ -4,6 +4,7 @@ import type { EntityManager } from '../entities/entityManager'
 import type { FurnitureManager } from '../entities/furnitureManager'
 import { CHUNK_SIZE, WATER_LEVEL } from '../constants'
 import { flattenSite, supportColumn, type SetBlock } from './ground'
+import { buildPalette, type BuildPalette } from './palette'
 import type { Terrain } from './terrain'
 import type { World } from './world'
 
@@ -119,7 +120,9 @@ function siteRects(): { x0: number; x1: number; z0: number; z1: number }[] {
 
 /**
  * Stamp a village centered at the given chunk: three furnished houses, a
- * market stall, a well, kitchen gardens, lamp-lit stone paths and villagers.
+ * market stall, a well, kitchen gardens, lamp-lit stone paths and villagers
+ * (robot residents, in a robot world). Buildings are drawn from the world's
+ * palette, so a robot world raises the same village in alloy and hull plate.
  *
  * Blocks go through world.setBlock so the village also appears in chunks that
  * are *already* loaded when the anchor chunk arrives — writing raw edits left
@@ -135,6 +138,7 @@ export function buildVillage(
   const site = villageSite(world.terrain, cx, cz)
   const { sx, sz, floorY } = site
   const set: SetBlock = (x, y, z, id) => world.setBlock(x, y, z, id)
+  const mat = buildPalette(world.terrain.kind)
 
   // ---- Ground the whole site ----------------------------------------------
   // The footprint is the square plus every building rectangle, so no wall ever
@@ -154,7 +158,7 @@ export function buildVillage(
   // Three-wide stone lanes from the square out to each door and the market.
   const path = (x: number, z: number) => {
     if (!inSite(x, z)) supportColumn(world.terrain, set, x, z, floorY)
-    set(x, floorY, z, BlockId.Stone)
+    set(x, floorY, z, mat.path)
   }
   for (let i = -SQUARE_R; i <= SQUARE_R; i++) {
     for (let w = -1; w <= 1; w++) {
@@ -167,7 +171,7 @@ export function buildVillage(
     for (let dz = -4; dz <= 4; dz++) {
       const d2 = dx * dx + dz * dz
       if (d2 > 16 || d2 < 4) continue
-      set(sx + dx, floorY, sz + dz, BlockId.Stone)
+      set(sx + dx, floorY, sz + dz, mat.path)
     }
   }
   // Sand shoulders soften the edge where the lanes meet the open ground.
@@ -181,14 +185,14 @@ export function buildVillage(
 
   // ---- Landmarks ----------------------------------------------------------
   furniture.place('campfire', sx, floorY + 1, sz, 0)
-  buildWell(set, sx + WELL.ox, sz + WELL.oz, floorY)
-  for (const g of GARDENS) buildGarden(set, sx + g.ox, sz + g.oz, floorY, g.w, g.d)
+  buildWell(set, mat, sx + WELL.ox, sz + WELL.oz, floorY)
+  for (const g of GARDENS) buildGarden(set, mat, sx + g.ox, sz + g.oz, floorY, g.w, g.d)
 
   // Lamp posts along the lanes light the village at night.
-  for (const [lx, lz] of LAMPS) buildLamp(set, furniture, sx + lx, sz + lz, floorY)
+  for (const [lx, lz] of LAMPS) buildLamp(set, mat, furniture, sx + lx, sz + lz, floorY)
 
   for (const { ox, oz, yaw } of HOUSES) {
-    buildHouse(world, furniture, sx + ox, sz + oz, floorY, set, yaw)
+    buildHouse(world, furniture, mat, sx + ox, sz + oz, floorY, set, yaw)
   }
 
   // ---- Market -------------------------------------------------------------
@@ -198,18 +202,18 @@ export function buildVillage(
   for (let dx = -3; dx <= 3; dx++) {
     for (let dz = -2; dz <= 2; dz++) {
       supportColumn(world.terrain, set, mx + dx, mz + dz, floorY)
-      set(mx + dx, floorY, mz + dz, BlockId.Stone)
+      set(mx + dx, floorY, mz + dz, mat.path)
     }
   }
   furniture.place('market', mx, floorY + 1, mz, Math.PI)
   // Crates and barrels stacked beside the stall.
-  set(mx - 3, floorY + 1, mz, BlockId.Plank)
-  set(mx - 3, floorY + 2, mz, BlockId.Plank)
-  set(mx - 3, floorY + 1, mz - 1, BlockId.Plank)
-  set(mx + 3, floorY + 1, mz, BlockId.Plank)
-  set(mx + 3, floorY + 1, mz + 1, BlockId.Wood)
-  buildLamp(set, furniture, mx + 3, mz - 2, floorY)
-  buildLamp(set, furniture, mx - 3, mz - 2, floorY)
+  set(mx - 3, floorY + 1, mz, mat.trim)
+  set(mx - 3, floorY + 2, mz, mat.trim)
+  set(mx - 3, floorY + 1, mz - 1, mat.trim)
+  set(mx + 3, floorY + 1, mz, mat.trim)
+  set(mx + 3, floorY + 1, mz + 1, mat.post)
+  buildLamp(set, mat, furniture, mx + 3, mz - 2, floorY)
+  buildLamp(set, mat, furniture, mx - 3, mz - 2, floorY)
 
   // ---- Villagers ----------------------------------------------------------
   // Three around the campfire, one per side house, and a trader at the stall.
@@ -243,15 +247,15 @@ export function buildVillage(
   }
 }
 
-/** A street lamp: wooden pole with a lit lantern sitting on top. */
-function buildLamp(set: SetBlock, furniture: FurnitureManager, x: number, z: number, floorY: number): void {
-  for (let y = floorY + 1; y <= floorY + 3; y++) set(x, y, z, BlockId.Wood)
+/** A street lamp: a pole with a lit lantern sitting on top. */
+function buildLamp(set: SetBlock, mat: BuildPalette, furniture: FurnitureManager, x: number, z: number, floorY: number): void {
+  for (let y = floorY + 1; y <= floorY + 3; y++) set(x, y, z, mat.post)
   set(x, floorY + 4, z, BlockId.Air)
   furniture.place('lantern', x, floorY + 4, z, 0)
 }
 
-/** Stone-ringed well with a plank canopy on two posts. */
-function buildWell(set: SetBlock, x: number, z: number, floorY: number): void {
+/** Stone-ringed well with a canopy on two posts. */
+function buildWell(set: SetBlock, mat: BuildPalette, x: number, z: number, floorY: number): void {
   for (let dx = -1; dx <= 1; dx++) {
     for (let dz = -1; dz <= 1; dz++) {
       if (dx === 0 && dz === 0) continue
@@ -263,21 +267,21 @@ function buildWell(set: SetBlock, x: number, z: number, floorY: number): void {
   set(x, floorY - 1, z, BlockId.Stone)
   // Canopy posts and roof.
   for (const dx of [-1, 1]) {
-    set(x + dx, floorY + 2, z, BlockId.Wood)
-    set(x + dx, floorY + 3, z, BlockId.Wood)
+    set(x + dx, floorY + 2, z, mat.post)
+    set(x + dx, floorY + 3, z, mat.post)
   }
   for (let dx = -1; dx <= 1; dx++) {
-    for (let dz = -1; dz <= 1; dz++) set(x + dx, floorY + 4, z + dz, BlockId.Plank)
+    for (let dz = -1; dz <= 1; dz++) set(x + dx, floorY + 4, z + dz, mat.roof)
   }
 }
 
 /** A tilled plot ringed by a low fence. */
-function buildGarden(set: SetBlock, x: number, z: number, floorY: number, w: number, d: number): void {
+function buildGarden(set: SetBlock, mat: BuildPalette, x: number, z: number, floorY: number, w: number, d: number): void {
   for (let dx = -w; dx <= w; dx++) {
     for (let dz = -d; dz <= d; dz++) {
       const edge = Math.abs(dx) === w || Math.abs(dz) === d
       if (edge) {
-        set(x + dx, floorY + 1, z + dz, BlockId.Fence)
+        set(x + dx, floorY + 1, z + dz, mat.fence)
       } else {
         set(x + dx, floorY, z + dz, BlockId.Dirt)
         // Rows of leafy crops between the furrows.
@@ -290,13 +294,15 @@ function buildGarden(set: SetBlock, x: number, z: number, floorY: number, w: num
 }
 
 /**
- * Build a cottage: stone plinth, brick walls with wood corner posts, glazed
- * windows and a pitched gable roof whose ridge runs along X.
+ * Build a cottage: stone plinth, clad walls with corner posts, glazed windows
+ * and a pitched gable roof whose ridge runs along X. Drawn from the world's
+ * palette, so a robot world raises the same shape in alloy and hull plate.
  * yaw=0 → door faces +Z (south); yaw=π → door faces -Z (north).
  */
 function buildHouse(
   world: World,
   furniture: FurnitureManager,
+  mat: BuildPalette,
   hx: number,
   hz: number,
   floorY: number,
@@ -318,14 +324,14 @@ function buildHouse(
       // footprint spills past the levelled village square.
       supportColumn(world.terrain, set, x, z, floorY)
       const edge = x === hx - hw || x === hx + hw || z === hz - hd || z === hz + hd
-      set(x, floorY, z, edge ? BlockId.Stone : BlockId.Plank)
+      set(x, floorY, z, edge ? mat.path : mat.floor)
     }
   }
 
   // ---- Walls ----
   for (let y = floorY + 1; y <= floorY + wallH; y++) {
-    // The top course is a wood beam, which reads as a timber-framed cottage.
-    const material = y === floorY + wallH ? BlockId.Wood : BlockId.Brick
+    // The top course is a beam, which reads as a framed cottage.
+    const material = y === floorY + wallH ? mat.post : mat.wall
     for (let x = hx - hw; x <= hx + hw; x++) {
       set(x, y, hz - hd, material)
       set(x, y, hz + hd, material)
@@ -336,7 +342,7 @@ function buildHouse(
     }
     // Corner posts.
     for (const x of [hx - hw, hx + hw]) {
-      for (const z of [hz - hd, hz + hd]) set(x, y, z, BlockId.Wood)
+      for (const z of [hz - hd, hz + hd]) set(x, y, z, mat.post)
     }
   }
 
@@ -346,13 +352,13 @@ function buildHouse(
     const zNear = hz - hd + lvl
     const zFar = hz + hd - lvl
     for (let x = hx - hw - 1; x <= hx + hw + 1; x++) {
-      set(x, ry, zNear, BlockId.Plank)
-      set(x, ry, zFar, BlockId.Plank)
+      set(x, ry, zNear, mat.roof)
+      set(x, ry, zFar, mat.roof)
     }
-    // Brick triangles close the gable ends under the slope.
+    // Triangles close the gable ends under the slope.
     if (lvl < hd) {
       for (const x of [hx - hw, hx + hw]) {
-        for (let z = zNear + 1; z <= zFar - 1; z++) set(x, ry, z, BlockId.Brick)
+        for (let z = zNear + 1; z <= zFar - 1; z++) set(x, ry, z, mat.wall)
       }
     }
   }
@@ -364,29 +370,29 @@ function buildHouse(
   // Tall two-pane windows on the long side walls.
   for (const x of [hx - hw, hx + hw]) {
     for (const dz of [-1, 1]) {
-      set(x, floorY + 2, hz + dz, BlockId.Glass)
-      set(x, floorY + 3, hz + dz, BlockId.Glass)
+      set(x, floorY + 2, hz + dz, mat.glass)
+      set(x, floorY + 3, hz + dz, mat.glass)
     }
   }
   // Windows flanking the door and matching ones on the back wall.
   for (const dx of [-2, 2]) {
-    set(hx + dx, floorY + 2, front, BlockId.Glass)
-    set(hx + dx, floorY + 3, front, BlockId.Glass)
-    set(hx + dx, floorY + 2, back, BlockId.Glass)
+    set(hx + dx, floorY + 2, front, mat.glass)
+    set(hx + dx, floorY + 3, front, mat.glass)
+    set(hx + dx, floorY + 2, back, mat.glass)
   }
 
   // ---- Chimney ----
   const chimneyX = hx - hw + 1
   const chimneyZ = hz + (yaw === 0 ? -1 : 1)
-  for (let y = floorY + 1; y <= roofBase + hd + 1; y++) set(chimneyX, y, chimneyZ, BlockId.Brick)
-  set(chimneyX, roofBase + hd + 2, chimneyZ, BlockId.Stone)
+  for (let y = floorY + 1; y <= roofBase + hd + 1; y++) set(chimneyX, y, chimneyZ, mat.stack)
+  set(chimneyX, roofBase + hd + 2, chimneyZ, mat.path)
 
   // ---- Porch ----
   for (let dx = -1; dx <= 1; dx++) {
     supportColumn(world.terrain, set, hx + dx, front + outward, floorY)
-    set(hx + dx, floorY, front + outward, BlockId.Stone)
+    set(hx + dx, floorY, front + outward, mat.path)
   }
-  buildLamp(set, furniture, hx + 2, front + outward, floorY)
+  buildLamp(set, mat, furniture, hx + 2, front + outward, floorY)
 
   // ---- Interior ----
   // The door sits in the doorway itself so the opening is actually closed.

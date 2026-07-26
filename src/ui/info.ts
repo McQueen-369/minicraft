@@ -1,5 +1,6 @@
 import { blockDef, BlockId, type ToolType } from '../core/blocks'
 import { itemDef, type AnimalKind } from '../items/items'
+import type { WorldKind } from '../world/worldKind'
 import { animalFact, itemFact } from './facts'
 
 /** A short, human-readable help card for an animal or item. */
@@ -25,14 +26,16 @@ function capitalize(s: string): string {
 }
 
 /** Display name for a mob — most are just their kind, capitalised. */
-export function animalLabel(kind: AnimalKind): string {
-  return kind === 'robot' ? 'Bad Robot' : capitalize(kind)
+export function animalLabel(kind: AnimalKind, worldKind: WorldKind = 'terrain'): string {
+  if (kind === 'robot') return 'Bad Robot'
+  if (kind === 'villager' && worldKind === 'robot') return 'Robot Villager'
+  return capitalize(kind)
 }
 
 /** How to tame, command, capture and release a given animal, plus a fun fact. */
-export function animalInfo(kind: AnimalKind): InfoContent {
+export function animalInfo(kind: AnimalKind, worldKind: WorldKind = 'terrain'): InfoContent {
   const fact = animalFact(kind)
-  return { ...animalHelp(kind), ...(fact ? { fact } : {}) }
+  return { ...animalHelp(kind, worldKind), ...(fact ? { fact } : {}) }
 }
 
 /** How to use and obtain a given item (or placed block), plus a fun fact. */
@@ -41,7 +44,7 @@ export function itemInfo(itemId: number): InfoContent {
   return { ...itemHelp(itemId), ...(fact ? { fact } : {}) }
 }
 
-function animalHelp(kind: AnimalKind): InfoContent {
+function animalHelp(kind: AnimalKind, worldKind: WorldKind): InfoContent {
   if (kind === 'zombie' || kind === 'robot') {
     const robot = kind === 'robot'
     return {
@@ -57,9 +60,16 @@ function animalHelp(kind: AnimalKind): InfoContent {
     }
   }
   if (kind === 'villager') {
+    const robot = worldKind === 'robot'
     return {
-      title: 'Villager',
-      lines: ['A friendly inhabitant of the village.', 'Villagers wander peacefully and cannot be tamed or captured.'],
+      title: animalLabel('villager', worldKind),
+      lines: [
+        robot
+          ? 'A friendly service robot — the resident of a robot village, not one of the hostile night machines.'
+          : 'A friendly inhabitant of the village.',
+        'Pick it up: left-click (MINE) it to lift it off the ground and carry it around; left-click again to set it back down.',
+        'It wanders peacefully, and is never tamed or stored in your bag.',
+      ],
     }
   }
   const food = TAME_FOOD[kind]!

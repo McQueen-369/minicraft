@@ -2,6 +2,7 @@ import { BlockId } from '../core/blocks'
 import { worldToChunk } from '../core/coords'
 import type { FurnitureManager } from '../entities/furnitureManager'
 import { flattenSite, supportColumn, type SetBlock } from './ground'
+import { buildPalette, type BuildPalette } from './palette'
 import type { Terrain } from './terrain'
 import type { World } from './world'
 
@@ -52,6 +53,7 @@ export function buildIsland(world: World, furniture: FurnitureManager): void {
   const iz = world.terrain.island.z
   const floorY = world.terrain.heightAt(ix, iz)
   const set: SetBlock = (x, y, z, id) => world.setBlock(x, y, z, id)
+  const mat = buildPalette(world.terrain.kind)
 
   // Flatten the plaza onto solid ground: the dome slopes away from its centre,
   // so the outer plaza needs packing underneath, not just a grass cap.
@@ -64,7 +66,7 @@ export function buildIsland(world: World, furniture: FurnitureManager): void {
     inside: (x, z) => (x - ix) ** 2 + (z - iz) ** 2 <= PLAZA_R * PLAZA_R,
   })
 
-  pavePlaza(set, ix, iz, floorY)
+  pavePlaza(set, mat, ix, iz, floorY)
 
   furniture.place('campfire', ix, floorY + 1, iz, 0, 'isle-campfire')
 
@@ -73,30 +75,30 @@ export function buildIsland(world: World, furniture: FurnitureManager): void {
   for (const k of KIOSKS) {
     const kx = ix + k.dx
     const kz = iz + k.dz
-    buildPodium(set, kx, kz, floorY)
+    buildPodium(set, mat, kx, kz, floorY)
     furniture.place(k.kind, kx, floorY + 2, kz, k.yaw, k.id)
     // Lamps sit either side of the kiosk, on the axis perpendicular to its
     // facing, so they light the player's approach without hiding the screen.
     const px = k.dz === 0 ? 0 : 3
     const pz = k.dz === 0 ? 3 : 0
-    buildLampPost(set, furniture, kx + px, kz + pz, floorY, `${k.id}-lamp-a`)
-    buildLampPost(set, furniture, kx - px, kz - pz, floorY, `${k.id}-lamp-b`)
+    buildLampPost(set, mat, furniture, kx + px, kz + pz, floorY, `${k.id}-lamp-a`)
+    buildLampPost(set, mat, furniture, kx - px, kz - pz, floorY, `${k.id}-lamp-b`)
   }
 
   for (const [dx, dz] of PALMS) buildPalm(set, ix + dx, iz + dz, floorY)
 
-  buildFenceRim(set, ix, iz, floorY)
+  buildFenceRim(set, mat, ix, iz, floorY)
 
   // Prize plinths by two of the gates: mystery boxes, refreshed each session so
   // the island keeps a little something for returning explorers.
   for (const [dx, dz] of [[9, 9], [-9, -9]] as const) {
     const x = ix + dx
     const z = iz + dz
-    set(x, floorY + 1, z, BlockId.Stone)
+    set(x, floorY + 1, z, mat.path)
     set(x, floorY + 2, z, BlockId.MysteryBoxRare)
   }
 
-  buildBeacon(world.terrain, set, furniture, ix, iz - 18, floorY)
+  buildBeacon(world.terrain, set, mat, furniture, ix, iz - 18, floorY)
 }
 
 /**
@@ -104,18 +106,18 @@ export function buildIsland(world: World, furniture: FurnitureManager): void {
  * dashed stone-and-brick ring path, grass between, and a sandy beach rim that
  * blends the build into the shoreline.
  */
-function pavePlaza(set: SetBlock, ix: number, iz: number, floorY: number): void {
+function pavePlaza(set: SetBlock, mat: BuildPalette, ix: number, iz: number, floorY: number): void {
   for (let dx = -PLAZA_R; dx <= PLAZA_R; dx++) {
     for (let dz = -PLAZA_R; dz <= PLAZA_R; dz++) {
       const r = Math.hypot(dx, dz)
       if (r > PLAZA_R) continue
       let id: number | null = null
       if (r <= 3.2) {
-        // Courtyard: planks with a brick compass cross through the campfire.
-        id = dx === 0 || dz === 0 ? BlockId.Brick : BlockId.Plank
+        // Courtyard: decking with a compass cross through the campfire.
+        id = dx === 0 || dz === 0 ? mat.wall : mat.floor
       } else if (r >= RING_R - 1 && r <= RING_R + 1) {
-        // Dashed path: stone with a brick sleeper every few blocks.
-        id = (Math.abs(dx) + Math.abs(dz)) % 4 === 0 ? BlockId.Brick : BlockId.Stone
+        // Dashed path: paving with a sleeper every few blocks.
+        id = (Math.abs(dx) + Math.abs(dz)) % 4 === 0 ? mat.wall : mat.path
       } else if (r > PLAZA_R - 2.5) {
         id = BlockId.Sand
       }
@@ -124,31 +126,32 @@ function pavePlaza(set: SetBlock, ix: number, iz: number, floorY: number): void 
   }
 }
 
-/** A 3×3 raised stage with brick corners for one arcade cabinet. */
-function buildPodium(set: SetBlock, x: number, z: number, floorY: number): void {
+/** A 3×3 raised stage with contrasting corners for one arcade cabinet. */
+function buildPodium(set: SetBlock, mat: BuildPalette, x: number, z: number, floorY: number): void {
   for (let dx = -1; dx <= 1; dx++) {
     for (let dz = -1; dz <= 1; dz++) {
-      set(x + dx, floorY + 1, z + dz, dx !== 0 && dz !== 0 ? BlockId.Brick : BlockId.Stone)
+      set(x + dx, floorY + 1, z + dz, dx !== 0 && dz !== 0 ? mat.wall : mat.path)
     }
   }
 }
 
-/** A lantern on a wooden post, so the plaza stays playable after dark. */
+/** A lantern on a post, so the plaza stays playable after dark. */
 function buildLampPost(
   set: SetBlock,
+  mat: BuildPalette,
   furniture: FurnitureManager,
   x: number,
   z: number,
   floorY: number,
   id: string,
 ): void {
-  for (let y = floorY + 1; y <= floorY + 3; y++) set(x, y, z, BlockId.Wood)
+  for (let y = floorY + 1; y <= floorY + 3; y++) set(x, y, z, mat.post)
   set(x, floorY + 4, z, BlockId.Air)
   furniture.place('lantern', x, floorY + 4, z, 0, id)
 }
 
 /** Fence rim with four diagonal gates, so the plaza has a threshold. */
-function buildFenceRim(set: SetBlock, ix: number, iz: number, floorY: number): void {
+function buildFenceRim(set: SetBlock, mat: BuildPalette, ix: number, iz: number, floorY: number): void {
   const steps = 128
   for (let a = 0; a < steps; a++) {
     const ang = (a / steps) * Math.PI * 2
@@ -156,7 +159,7 @@ function buildFenceRim(set: SetBlock, ix: number, iz: number, floorY: number): v
     const deg = (ang * 180) / Math.PI
     const toGate = Math.min(...[45, 135, 225, 315].map((g) => Math.abs(((deg - g + 180) % 360) - 180)))
     if (toGate < 14) continue
-    set(ix + Math.round(Math.cos(ang) * FENCE_R), floorY + 1, iz + Math.round(Math.sin(ang) * FENCE_R), BlockId.Fence)
+    set(ix + Math.round(Math.cos(ang) * FENCE_R), floorY + 1, iz + Math.round(Math.sin(ang) * FENCE_R), mat.fence)
   }
 }
 
@@ -178,6 +181,7 @@ function buildPalm(set: SetBlock, x: number, z: number, floorY: number): void {
 function buildBeacon(
   terrain: Terrain,
   set: SetBlock,
+  mat: BuildPalette,
   furniture: FurnitureManager,
   bx: number,
   bz: number,
@@ -189,22 +193,22 @@ function buildBeacon(
   for (let dx = -2; dx <= 2; dx++) {
     for (let dz = -2; dz <= 2; dz++) {
       if (Math.abs(dx) + Math.abs(dz) > 3) continue
-      supportColumn(terrain, set, bx + dx, bz + dz, beaconFloor, BlockId.Stone)
-      set(bx + dx, beaconFloor, bz + dz, Math.abs(dx) + Math.abs(dz) > 1 ? BlockId.Stone : BlockId.Brick)
+      supportColumn(terrain, set, bx + dx, bz + dz, beaconFloor, mat.path)
+      set(bx + dx, beaconFloor, bz + dz, Math.abs(dx) + Math.abs(dz) > 1 ? mat.path : mat.wall)
     }
   }
-  // Shaft: brick with glass bands that catch the light on the way up.
+  // Shaft: clad with glass bands that catch the light on the way up.
   for (let y = beaconFloor + 1; y <= beaconFloor + height; y++) {
-    set(bx, y, bz, (y - beaconFloor) % 5 === 0 ? BlockId.Glass : BlockId.Brick)
+    set(bx, y, bz, (y - beaconFloor) % 5 === 0 ? mat.glass : mat.wall)
   }
   // Lantern room: a glass cap with a brick spire above it.
   const roomY = beaconFloor + height + 1
   for (let dx = -1; dx <= 1; dx++) {
-    for (let dz = -1; dz <= 1; dz++) set(bx + dx, roomY, bz + dz, BlockId.Glass)
+    for (let dz = -1; dz <= 1; dz++) set(bx + dx, roomY, bz + dz, mat.glass)
   }
-  set(bx, roomY + 1, bz, BlockId.Brick)
+  set(bx, roomY + 1, bz, mat.wall)
   // Two lanterns at the foot, marking the path between the tower and the plaza.
   for (const [dx, dz] of [[2, 2], [-2, 2]] as const) {
-    buildLampPost(set, furniture, bx + dx, bz + dz, Math.min(beaconFloor, plazaFloor), `isle-beacon-lamp-${dx}`)
+    buildLampPost(set, mat, furniture, bx + dx, bz + dz, Math.min(beaconFloor, plazaFloor), `isle-beacon-lamp-${dx}`)
   }
 }
