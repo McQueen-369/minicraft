@@ -22,6 +22,8 @@ export const BlockId = {
   Lava: 20,
   MetalPanel: 21,
   CannedFood: 22,
+  MetalFence: 23,
+  HullPlate: 24,
 } as const
 
 export type BlockId = (typeof BlockId)[keyof typeof BlockId]
@@ -60,6 +62,8 @@ export const Tile = {
   MetalPanelSide: 29,
   CanTop: 30,
   CanSide: 31,
+  MetalFence: 32,
+  HullPlate: 33,
 } as const
 
 export type ToolType = 'pickaxe' | 'axe' | 'shears'
@@ -165,10 +169,22 @@ export const BLOCKS: Record<BlockId, BlockDef | null> = {
     id: BlockId.CannedFood,
     drops: 119, // ItemId.CannedFood — the meal inside, not the container
   }),
+  // The robot world's fencing. It is never an item of its own: it drops (and is
+  // placed from) the ordinary Fence, so a bag of fencing works in either world.
+  [BlockId.MetalFence]: def('Metal Fence', uniform(Tile.MetalFence), 1.5, 'pickaxe', {
+    id: BlockId.MetalFence,
+    opaque: false,
+    drops: BlockId.Fence,
+  }),
+  [BlockId.HullPlate]: def('Hull Plate', uniform(Tile.HullPlate), 2, 'pickaxe', { id: BlockId.HullPlate }),
 }
 
 /** Blocks that exist in the world but can never be held or placed. */
-export const NON_ITEM_BLOCKS: ReadonlySet<number> = new Set<number>([BlockId.Lava, BlockId.CannedFood])
+export const NON_ITEM_BLOCKS: ReadonlySet<number> = new Set<number>([
+  BlockId.Lava,
+  BlockId.CannedFood,
+  BlockId.MetalFence,
+])
 
 export function isOpaque(id: number): boolean {
   return BLOCKS[id as BlockId]?.opaque ?? false

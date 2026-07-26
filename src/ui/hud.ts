@@ -712,6 +712,16 @@ export class HUD {
       <p>Attack them exactly like mining: aim and hold left-click (mobile: hold the red ⛏ button)</p>
       <p>You start with a Sword in your bag — hold it to hit much harder than bare hands</p>
       <p>Defeated ${robot ? 'bad robots' : 'zombies'} drop Gold and sometimes a Diamond</p>
+      ${
+        robot
+          ? `<h3>Robot Village &amp; Sky</h3>
+      <p>Villages are home to friendly <b>robot villagers</b> — left-click one to pick it up and carry it, left-click again to set it down</p>
+      <p>Every animal here is a machine too: steel-plated, with lit optics and a signal antenna</p>
+      <p>Houses are built from alloy panelling and hull plate, with glass windows, metal doors and steel railings</p>
+      <p>Look up — <b>saucers</b> circle high overhead, sweeping their beams across the panelling</p>`
+          : `<h3>Villagers</h3>
+      <p>Left-click a villager to pick it up and carry it around; left-click again to set it back down</p>`
+      }
     `
   }
 

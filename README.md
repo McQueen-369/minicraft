@@ -15,6 +15,10 @@ Every new world is created as one of two types — pick one on the landing page,
 | Ground | Grass, dirt, sand | Riveted **metal panelling** over the same dirt and stone |
 | Food | Apples from apple trees | **Canned food** — tins with a label on the lid, standing on the ground |
 | Night mob | Zombies | **Bad robots** — metal chassis, red visor, antenna lamp |
+| Villagers | Villagers | **Robot villagers** — lit face screens and signal antennas (pick them up just the same) |
+| Animals | Pigs, sheep, horses… | The same herd rebuilt as **machines**: steel plating, glowing optics, antennas |
+| Buildings | Planks, brick, picket fences | **Alloy panelling and hull plate**, glass windows, **metal doors** and **steel railings** |
+| Sky | Birds and clouds | Birds, clouds and **saucers** circling overhead with lit rings and tractor beams |
 | Everything else | — identical — | Same terrain shape, ores, lava, villages, market, crafting, energy rules and the **Secret Island** |
 
 Both types share one seed-driven generator, so a robot world is the same landscape you would have explored in a terrain world, re-skinned and re-stocked. Saves record their type, so a world always reloads as what it was created as.
@@ -26,11 +30,11 @@ Both types share one seed-driven generator, so a robot world is the same landsca
 - **Day/night cycle** — a bright sun disc and drifting clouds by day, moon and stars by night; a live HUD timer shows the day count and current phase
 - **Villages** — procedurally placed settlements with three furnished cottages (stone plinths, timber-framed brick walls, pitched gable roofs, chimneys and porches), a market stall on a stone forecourt, a covered well, fenced kitchen gardens, lantern-lit stone lanes and villager NPCs. The whole site is levelled and packed down to the natural ground first, so nothing ever floats — over water the village stands on a sand-and-dirt embankment
 - **Secret Island** — a hidden dome of land tucked inside a ring-shaped lake a few hundred blocks from spawn, deterministic per world seed. Its arcade plaza is a designed place: a plank courtyard around the campfire, a dashed stone-and-brick ring path, four kiosks on raised podiums lit by lantern posts, a palm grove, a fenced rim with gates on the diagonals, prize plinths and a lighthouse beacon you can spot from the mainland (see below)
-- **Carry villagers** — left-click a villager NPC to pick it up and carry it around; left-click again to set it back down (NPCs are never stored in your bag)
+- **Carry villagers** — left-click a villager NPC (a robot villager, in a robot world) to pick it up and carry it around; left-click again to set it back down (NPCs are never stored in your bag)
 - **Navigation map** — the corner radar tracks you and shows nearby animals, with 🏠/🏝 distance readouts underneath; landmarks off the edge become direction arrows rather than icons pinned to the border. Press M (or tap the radar) for the expanded map, which auto-zooms to frame you, home and the island together, so every marker always sits on its true coordinate, with live coordinates and distances listed below it
 
 ### Blocks & Resources
-- **12+ block types** — Grass, Dirt, Stone, Sand, Wood, Leaves, Apple Leaves, Planks, Brick, Glass, Fence, Ladder, TNT, Metal Panel (plus Lava and Canned Food tins, which live in the world but are never carried as blocks)
+- **12+ block types** — Grass, Dirt, Stone, Sand, Wood, Leaves, Apple Leaves, Planks, Brick, Glass, Fence, Ladder, TNT, Metal Panel, Hull Plate (plus Lava, Canned Food tins and Metal Fencing, which live in the world but are never carried as blocks of their own — fencing is placed and collected as the ordinary Fence item, which takes the local form)
 - **Gold Ore** — shiny yellow spots appear on the surface; rich veins run through deep stone layers
 - **Diamond Ore** — rare sparkling veins hidden 6+ blocks below the surface; drops Diamond gems used at the market smithy to strengthen your sword
 - **Lava** — glowing molten lakes pooled in the deepest stone. They always sit at least 12 blocks below the deepest ore, so breaking into one is the reward for a real dig. Lava lights its own cavern (the mesher skips face shading and occlusion on self-lit blocks, and a warm point light follows you into the chamber), cannot be mined, placed or collected, and burns your energy fast if you fall in — you sink slowly and paddle out with Space, so a scorching costs you stamina, never the session
@@ -63,6 +67,12 @@ Both types share one seed-driven generator, so a robot world is the same landsca
 ### Apple Trees
 - About 30% of trees are apple trees — recognisable by the **red apples** visible in their leaf canopy
 - Breaking apple leaves drops an Apple; regular leaves drop a Leaf block (and occasionally a Bone)
+
+### Robot Residents, Machines & Saucers *(robot worlds)*
+- Villages are home to **robot villagers** — plated bodies, lit face screens, signal antennas. **Left-click to pick one up** and carry it around, left-click again to set it down, exactly like a villager
+- Every animal is a machine as well: the same pigs, sheep, chickens, rabbits, cats, dogs and horses, steel-plated with glowing optics, a power core and an antenna. Species colours still show through the plating, so the herd stays readable
+- Cottages, village houses, the market forecourt and the island plaza are built from **alloy panelling and hull plate** with **glass windows**, **metal doors** (banded blast doors with a porthole and a status lamp) and **steel railings**. Furniture inside is plated to match
+- **Saucers** cruise the sky above you: spinning light rings, glass cockpit domes, and soft tractor beams sweeping the panelling below
 
 ### Canned Food *(robot worlds)*
 - Robot worlds grow no apple trees; instead **canned food tins** stand on the metal ground, easy to spot by their red label
@@ -282,8 +292,8 @@ Click **Create Profile** on the main menu to save worlds to the cloud (username 
 ```
 src/
 ├── core/      blocks, chunk-coordinate math, seeded RNG
-├── world/     world kinds (terrain / robot), noise, terrain generation, chunked world with edit diffs, village + secret island builders
-├── render/    procedural texture atlas, chunk mesher, day-night sky (with day counter), fish school, bird flock
+├── world/     world kinds (terrain / robot), build palettes, noise, terrain generation, chunked world with edit diffs, village + secret island builders
+├── render/    procedural texture atlas, chunk mesher, day-night sky (with day counter), fish school, bird flock, UFO fleet
 ├── player/    pointer-lock + touch controls, AABB voxel physics
 ├── interact/  voxel DDA raycast, mining / placing / animal / furniture / eating / sleeping interaction
 ├── items/     item registry, inventory (200 slots × 200 stack), crafting recipes, chest loot tables

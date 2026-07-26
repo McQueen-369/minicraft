@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import type { WorldKind } from '../world/worldKind'
 import type { FurnitureKind } from './furniture'
 
 export interface FurnitureModel {
@@ -38,49 +39,50 @@ function legsAt(group: THREE.Group, h: number, halfX: number, halfZ: number, w: 
   }
 }
 
-function buildChair(): FurnitureModel {
+function buildChair(metal: boolean): FurnitureModel {
   const g = new THREE.Group()
-  const wood = 0x8a5a2b
+  const wood = metal ? 0x7e8a96 : 0x8a5a2b
   legsAt(g, 0.45, 0.28, 0.28, 0.07, wood)
-  part(g, 0.7, 0.08, 0.7, 0, 0.49, 0, wood) // seat
+  part(g, 0.7, 0.08, 0.7, 0, 0.49, 0, metal ? 0x5b6670 : wood) // seat
   part(g, 0.7, 0.5, 0.08, 0, 0.74, -0.31, wood) // backrest
   return { group: g, pivot: null }
 }
 
-function buildDesk(): FurnitureModel {
+function buildDesk(metal: boolean): FurnitureModel {
   const g = new THREE.Group()
-  const wood = 0x6b4a2a
+  const wood = metal ? 0x6b7681 : 0x6b4a2a
   legsAt(g, 0.74, 0.4, 0.3, 0.08, wood)
-  part(g, 0.95, 0.08, 0.72, 0, 0.78, 0, 0x7a572f) // top
+  part(g, 0.95, 0.08, 0.72, 0, 0.78, 0, metal ? 0x8f9aa6 : 0x7a572f) // top
+  if (metal) part(g, 0.3, 0.02, 0.24, 0.2, 0.83, 0, 0x2fd4d4) // a lit console inlay
   return { group: g, pivot: null }
 }
 
-function buildBed(): FurnitureModel {
+function buildBed(metal: boolean): FurnitureModel {
   const g = new THREE.Group()
-  const frame = 0x6b4a2a
+  const frame = metal ? 0x6b7681 : 0x6b4a2a
   // Double bed: occupies its cell plus the next cell in +z (head at the anchor).
   for (const sx of [-1, 1]) {
     for (const cz of [-0.35, 1.2]) part(g, 0.12, 0.18, 0.12, sx * 0.42, 0.09, cz, frame)
   }
   part(g, 1.0, 0.26, 1.9, 0, 0.31, 0.45, frame) // frame
   part(g, 0.9, 0.16, 1.7, 0, 0.5, 0.45, 0xe6e2d8) // mattress
-  part(g, 0.9, 0.12, 1.0, 0, 0.6, 0.9, 0x4f7fae) // blanket (foot end)
+  part(g, 0.9, 0.12, 1.0, 0, 0.6, 0.9, metal ? 0x2f7f8e : 0x4f7fae) // blanket (foot end)
   part(g, 0.82, 0.16, 0.36, 0, 0.62, -0.2, 0xf6f4ee) // pillow (head end)
   return { group: g, pivot: null }
 }
 
-function buildSofa(): FurnitureModel {
+function buildSofa(metal: boolean): FurnitureModel {
   const g = new THREE.Group()
-  const fabric = 0x5b6e8c
+  const fabric = metal ? 0x4a5b6b : 0x5b6e8c
   part(g, 0.95, 0.26, 0.8, 0, 0.2, 0.04, fabric) // seat
   part(g, 0.95, 0.46, 0.18, 0, 0.46, -0.32, fabric) // back
-  for (const sx of [-1, 1]) part(g, 0.14, 0.36, 0.8, sx * 0.4, 0.36, 0.04, 0x4e5f79) // arms
+  for (const sx of [-1, 1]) part(g, 0.14, 0.36, 0.8, sx * 0.4, 0.36, 0.04, metal ? 0x8f9aa6 : 0x4e5f79) // arms
   return { group: g, pivot: null }
 }
 
-function buildWindow(): FurnitureModel {
+function buildWindow(metal: boolean): FurnitureModel {
   const g = new THREE.Group()
-  const frame = 0xb08d5a
+  const frame = metal ? 0x8f9aa6 : 0xb08d5a
   // Frame ring, thin in z so it sits inside a wall plane.
   part(g, 1, 0.12, 0.16, 0, 0.06, 0, frame) // bottom
   part(g, 1, 0.12, 0.16, 0, 0.94, 0, frame) // top
@@ -91,17 +93,33 @@ function buildWindow(): FurnitureModel {
   return { group: g, pivot: null }
 }
 
-function buildDoor(): FurnitureModel {
+function buildDoor(metal: boolean): FurnitureModel {
   const g = new THREE.Group()
   // Hinge on the left edge of the cell; the panel swings around it.
   const pivot = new THREE.Group()
   pivot.position.set(-0.45, 0, 0)
-  const panel = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2, 0.12), new THREE.MeshLambertMaterial({ color: 0x7a5326 }))
+  const panel = new THREE.Mesh(
+    new THREE.BoxGeometry(0.9, 2, 0.12),
+    new THREE.MeshLambertMaterial({ color: metal ? 0x7e8a96 : 0x7a5326 }),
+  )
   panel.position.set(0.45, 1, 0) // centered relative to hinge, 2 tall
   pivot.add(panel)
-  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), new THREE.MeshLambertMaterial({ color: 0xd9c27a }))
+  const handle = new THREE.Mesh(
+    new THREE.BoxGeometry(0.08, 0.08, 0.08),
+    new THREE.MeshLambertMaterial({ color: metal ? 0xc7d2dc : 0xd9c27a }),
+  )
   handle.position.set(0.78, 1, 0.1)
   pivot.add(handle)
+  if (metal) {
+    // A blast door: banded plating, a porthole of reinforced glass, and a
+    // status lamp that matches the panelling around it.
+    for (const y of [0.45, 1.55]) {
+      part(pivot, 0.9, 0.12, 0.14, 0.45, y, 0, 0x4f5a66)
+    }
+    part(pivot, 0.34, 0.34, 0.15, 0.45, 1.15, 0, 0x3a424b)
+    part(pivot, 0.24, 0.24, 0.17, 0.45, 1.15, 0, 0xcfeff4, { opacity: 0.55 })
+    part(pivot, 0.07, 0.07, 0.16, 0.2, 1.15, 0, 0x2fd4d4)
+  }
   g.add(pivot)
   return { group: g, pivot }
 }
@@ -345,20 +363,27 @@ function buildArcade(kind: 'arcadePuzzle' | 'arcadeRunner' | 'arcadeMath' | 'arc
   return { group: g, pivot: null }
 }
 
-export function buildFurnitureModel(kind: FurnitureKind): FurnitureModel {
+/**
+ * Build a piece of furniture. Robot worlds swap the joinery for hardware: the
+ * door becomes a banded blast door with a porthole, window frames are steel
+ * rather than stained timber, and the furnishings are plated to match the
+ * alloy rooms they stand in.
+ */
+export function buildFurnitureModel(kind: FurnitureKind, worldKind: WorldKind = 'terrain'): FurnitureModel {
+  const metal = worldKind === 'robot'
   switch (kind) {
     case 'chair':
-      return buildChair()
+      return buildChair(metal)
     case 'desk':
-      return buildDesk()
+      return buildDesk(metal)
     case 'bed':
-      return buildBed()
+      return buildBed(metal)
     case 'sofa':
-      return buildSofa()
+      return buildSofa(metal)
     case 'window':
-      return buildWindow()
+      return buildWindow(metal)
     case 'door':
-      return buildDoor()
+      return buildDoor(metal)
     case 'campfire':
       return buildCampfire()
     case 'lantern':

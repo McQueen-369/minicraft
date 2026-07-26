@@ -1,3 +1,5 @@
+import type { WorldKind } from '../world/worldKind'
+
 export type FurnitureKind =
   | 'door'
   | 'window'
@@ -67,6 +69,17 @@ export const FURNITURE_HEIGHT: Record<FurnitureKind, number> = {
   arcadeRunner: 2.5,
   arcadeMath: 2.5,
   arcadeWord: 2.5,
+}
+
+/** Pieces whose robot-world version is worth naming differently. */
+const ROBOT_FURNITURE_LABEL: Partial<Record<FurnitureKind, string>> = {
+  door: 'Metal Door',
+  window: 'Metal Window',
+}
+
+/** Display name for a piece of furniture in the world it stands in. */
+export function furnitureLabel(kind: FurnitureKind, worldKind: WorldKind = 'terrain'): string {
+  return (worldKind === 'robot' ? ROBOT_FURNITURE_LABEL[kind] : undefined) ?? FURNITURE_LABEL[kind]
 }
 
 export const FURNITURE_LABEL: Record<FurnitureKind, string> = {

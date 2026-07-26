@@ -6,7 +6,7 @@ import { hashString } from './core/rng'
 import { DecorationManager } from './entities/decorations'
 import { EntityManager } from './entities/entityManager'
 import { FurnitureManager } from './entities/furnitureManager'
-import { FURNITURE_LABEL } from './entities/furniture'
+import { furnitureLabel } from './entities/furniture'
 import { BlockInteraction, type FurnitureEvent } from './interact/blockInteraction'
 import { BlockId, blockDef } from './core/blocks'
 import { chestLoot } from './items/chest'
@@ -41,6 +41,7 @@ import { MarketPanel } from './ui/market'
 import { playAnimalSound, playExplosionSound } from './audio/sounds'
 import { FishSchool } from './render/fish'
 import { BirdFlock } from './render/birds'
+import { UfoFleet } from './render/ufo'
 import { LAVA_MAX_Y, Terrain } from './world/terrain'
 import { World } from './world/world'
 import { normalizeWorldKind, WORLD_KIND_LABEL, type WorldKind } from './world/worldKind'
@@ -60,6 +61,8 @@ interface Session {
   water: THREE.Mesh
   fish: FishSchool
   birds: BirdFlock
+  /** Robot worlds only: saucers circling overhead. */
+  ufos: UfoFleet | null
   seed: number
   kind: WorldKind
   spawn: { x: number; z: number }
@@ -413,9 +416,9 @@ export class Game {
     this.islandFound = save?.islandFound ?? false
     const chunkRenderer = new ChunkRenderer(scene, world, this.atlas)
     const player = new Player(world)
-    const entities = new EntityManager(scene, world, kind === 'robot' ? 'robot' : 'zombie')
+    const entities = new EntityManager(scene, world, kind)
     if (save) entities.load(save.animals)
-    const furniture = new FurnitureManager(scene)
+    const furniture = new FurnitureManager(scene, kind)
     if (save) furniture.load(save.furniture)
     const decorations = new DecorationManager(scene, seed)
 
@@ -554,8 +557,9 @@ export class Game {
       this.market.open(seed)
       this.openedOverlay()
     }
+    const npc = animalLabel('villager', kind).toLowerCase()
     interaction.onCarry = (carrying) => {
-      this.hud.showToast(carrying ? 'Carrying villager — left-click to set down' : 'Set the villager down')
+      this.hud.showToast(carrying ? `Carrying ${npc} — left-click to set down` : `Set the ${npc} down`)
     }
     interaction.onMount = (animalId) => {
       if (this.mountedHorseId === animalId) return // already riding this horse
@@ -634,7 +638,9 @@ export class Game {
 
     const fish = new FishSchool(scene, seed)
     const birds = new BirdFlock(scene, seed)
-    this.session = { world, scene, player, chunkRenderer, entities, furniture, decorations, interaction, sky, water, fish, birds, seed, kind, spawn, builtVillages: new Set() }
+    // Robot worlds have company in the sky.
+    const ufos = kind === 'robot' ? new UfoFleet(scene, seed) : null
+    this.session = { world, scene, player, chunkRenderer, entities, furniture, decorations, interaction, sky, water, fish, birds, ufos, seed, kind, spawn, builtVillages: new Set() }
     this.worldReady = false
     this.saveTimer = 0
   }
@@ -1093,6 +1099,7 @@ export class Game {
     s.furniture.update(pos, dt)
     s.fish.update(dt, pos.x, pos.z)
     s.birds.update(dt, pos.x, pos.z)
+    s.ufos?.update(dt, pos.x, pos.z)
     if (this.worldReady) s.decorations.update(s.world, pos, dt)
     s.sky.update(dt, this.camera.position)
     s.water.position.x = pos.x
@@ -1210,13 +1217,13 @@ export class Game {
       const tb = s.interaction.targetBlock
       if (animal) {
         key = `a:${animal.kind}${animal.eggReady ? ':egg' : ''}`
-        name = animalLabel(animal.kind)
+        name = animalLabel(animal.kind, s.kind)
         if (animal.eggReady) name += ' 🥚 (egg ready!)'
-        info = animalInfo(animal.kind)
+        info = animalInfo(animal.kind, s.kind)
       } else if (furn) {
         const itemId = furnitureItemFor(furn.kind) ?? 0
         key = `f:${furn.kind}`
-        name = FURNITURE_LABEL[furn.kind]
+        name = furnitureLabel(furn.kind, s.kind)
         info = itemInfo(itemId)
       } else if (tb) {
         const id = s.world.getBlock(tb.x, tb.y, tb.z)

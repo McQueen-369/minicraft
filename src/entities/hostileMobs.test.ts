@@ -12,7 +12,7 @@ const SEED = 987654
 function nightSession(kind: WorldKind) {
   const terrain = new Terrain(SEED, kind)
   const world = new World(terrain)
-  const entities = new EntityManager(new THREE.Scene(), world, kind === 'robot' ? 'robot' : 'zombie')
+  const entities = new EntityManager(new THREE.Scene(), world, kind)
   // Stand somewhere dry, so spawn attempts are not all rejected as lakes.
   let spot = { x: 0, z: 0 }
   outer: for (let x = 0; x < 400; x += 4) {
@@ -64,5 +64,21 @@ describe('night mobs by world kind', () => {
     expect(robot.group.children.length).not.toBe(zombie.group.children.length)
     disposeModel(robot)
     disposeModel(zombie)
+  })
+
+  it('rebuilds every animal as a machine in a robot world', () => {
+    for (const kind of ['pig', 'sheep', 'chicken', 'rabbit', 'cat', 'dog', 'horse', 'villager'] as const) {
+      const organic = buildAnimalModel(kind, 'terrain')
+      const machine = buildAnimalModel(kind, 'robot')
+      // Hardware (optics, antenna, power core) means more parts...
+      expect(machine.group.children.length).toBeGreaterThan(organic.group.children.length)
+      // ...and the body itself is steel-tinted rather than its organic colour.
+      const bodyColor = (m: typeof organic) =>
+        ((m.group.children[0] as THREE.Mesh).material as THREE.MeshLambertMaterial).color.getHex()
+      expect(bodyColor(machine)).not.toBe(bodyColor(organic))
+      expect(machine.legs.length).toBe(organic.legs.length)
+      disposeModel(organic)
+      disposeModel(machine)
+    }
   })
 })

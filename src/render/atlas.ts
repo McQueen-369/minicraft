@@ -9,7 +9,7 @@ export const TILE_PX = 32
 const SRC_PX = 16
 export const ATLAS_TILES = 4 // 4x4 grid
 export const ATLAS_PX = TILE_PX * ATLAS_TILES
-export const ATLAS_ROWS = 8
+export const ATLAS_ROWS = 9
 
 /** Half-texel inset keeps neighboring tiles from bleeding at quad edges. */
 export const UV_EPSILON = 0.5 / ATLAS_PX
@@ -464,6 +464,45 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
       ctx.fillStyle = '#c0392b'
       ctx.fillRect(x0 + 3, y0 + 7, 1, 1)
       ctx.fillRect(x0 + 10, y0 + 8, 1, 1)
+      break
+    }
+    case Tile.MetalFence: {
+      // See-through railing: a steel post with two flat rails and a bolt head,
+      // the metal answer to the wooden picket fence.
+      ctx.clearRect(x0, y0, SRC_PX, SRC_PX)
+      ctx.fillStyle = '#8f9aa6'
+      ctx.fillRect(x0 + 6, y0, 4, SRC_PX)
+      ctx.fillStyle = '#c7d2dc'
+      ctx.fillRect(x0 + 6, y0, 1, SRC_PX)
+      ctx.fillStyle = '#5f6a75'
+      ctx.fillRect(x0 + 9, y0, 1, SRC_PX)
+      // Rails.
+      ctx.fillStyle = '#9aa6b2'
+      ctx.fillRect(x0, y0 + 3, SRC_PX, 3)
+      ctx.fillRect(x0, y0 + 10, SRC_PX, 3)
+      ctx.fillStyle = '#5f6a75'
+      ctx.fillRect(x0, y0 + 5, SRC_PX, 1)
+      ctx.fillRect(x0, y0 + 12, SRC_PX, 1)
+      // Bolt on the post, where the rails cross it.
+      ctx.fillStyle = '#c7d2dc'
+      ctx.fillRect(x0 + 7, y0 + 3, 2, 2)
+      ctx.fillRect(x0 + 7, y0 + 10, 2, 2)
+      break
+    }
+    case Tile.HullPlate: {
+      // Dark riveted hull sheeting — roofs and trim, a shade below the decking
+      // so a metal house still reads as walls under a roof.
+      speckle(ctx, x0, y0, '#4f5a66', ['#47515c', '#586470', '#3e4650'], 0.45, 33)
+      ctx.fillStyle = '#38414a'
+      ctx.fillRect(x0, y0 + 7, SRC_PX, 2)
+      ctx.fillStyle = '#5f6b78'
+      ctx.fillRect(x0, y0 + 7, SRC_PX, 1)
+      for (const [rx, ry] of [[2, 3], [12, 3], [2, 12], [12, 12], [7, 3], [7, 12]] as const) {
+        ctx.fillStyle = '#2f363e'
+        ctx.fillRect(x0 + rx, y0 + ry, 2, 2)
+        ctx.fillStyle = '#7c8895'
+        ctx.fillRect(x0 + rx, y0 + ry, 1, 1)
+      }
       break
     }
     default:

@@ -1,13 +1,66 @@
 import * as THREE from 'three'
 import type { AnimalKind } from '../items/items'
+import type { WorldKind } from '../world/worldKind'
 
 export interface AnimalModel {
   group: THREE.Group
   legs: THREE.Object3D[]
 }
 
+/**
+ * Steel every colour is mixed toward when the world is mechanical, and how far.
+ * Keeping a little of the original hue is deliberate: a robot pig still reads
+ * as the pink one, so players can tell the herd apart at a glance.
+ */
+const CHASSIS = 0x8f9aa6
+const CHASSIS_MIX = 0.62
+/** Warning-light red: eyes, power cores and antenna lamps. */
+const LAMP = 0xff3b30
+
+/**
+ * Which skin the builders below are painting with. Set once at the top of
+ * buildAnimalModel and read by every helper in this module, so each builder
+ * stays a plain shape list instead of threading a palette through every call.
+ */
+let metal = false
+
+/** A body colour, run through the world's skin. */
+function hue(color: number): number {
+  if (!metal) return color
+  return new THREE.Color(color).lerp(new THREE.Color(CHASSIS), CHASSIS_MIX).getHex()
+}
+
 function box(w: number, h: number, d: number, color: number): THREE.Mesh {
+  return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color: hue(color) }))
+}
+
+/** A part painted exactly as asked, with no world tint: optics, lamps, plating. */
+function lamp(w: number, h: number, d: number, color = LAMP): THREE.Mesh {
   return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color }))
+}
+
+/**
+ * Turn a finished animal into its machine version: a lit optic strip across the
+ * muzzle, an antenna with a signal lamp above the head, and a power core on the
+ * flank. Positions come from the animal's own head/body, so every species keeps
+ * its silhouette and just gains hardware.
+ */
+function robotize(
+  group: THREE.Group,
+  head: { x: number; y: number; z: number },
+  body: { y: number; z: number },
+  scale: number,
+): void {
+  if (!metal) return
+  const eye = lamp(0.11 * scale + 0.03, 0.05 * scale + 0.02, 0.04)
+  eye.position.set(head.x, head.y, head.z)
+  const mast = box(0.03, 0.16 * scale + 0.05, 0.03, 0x3a424b)
+  mast.position.set(head.x, head.y + 0.16 * scale + 0.12, head.z - 0.12 * scale)
+  const signal = lamp(0.07, 0.07, 0.07)
+  signal.position.set(head.x, head.y + 0.3 * scale + 0.16, head.z - 0.12 * scale)
+  const core = lamp(0.09 * scale + 0.03, 0.09 * scale + 0.03, 0.03, 0x2fd4d4)
+  core.position.set(0, body.y, body.z)
+  group.add(eye, mast, signal, core)
 }
 
 function leg(w: number, h: number, color: number, x: number, z: number, bodyBottom: number): THREE.Object3D {
@@ -29,6 +82,7 @@ function buildPig(): AnimalModel {
   const snout = box(0.2, 0.15, 0.08, 0xd98880)
   snout.position.set(0, 0.58, 0.75)
   group.add(body, head, snout)
+  robotize(group, { x: 0, y: 0.7, z: 0.78 }, { y: 0.6, z: 0.46 }, 1)
   const legs = [
     leg(0.16, 0.3, 0xeaa8a0, -0.18, 0.3, 0.3),
     leg(0.16, 0.3, 0xeaa8a0, 0.18, 0.3, 0.3),
@@ -46,6 +100,7 @@ function buildSheep(): AnimalModel {
   const head = box(0.32, 0.34, 0.3, 0xcfc4b8)
   head.position.set(0, 0.95, 0.6)
   group.add(body, head)
+  robotize(group, { x: 0, y: 1.0, z: 0.76 }, { y: 0.8, z: 0.51 }, 1)
   const legs = [
     leg(0.14, 0.45, 0xcfc4b8, -0.2, 0.32, 0.45),
     leg(0.14, 0.45, 0xcfc4b8, 0.2, 0.32, 0.45),
@@ -67,6 +122,7 @@ function buildChicken(): AnimalModel {
   const comb = box(0.08, 0.08, 0.1, 0xc0392b)
   comb.position.set(0, 0.8, 0.22)
   group.add(body, head, beak, comb)
+  robotize(group, { x: 0, y: 0.7, z: 0.32 }, { y: 0.44, z: 0.23 }, 0.6)
   const legs = [
     leg(0.06, 0.22, 0xe9b44c, -0.09, 0, 0.22),
     leg(0.06, 0.22, 0xe9b44c, 0.09, 0, 0.22),
@@ -88,6 +144,7 @@ function buildRabbit(): AnimalModel {
   const tail = box(0.1, 0.1, 0.1, 0xfaf0e6)
   tail.position.set(0, 0.3, -0.2)
   group.add(body, head, earL, earR, tail)
+  robotize(group, { x: 0, y: 0.47, z: 0.28 }, { y: 0.3, z: 0.2 }, 0.6)
   const legs = [
     leg(0.1, 0.15, 0xd4b896, -0.08, 0.15, 0.17),
     leg(0.1, 0.15, 0xd4b896, 0.08, 0.15, 0.17),
@@ -114,6 +171,7 @@ function buildCat(): AnimalModel {
   tail2.position.set(0, 0.62, -0.26)
   tail2.rotation.x = 0.5
   group.add(body, head, earL, earR, tail1, tail2)
+  robotize(group, { x: 0, y: 0.6, z: 0.4 }, { y: 0.4, z: 0.25 }, 0.6)
   const legs = [
     leg(0.09, 0.2, 0xf4a460, -0.09, 0.18, 0.25),
     leg(0.09, 0.2, 0xf4a460, 0.09, 0.18, 0.25),
@@ -140,6 +198,7 @@ function buildDog(): AnimalModel {
   tail.position.set(0, 0.72, -0.4)
   tail.rotation.x = -0.6
   group.add(body, head, snout, earL, earR, tail)
+  robotize(group, { x: 0, y: 0.72, z: 0.7 }, { y: 0.56, z: 0.37 }, 0.8)
   const legs = [
     leg(0.13, 0.32, 0xa0522d, -0.15, 0.28, 0.36),
     leg(0.13, 0.32, 0xa0522d, 0.15, 0.28, 0.36),
@@ -152,27 +211,47 @@ function buildDog(): AnimalModel {
 
 function buildVillager(): AnimalModel {
   const group = new THREE.Group()
-  const skin = 0xffcc99
-  const robe = 0x5a3e1a
-  const dark = 0x3d2a0e
-  // Body (brown robe)
-  const body = box(0.5, 0.75, 0.3, robe)
+  // A robot resident is built out of the same alloy as its village, rather
+  // than a steel-washed version of a person.
+  const skin = metal ? 0xa5b0bb : 0xffcc99
+  const robe = metal ? 0x6b7681 : 0x5a3e1a
+  const dark = metal ? 0x3a424b : 0x3d2a0e
+  // Body (robe, or a plated torso)
+  const body = metal ? lamp(0.5, 0.75, 0.3, robe) : box(0.5, 0.75, 0.3, robe)
   body.position.y = 1.05
   // Head
-  const head = box(0.42, 0.42, 0.42, skin)
+  const head = metal ? lamp(0.42, 0.42, 0.42, skin) : box(0.42, 0.42, 0.42, skin)
   head.position.set(0, 1.67, 0)
-  // Nose
-  const nose = box(0.1, 0.1, 0.12, 0xcc9966)
-  nose.position.set(0, 1.63, 0.24)
   // Arms
-  const armL = box(0.16, 0.6, 0.16, robe)
+  const arm = () => (metal ? lamp(0.16, 0.6, 0.16, robe) : box(0.16, 0.6, 0.16, robe))
+  const armL = arm()
   armL.position.set(-0.33, 1.1, 0)
-  const armR = box(0.16, 0.6, 0.16, robe)
+  const armR = arm()
   armR.position.set(0.33, 1.1, 0)
-  group.add(body, head, nose, armL, armR)
+  group.add(body, head, armL, armR)
+  if (metal) {
+    // A robot resident: a lit face screen instead of a nose, shoulder collar
+    // and a friendly cyan signal — the colour that tells it apart from the
+    // hostile night robots at a glance.
+    const face = lamp(0.3, 0.14, 0.04, 0x6fe3ff)
+    face.position.set(0, 1.68, 0.22)
+    const collar = box(0.56, 0.08, 0.36, 0x3a424b)
+    collar.position.y = 1.44
+    const mast = box(0.04, 0.18, 0.04, 0x3a424b)
+    mast.position.set(0.12, 1.97, 0)
+    const signal = lamp(0.08, 0.08, 0.08, 0x6fe3ff)
+    signal.position.set(0.12, 2.1, 0)
+    const core = lamp(0.12, 0.12, 0.03, 0x2fd4d4)
+    core.position.set(0, 1.12, 0.16)
+    group.add(face, collar, mast, signal, core)
+  } else {
+    const nose = box(0.1, 0.1, 0.12, 0xcc9966)
+    nose.position.set(0, 1.63, 0.24)
+    group.add(nose)
+  }
   const legs = [
-    leg(0.18, 0.62, dark, -0.12, 0, 0.62),
-    leg(0.18, 0.62, dark, 0.12, 0, 0.62),
+    leg(0.18, 0.62, metal ? 0x8f9aa6 : dark, -0.12, 0, 0.62),
+    leg(0.18, 0.62, metal ? 0x8f9aa6 : dark, 0.12, 0, 0.62),
   ]
   group.add(...legs)
   return { group, legs }
@@ -197,6 +276,7 @@ function buildHorse(): AnimalModel {
   tail.position.set(0, 1.0, -0.72)
   tail.rotation.x = 0.45
   group.add(body, neck, head, mane, tail)
+  robotize(group, { x: 0, y: 1.56, z: 1.19 }, { y: 1.15, z: 0.66 }, 1.2)
   const legs = [
     leg(0.2, 0.72, 0x7a4a22, -0.2, 0.42, 0.72),
     leg(0.2, 0.72, 0x7a4a22, 0.2, 0.42, 0.72),
@@ -285,7 +365,13 @@ function buildRobot(): AnimalModel {
   return { group, legs }
 }
 
-export function buildAnimalModel(kind: AnimalKind): AnimalModel {
+/**
+ * Build the 3D model for a mob. In a robot world every creature is a machine:
+ * bodies are steel-tinted, optics and power cores glow, and an antenna sits
+ * above the head — the same silhouettes, rebuilt in hardware.
+ */
+export function buildAnimalModel(kind: AnimalKind, worldKind: WorldKind = 'terrain'): AnimalModel {
+  metal = worldKind === 'robot'
   if (kind === 'pig') return buildPig()
   if (kind === 'sheep') return buildSheep()
   if (kind === 'rabbit') return buildRabbit()

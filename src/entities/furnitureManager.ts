@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import type { Vec3 } from '../player/physics'
+import type { WorldKind } from '../world/worldKind'
 import {
   DEFAULT_FURNITURE_HALF,
   FURNITURE_HALF,
@@ -19,7 +20,11 @@ export class FurnitureManager {
   private readonly models = new Map<string, FurnitureModel>()
   private counter = 0
 
-  constructor(private readonly scene: THREE.Scene) {}
+  constructor(
+    private readonly scene: THREE.Scene,
+    /** Decides how pieces are built: timber joinery, or a robot world's hardware. */
+    private readonly worldKind: WorldKind = 'terrain',
+  ) {}
 
   place(kind: FurnitureKind, x: number, y: number, z: number, yaw: number, id?: string): Furniture {
     const f: Furniture = { id: id ?? `f-${Date.now()}-${this.counter++}`, kind, x, y, z, yaw, open: false }
@@ -70,7 +75,7 @@ export class FurnitureManager {
         continue
       }
       if (!model) {
-        model = buildFurnitureModel(f.kind)
+        model = buildFurnitureModel(f.kind, this.worldKind)
         model.group.position.set(f.x + 0.5, f.y, f.z + 0.5)
         model.group.rotation.y = f.yaw
         this.models.set(f.id, model)
