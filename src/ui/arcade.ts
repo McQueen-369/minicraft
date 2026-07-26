@@ -1,11 +1,13 @@
 import type { Inventory } from '../items/inventory'
 import { ItemId, itemDef } from '../items/items'
-
-/** Prize bundle granted for winning a mini-game. */
-interface Prize {
-  itemId: number
-  count: number
-}
+import {
+  DIFFICULTIES,
+  DIFFICULTY_META,
+  difficultyRules,
+  scalePrizes,
+  type Difficulty,
+  type Prize,
+} from './challenge'
 
 /** How one kiosk presents itself: identity, accent, briefing and reward. */
 interface GameMeta {
@@ -16,9 +18,9 @@ interface GameMeta {
   /** Translucent accent for fills, so panels stay readable over dark chrome. */
   accentSoft: string
   /** Short "how to play" chips, shown before the first move. */
-  how: string[]
-  /** What a win pays out, advertised up front. */
-  reward: string
+  how: (d: Difficulty) => string[]
+  /** One line about what the chosen difficulty changes about the game itself. */
+  twist: Record<Difficulty, string>
 }
 
 const GAMES: Record<string, GameMeta> = {
@@ -27,32 +29,70 @@ const GAMES: Record<string, GameMeta> = {
     badge: '🧩',
     accent: '#2e86de',
     accentSoft: 'rgba(46,134,222,0.18)',
-    how: ['🎯 Put the tiles back in order 1–8', '👆 Tap a tile next to the gap', '⚡ 40 moves or fewer = bigger prize'],
-    reward: 'Up to 15 gold + fish stew',
+    how: (d) => [
+      `🎯 Put the tiles back in order 1–${difficultyRules(d).puzzle.size ** 2 - 1}`,
+      '👆 Tap a tile next to the gap',
+      `⚡ ${difficultyRules(d).puzzle.swiftMoves} moves or fewer = top prize tier`,
+    ],
+    twist: {
+      easy: '3×3 grid, lightly shuffled',
+      normal: '3×3 grid, fully shuffled',
+      hard: '4×4 grid — fifteen tiles to order',
+    },
   },
   arcadeRunner: {
     title: 'Island Runner',
     badge: '🏃',
     accent: '#27ae60',
     accentSoft: 'rgba(39,174,96,0.18)',
-    how: ['🎯 Jump the cacti, run as far as you can', '👆 SPACE or tap the track to jump', '⚡ 150+ points wins a prize'],
-    reward: 'Up to 20 gold + cooked fish',
+    how: (d) => [
+      '🎯 Jump the cacti, run as far as you can',
+      '👆 SPACE or tap the track to jump',
+      `⚡ ${difficultyRules(d).runner.target}+ points wins a prize`,
+    ],
+    twist: {
+      easy: 'gentle pace, well-spaced cacti',
+      normal: 'standard pace',
+      hard: 'fast track, cacti close together',
+    },
   },
   arcadeMath: {
     title: 'Math Blaster',
     badge: '🎯',
     accent: '#e67e22',
     accentSoft: 'rgba(230,126,34,0.18)',
-    how: ['🎯 Shoot the target with the right answer', '❤ 10 questions, 3 lives', '⚡ 6+ correct wins gold'],
-    reward: 'Up to 25 gold + fish stew',
+    how: (d) => {
+      const r = difficultyRules(d).math
+      return [
+        '🎯 Shoot the target with the right answer',
+        `❤ ${r.questions} questions, ${r.lives} lives`,
+        `⚡ ${r.target}+ correct wins gold`,
+      ]
+    },
+    twist: {
+      easy: 'addition and subtraction only, 5 lives',
+      normal: '+ − × ÷ mixed, 3 lives',
+      hard: 'bigger numbers and two-step sums, 2 lives',
+    },
   },
   arcadeWord: {
     title: 'Word Wizard',
     badge: '🔤',
     accent: '#9b59b6',
     accentSoft: 'rgba(155,89,182,0.18)',
-    how: ['🎯 Guess the hidden word letter by letter', '⌨ Tap a key or type on your keyboard', '⚡ 6 wrong guesses and the round ends'],
-    reward: 'Up to 15 gold + apples',
+    how: (d) => {
+      const r = difficultyRules(d).word
+      return [
+        '🎯 Guess the hidden word letter by letter',
+        '⌨ Tap a key or type on your keyboard',
+        `⚡ ${r.lives} wrong guesses and the round ends`,
+      ]
+    },
+    twist: {
+      easy: 'short words, 8 lives, hint shown',
+      normal: 'medium words, 6 lives, hint shown',
+      hard: 'long words, 4 lives, hint hidden until your first mistake',
+    },
   },
 }
 
@@ -110,6 +150,34 @@ const STYLE = `
 .mc-arc-btn:hover { filter: brightness(1.12); }
 .mc-arc-btn.alt { background: #39405a; color: #fff; }
 .mc-arc-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+/* --- difficulty picker --- */
+.mc-arc-pick-head {
+  font-size: var(--mc-fs-md, 16px); font-weight: bold; color: #fff; text-align: center;
+}
+.mc-arc-pick-sub { font-size: var(--mc-fs-xs, 12.5px); color: #aab; text-align: center; margin-top: -6px; }
+.mc-arc-levels {
+  display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; width: 100%;
+}
+.mc-arc-level {
+  --lvl: #2e86de;
+  flex: 1 1 170px; max-width: 220px; min-width: 150px;
+  background: #1e2130; border: 2px solid var(--lvl); border-radius: 8px;
+  color: #e8e8f0; font-family: 'Courier New', monospace; text-align: left;
+  padding: 12px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.mc-arc-level:hover { background: #262a3c; }
+.mc-arc-level-name {
+  font-size: var(--mc-fs-lg, 18px); font-weight: bold; color: var(--lvl);
+}
+.mc-arc-level-reward {
+  font-size: var(--mc-fs-sm, 14px); font-weight: bold; color: #ffd34d;
+}
+.mc-arc-level-blurb { font-size: var(--mc-fs-xs, 12.5px); color: #c3c9e0; line-height: 1.45; }
+.mc-arc-level-twist {
+  font-size: var(--mc-fs-xs, 12.5px); color: #9aa2c0; line-height: 1.45;
+  border-top: 1px solid #2f3446; padding-top: 5px;
+}
 /* --- puzzle --- */
 .mc-arc-grid {
   display: grid; grid-template-columns: repeat(3, var(--tile)); gap: 6px;
@@ -186,6 +254,16 @@ const STYLE = `
 `
 
 const WORDS: { word: string; hint: string }[] = [
+  // short (easy)
+  { word: 'LAVA', hint: 'Molten rock once it reaches the surface' },
+  { word: 'SEED', hint: 'A tiny plant packed with its own lunch' },
+  { word: 'WOOL', hint: 'What a sheep grows and a shearer collects' },
+  { word: 'ROOT', hint: 'The part of a plant that drinks from the soil' },
+  { word: 'GILLS', hint: 'How a fish pulls oxygen out of water' },
+  { word: 'STONE', hint: 'The grey block a pickaxe is made for' },
+  { word: 'OCEAN', hint: 'Covers about seven tenths of the planet' },
+  { word: 'CRUST', hint: 'The thin outer shell of the Earth' },
+  // medium (normal)
   { word: 'CHICKEN', hint: 'Tamed with seeds — lays eggs every two days' },
   { word: 'ISLAND', hint: 'Land completely surrounded by water' },
   { word: 'VOLCANO', hint: 'A mountain that can erupt with lava' },
@@ -198,7 +276,26 @@ const WORDS: { word: string; hint: string }[] = [
   { word: 'GLACIER', hint: 'A slow-moving river of ice' },
   { word: 'ORCHARD', hint: 'A field of fruit trees' },
   { word: 'MINERAL', hint: 'Gold ore is one of these' },
+  { word: 'MAGMA', hint: 'What lava is called while it is still underground' },
+  { word: 'BASALT', hint: 'The dark rock that cooled lava turns into' },
+  // long (hard)
+  { word: 'CHLOROPHYLL', hint: 'The green pigment a leaf uses to catch sunlight' },
+  { word: 'PHOTOSYNTHESIS', hint: 'Turning light, air and water into sugar' },
+  { word: 'SEDIMENTARY', hint: 'Rock built up from settled layers' },
+  { word: 'CRYSTALLINE', hint: 'Made of atoms locked in a repeating pattern' },
+  { word: 'EVAPORATION', hint: 'Water leaving a puddle as invisible vapour' },
+  { word: 'HIBERNATION', hint: 'Sleeping through the winter to save energy' },
+  { word: 'ARCHAEOLOGY', hint: 'Digging up the past to study it' },
+  { word: 'CONSTELLATION', hint: 'A pattern people traced between the stars' },
+  { word: 'GERMINATION', hint: 'The moment a seed starts to sprout' },
+  { word: 'THERMOMETER', hint: 'It tells you how hot the lava is — from a safe distance' },
 ]
+
+/** Words whose length fits the tier, falling back to the whole list. */
+function wordsFor(rules: { minLength: number; maxLength: number }): typeof WORDS {
+  const fit = WORDS.filter((w) => w.word.length >= rules.minLength && w.word.length <= rules.maxLength)
+  return fit.length ? fit : WORDS
+}
 
 /**
  * The secret island's mini-game arcade: four small educational games
@@ -219,6 +316,10 @@ export class ArcadePanel {
   private _isOpen = false
   private runnerRaf = 0
   private keyHandler: ((e: KeyboardEvent) => void) | null = null
+  /** Which kiosk is open, so "change difficulty" can re-show its picker. */
+  private kind = 'arcadePuzzle'
+  /** Tier chosen for the round in progress. */
+  private level: Difficulty = 'normal'
 
   onClose: () => void = () => {}
   onPrize: (summary: string) => void = () => {}
@@ -266,15 +367,54 @@ export class ArcadePanel {
     root.appendChild(this.overlay)
   }
 
-  /** Open the mini-game for an arcade kiosk kind (e.g. 'arcadePuzzle'). */
+  /** Open the kiosk for an arcade kind (e.g. 'arcadePuzzle') at its difficulty picker. */
   open(kind: string): void {
     this._isOpen = true
     this.overlay.style.display = 'flex'
-    this.body.innerHTML = ''
-    if (kind === 'arcadePuzzle') this.startPuzzle()
-    else if (kind === 'arcadeRunner') this.startRunner()
-    else if (kind === 'arcadeMath') this.startMath()
+    this.kind = kind in GAMES ? kind : 'arcadePuzzle'
+    this.showDifficultyPicker()
+  }
+
+  /**
+   * The gate every challenge starts at: pick Easy, Normal or Hard. Each option
+   * spells out both what changes about the game and what the win is worth, so
+   * the trade is visible before the player commits.
+   */
+  private showDifficultyPicker(): void {
+    const meta = this.frame(this.kind, null)
+    this.body.appendChild(this.el('div', 'mc-arc-pick-head', 'Choose your challenge'))
+    this.body.appendChild(this.el('div', 'mc-arc-pick-sub', 'Harder rounds pay bigger rewards.'))
+    const levels = this.el('div', 'mc-arc-levels')
+    for (const d of DIFFICULTIES) {
+      const dm = DIFFICULTY_META[d]
+      const btn = this.el('button', 'mc-arc-level')
+      btn.style.setProperty('--lvl', dm.colour)
+      btn.appendChild(this.el('div', 'mc-arc-level-name', `${dm.badge} ${dm.label}`))
+      btn.appendChild(this.el('div', 'mc-arc-level-reward', `🏆 ${rewardMultiplierLabel(d)}`))
+      btn.appendChild(this.el('div', 'mc-arc-level-blurb', dm.blurb))
+      btn.appendChild(this.el('div', 'mc-arc-level-twist', meta.twist[d]))
+      const press = (e: Event) => { e.preventDefault(); this.startAtLevel(d) }
+      btn.addEventListener('click', press)
+      btn.addEventListener('touchstart', press, { passive: false })
+      levels.appendChild(btn)
+    }
+    this.body.appendChild(levels)
+  }
+
+  private startAtLevel(d: Difficulty): void {
+    this.level = d
+    if (this.kind === 'arcadePuzzle') this.startPuzzle()
+    else if (this.kind === 'arcadeRunner') this.startRunner()
+    else if (this.kind === 'arcadeMath') this.startMath()
     else this.startWord()
+  }
+
+  /** Actions offered on every result card: replay this tier, or change tier. */
+  private replayActions(replay: () => void): { label: string; onClick: () => void; alt?: boolean }[] {
+    return [
+      { label: '↻ Play again', onClick: replay, alt: true },
+      { label: '⚙ Change difficulty', onClick: () => this.showDifficultyPicker(), alt: true },
+    ]
   }
 
   close(): void {
@@ -299,25 +439,35 @@ export class ArcadePanel {
     return e
   }
 
-  /** Reset the panel to one game's identity: accent, header and briefing. */
-  private frame(kind: keyof typeof GAMES | string): GameMeta {
+  /**
+   * Reset the panel to one game's identity: accent, header and briefing.
+   * Pass `null` for the difficulty on the picker screen, where no tier has
+   * been chosen yet and there are no rules to describe.
+   */
+  private frame(kind: keyof typeof GAMES | string, level: Difficulty | null = this.level): GameMeta {
     this.stopLoops()
     const meta = GAMES[kind] ?? GAMES.arcadePuzzle
     this.box.style.setProperty('--acc', meta.accent)
     this.box.style.setProperty('--acc-soft', meta.accentSoft)
     this.badgeEl.textContent = meta.badge
     this.titleEl.textContent = meta.title
-    this.rewardEl.textContent = `🏆 ${meta.reward}`
+    this.rewardEl.textContent = level
+      ? `${DIFFICULTY_META[level].badge} ${DIFFICULTY_META[level].label} · 🏆 ${rewardMultiplierLabel(level)}`
+      : '🏆 Pick a difficulty to begin'
     this.body.innerHTML = ''
-    const how = this.el('div', 'mc-arc-how')
-    for (const line of meta.how) how.appendChild(this.el('span', 'mc-arc-chip', line))
-    this.body.appendChild(how)
+    if (level) {
+      const how = this.el('div', 'mc-arc-how')
+      for (const line of meta.how(level)) how.appendChild(this.el('span', 'mc-arc-chip', line))
+      this.body.appendChild(how)
+    }
     return meta
   }
 
+  /** Grant a prize bundle, scaled by the tier the player chose. */
   private award(prizes: Prize[]): string {
-    for (const p of prizes) this.inventory.add(p.itemId, p.count)
-    const summary = prizes.map((p) => `${p.count}× ${itemDef(p.itemId)?.name ?? 'item'}`).join(' + ')
+    const scaled = scalePrizes(prizes, this.level)
+    for (const p of scaled) this.inventory.add(p.itemId, p.count)
+    const summary = scaled.map((p) => `${p.count}× ${itemDef(p.itemId)?.name ?? 'item'}`).join(' + ')
     this.onPrize(summary)
     return summary
   }
@@ -353,16 +503,22 @@ export class ArcadePanel {
 
   private startPuzzle(): void {
     this.frame('arcadePuzzle')
+    const rules = difficultyRules(this.level).puzzle
+    const size = rules.size
+    const count = size * size
     const status = this.el('div', 'mc-arc-status', 'Moves: 0')
     const grid = this.el('div', 'mc-arc-grid')
+    // Hard's 4×4 board needs a fourth column and slightly smaller tiles.
+    grid.style.gridTemplateColumns = `repeat(${size}, var(--tile))`
+    if (size > 3) grid.style.setProperty('--tile', 'clamp(48px, 14vmin, 68px)')
     this.body.append(status, grid)
 
     // Shuffle by random walking the blank from the solved state — always solvable.
-    const tiles = [1, 2, 3, 4, 5, 6, 7, 8, 0]
-    let blank = 8
+    const tiles = Array.from({ length: count }, (_, i) => (i + 1) % count)
+    let blank = count - 1
     let prev = -1
-    for (let i = 0; i < 120; i++) {
-      const opts = neighbors3(blank).filter((n) => n !== prev)
+    for (let i = 0; i < rules.shuffle; i++) {
+      const opts = neighbors(blank, size).filter((n) => n !== prev)
       const n = opts[Math.floor(Math.random() * opts.length)]
       tiles[blank] = tiles[n]
       tiles[n] = 0
@@ -379,16 +535,16 @@ export class ArcadePanel {
         if (t !== 0 && !won) {
           const tryMove = (e: Event) => {
             e.preventDefault()
-            if (!neighbors3(blank).includes(i)) return
+            if (!neighbors(blank, size).includes(i)) return
             tiles[blank] = t
             tiles[i] = 0
             blank = i
             moves++
             status.textContent = `Moves: ${moves}`
-            if (tiles.every((v, j) => v === (j + 1) % 9)) {
+            if (tiles.every((v, j) => v === (j + 1) % count)) {
               won = true
               status.textContent = `✨ Solved in ${moves} moves!`
-              const swift = moves <= 40
+              const swift = moves <= rules.swiftMoves
               const prize = this.award(swift
                 ? [{ itemId: ItemId.Gold, count: 15 }, { itemId: ItemId.FishStew, count: 1 }]
                 : [{ itemId: ItemId.Gold, count: 8 }, { itemId: ItemId.Apple, count: 2 }])
@@ -396,9 +552,11 @@ export class ArcadePanel {
               this.showResult(
                 true,
                 `✨ Solved in ${moves} moves!`,
-                swift ? 'Under 40 moves — top prize tier.' : 'Solve it in 40 moves or fewer for the top prize tier.',
+                swift
+                  ? `Under ${rules.swiftMoves} moves — top prize tier.`
+                  : `Solve it in ${rules.swiftMoves} moves or fewer for the top prize tier.`,
                 prize,
-                [{ label: '↻ New puzzle', onClick: () => this.startPuzzle(), alt: true }],
+                this.replayActions(() => this.startPuzzle()),
               )
               return
             }
@@ -417,6 +575,7 @@ export class ArcadePanel {
 
   private startRunner(): void {
     this.frame('arcadeRunner')
+    const rules = difficultyRules(this.level).runner
     const status = this.el('div', 'mc-arc-status', 'Score: 0')
     const canvas = this.el('canvas', 'mc-arc-canvas') as HTMLCanvasElement
     canvas.width = 500
@@ -427,9 +586,9 @@ export class ArcadePanel {
     const GROUND = 140
     const player = { y: GROUND, vy: 0, w: 22, h: 30 }
     let obstacles: { x: number; w: number; h: number }[] = []
-    let speed = 170
+    let speed = rules.speed
     let score = 0
-    let spawnIn = 1.2
+    let spawnIn = 1.2 * rules.spacing
     let alive = true
     let last = performance.now()
 
@@ -455,7 +614,7 @@ export class ArcadePanel {
         player.y = Math.min(GROUND, player.y + player.vy * dt)
         spawnIn -= dt
         if (spawnIn <= 0) {
-          spawnIn = 0.9 + Math.random() * 1.1 - Math.min(0.5, speed / 900)
+          spawnIn = (0.9 + Math.random() * 1.1) * rules.spacing - Math.min(0.5, speed / 900)
           obstacles.push({ x: canvas.width + 20, w: 14 + Math.random() * 14, h: 26 + Math.random() * 22 })
         }
         for (const o of obstacles) o.x -= speed * dt
@@ -467,19 +626,21 @@ export class ArcadePanel {
             alive = false
             const points = Math.floor(score)
             status.textContent = `💥 Wiped out at ${points} points!`
-            const cleared = points >= 150
+            const cleared = points >= rules.target
             const prize = cleared
               ? this.award([
-                { itemId: ItemId.Gold, count: Math.min(20, Math.floor(points / 40) * 4) },
+                { itemId: ItemId.Gold, count: Math.min(20, Math.max(4, Math.floor(points / 40) * 4)) },
                 { itemId: ItemId.CookedFish, count: 1 },
               ])
               : null
             this.showResult(
               cleared,
               cleared ? `🏁 ${points} points — you made it!` : `💥 Wiped out at ${points} points`,
-              cleared ? 'The longer the run, the more gold it pays.' : 'Reach 150 points to win a prize — the cacti speed up, so jump early.',
+              cleared
+                ? 'The longer the run, the more gold it pays.'
+                : `Reach ${rules.target} points to win a prize — the cacti speed up, so jump early.`,
               prize,
-              [{ label: '↻ Run again', onClick: () => this.startRunner(), alt: true }],
+              this.replayActions(() => this.startRunner()),
             )
           }
         }
@@ -517,6 +678,8 @@ export class ArcadePanel {
 
   private startMath(): void {
     this.frame('arcadeMath')
+    const rules = difficultyRules(this.level).math
+    const maxLives = rules.lives
     const status = this.el('div', 'mc-arc-status')
     const question = this.el('div', 'mc-arc-question')
     const targets = this.el('div', 'mc-arc-targets')
@@ -524,56 +687,42 @@ export class ArcadePanel {
 
     let qIndex = 0
     let correct = 0
-    let lives = 3
+    let lives = maxLives
     let done = false
 
     const finish = () => {
       done = true
       question.textContent = ''
       targets.innerHTML = ''
-      status.textContent = `${correct}/10 correct`
-      const won = correct >= 6
+      status.textContent = `${correct}/${rules.questions} correct`
+      const won = correct >= rules.target
+      const perfect = correct === rules.questions
       const prize = won
-        ? this.award(correct === 10
+        ? this.award(perfect
           ? [{ itemId: ItemId.Gold, count: 25 }, { itemId: ItemId.FishStew, count: 1 }]
           : [{ itemId: ItemId.Gold, count: correct * 2 }])
         : null
       this.showResult(
         won,
-        won ? `🎯 ${correct}/10 correct!` : `🎯 ${correct}/10 correct`,
+        `🎯 ${correct}/${rules.questions} correct${won ? '!' : ''}`,
         won
-          ? correct === 10 ? 'A perfect round — top prize tier.' : 'Every extra correct answer pays more gold.'
-          : 'Score 6 or more to earn a prize — the questions ramp from + and − to × and ÷.',
+          ? perfect ? 'A perfect round — top prize tier.' : 'Every extra correct answer pays more gold.'
+          : `Score ${rules.target} or more to earn a prize.`,
         prize,
-        [{ label: '↻ Play again', onClick: () => this.startMath(), alt: true }],
+        this.replayActions(() => this.startMath()),
       )
     }
 
     const nextQuestion = () => {
       if (done) return
-      if (qIndex >= 10 || lives <= 0) { finish(); return }
+      if (qIndex >= rules.questions || lives <= 0) { finish(); return }
       qIndex++
-      status.textContent = `Q${qIndex}/10   ${'❤'.repeat(lives)}${'♡'.repeat(3 - lives)}   ✔ ${correct}`
-      // Difficulty ramps: + / − first, then ×, then ÷ with whole answers.
-      const level = qIndex <= 3 ? 0 : qIndex <= 6 ? 1 : 2
-      let text: string
-      let answer: number
-      if (level === 0) {
-        const a = 5 + Math.floor(Math.random() * 40)
-        const b = 3 + Math.floor(Math.random() * 30)
-        if (Math.random() < 0.5) { text = `${a} + ${b}`; answer = a + b }
-        else { text = `${a + b} − ${b}`; answer = a }
-      } else if (level === 1) {
-        const a = 3 + Math.floor(Math.random() * 10)
-        const b = 3 + Math.floor(Math.random() * 10)
-        text = `${a} × ${b}`
-        answer = a * b
-      } else {
-        const b = 2 + Math.floor(Math.random() * 9)
-        const q = 2 + Math.floor(Math.random() * 10)
-        text = `${b * q} ÷ ${b}`
-        answer = q
-      }
+      status.textContent =
+        `Q${qIndex}/${rules.questions}   ${'❤'.repeat(lives)}${'♡'.repeat(maxLives - lives)}   ✔ ${correct}`
+      // Questions ramp across the round, capped by the tier: Easy never leaves
+      // + and −, Hard reaches two-step sums with bigger numbers.
+      const ramp = Math.floor(((qIndex - 1) / rules.questions) * (rules.topLevel + 1))
+      const { text, answer } = mathQuestion(Math.min(ramp, rules.topLevel), rules.range)
       question.textContent = `${text} = ?`
       // One correct + three near-miss decoys, all unique.
       const answers = new Set<number>([answer])
@@ -610,20 +759,27 @@ export class ArcadePanel {
 
   private startWord(): void {
     this.frame('arcadeWord')
-    const pick = WORDS[Math.floor(Math.random() * WORDS.length)]
-    const hint = this.el('div', 'mc-arc-hint', `💡 Hint: ${pick.hint}`)
-    const status = this.el('div', 'mc-arc-status', '❤❤❤❤❤❤')
+    const rules = difficultyRules(this.level).word
+    const maxLives = rules.lives
+    const pool = wordsFor(rules)
+    const pick = pool[Math.floor(Math.random() * pool.length)]
+    const hint = this.el('div', 'mc-arc-hint')
+    // Hard keeps the hint back until the first wrong guess, so the opening
+    // letters have to come from the shape of the word.
+    hint.textContent = rules.hintUpFront ? `💡 Hint: ${pick.hint}` : '💡 Hint unlocks after your first wrong guess'
+    const status = this.el('div', 'mc-arc-status', '❤'.repeat(maxLives))
     const wordEl = this.el('div', 'mc-arc-word')
     const kb = this.el('div', 'mc-arc-kb')
     this.body.append(hint, status, wordEl, kb)
 
     const guessed = new Set<string>()
-    let lives = 6
+    let lives = maxLives
     let done = false
 
     const render = () => {
       wordEl.textContent = [...pick.word].map((c) => (guessed.has(c) ? c : '_')).join('')
-      status.textContent = '❤'.repeat(lives) + '♡'.repeat(6 - lives)
+      status.textContent = '❤'.repeat(lives) + '♡'.repeat(maxLives - lives)
+      if (lives < maxLives) hint.textContent = `💡 Hint: ${pick.hint}`
     }
 
     const keyButtons = new Map<string, HTMLButtonElement>()
@@ -640,26 +796,30 @@ export class ArcadePanel {
       render()
       if ([...pick.word].every((c) => guessed.has(c))) {
         done = true
-        const flawless = lives === 6
+        const misses = maxLives - lives
+        const flawless = misses === 0
         const prize = this.award(flawless
           ? [{ itemId: ItemId.Gold, count: 15 }, { itemId: ItemId.Apple, count: 3 }]
           : [{ itemId: ItemId.Gold, count: 6 + lives }, { itemId: ItemId.Apple, count: 1 }])
         this.showResult(
           true,
           `✨ ${pick.word} — you got it!`,
-          flawless ? 'Not a single wrong guess — top prize tier.' : `${6 - lives} wrong guess${6 - lives === 1 ? '' : 'es'}; a clean round pays more.`,
+          flawless
+            ? 'Not a single wrong guess — top prize tier.'
+            : `${misses} wrong guess${misses === 1 ? '' : 'es'}; a clean round pays more.`,
           prize,
-          [{ label: '↻ New word', onClick: () => this.startWord(), alt: true }],
+          this.replayActions(() => this.startWord()),
         )
       } else if (lives <= 0) {
         done = true
         wordEl.textContent = pick.word
+        hint.textContent = `💡 ${pick.hint}`
         this.showResult(
           false,
           `The word was ${pick.word}`,
           'Out of guesses — the hint narrows it down fast, so read it before picking letters.',
           null,
-          [{ label: '↻ New word', onClick: () => this.startWord(), alt: true }],
+          this.replayActions(() => this.startWord()),
         )
       }
     }
@@ -681,14 +841,51 @@ export class ArcadePanel {
   }
 }
 
-/** Indices adjacent to i on a 3×3 grid. */
-function neighbors3(i: number): number[] {
-  const r = Math.floor(i / 3)
-  const c = i % 3
+/**
+ * One arithmetic question at a difficulty level, with `range` scaling how big
+ * the numbers get. Levels: 0 = + and −, 1 = adds ×, 2 = adds ÷ (whole answers),
+ * 3 = two-step sums evaluated left to right.
+ */
+export function mathQuestion(level: number, range = 1): { text: string; answer: number } {
+  const scale = (n: number) => Math.max(2, Math.round(n * range))
+  if (level <= 0) {
+    const a = 5 + Math.floor(Math.random() * scale(40))
+    const b = 3 + Math.floor(Math.random() * scale(30))
+    if (Math.random() < 0.5) return { text: `${a} + ${b}`, answer: a + b }
+    return { text: `${a + b} − ${b}`, answer: a }
+  }
+  if (level === 1) {
+    const a = 3 + Math.floor(Math.random() * scale(10))
+    const b = 3 + Math.floor(Math.random() * scale(10))
+    return { text: `${a} × ${b}`, answer: a * b }
+  }
+  if (level === 2) {
+    const b = 2 + Math.floor(Math.random() * scale(9))
+    const q = 2 + Math.floor(Math.random() * scale(10))
+    return { text: `${b * q} ÷ ${b}`, answer: q }
+  }
+  // Two steps: a × b ± c, worked left to right.
+  const a = 2 + Math.floor(Math.random() * scale(9))
+  const b = 2 + Math.floor(Math.random() * scale(9))
+  const c = 2 + Math.floor(Math.random() * scale(20))
+  if (Math.random() < 0.5) return { text: `${a} × ${b} + ${c}`, answer: a * b + c }
+  return { text: `${a} × ${b} − ${c}`, answer: a * b - c }
+}
+
+/** Indices adjacent to i on an n×n grid. */
+export function neighbors(i: number, n: number): number[] {
+  const r = Math.floor(i / n)
+  const c = i % n
   const out: number[] = []
-  if (r > 0) out.push(i - 3)
-  if (r < 2) out.push(i + 3)
+  if (r > 0) out.push(i - n)
+  if (r < n - 1) out.push(i + n)
   if (c > 0) out.push(i - 1)
-  if (c < 2) out.push(i + 1)
+  if (c < n - 1) out.push(i + 1)
   return out
+}
+
+/** "×2.5 reward" style label for a tier's payout multiplier. */
+function rewardMultiplierLabel(d: Difficulty): string {
+  const m = DIFFICULTY_META[d].rewardMultiplier
+  return `×${m} reward`
 }

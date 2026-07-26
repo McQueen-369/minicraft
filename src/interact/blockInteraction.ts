@@ -345,6 +345,12 @@ export class BlockInteraction {
     }
     if (!this.mining || this.mining.x !== target.x || this.mining.y !== target.y || this.mining.z !== target.z) {
       const id = this.world.getBlock(target.x, target.y, target.z)
+      // Unbreakable blocks (lava) never start a swing — no stuck progress bar.
+      if (!Number.isFinite(breakTime(id, this.inventory.heldItemId))) {
+        this.mining = null
+        this.miningProgress = null
+        return
+      }
       this.mining = {
         x: target.x,
         y: target.y,
@@ -535,7 +541,9 @@ export class BlockInteraction {
    */
   private targetable(x: number, y: number, z: number): boolean {
     const id = this.world.getBlock(x, y, z)
-    return isSolid(id) || id === BlockId.Ladder
+    // Lava is non-solid but must still be targetable so the crosshair can name
+    // it (and its info card can be opened); breaking it is refused separately.
+    return isSolid(id) || id === BlockId.Ladder || id === BlockId.Lava
   }
 
   /** Left-click on a placed ladder lifts it straight back into the bag. */

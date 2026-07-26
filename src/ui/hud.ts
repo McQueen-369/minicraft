@@ -47,9 +47,22 @@ const STYLE = `
 .mc-instructions-box p { margin: 3px 0; }
 .mc-instructions-close {
   float: right; cursor: pointer; background: #888; border: none; border-radius: 4px;
-  font-size: var(--mc-fs-sm, 14px); font-weight: bold; color: #fff; padding: 2px 8px; margin-left: 8px;
+  font-size: var(--mc-fs-sm, 14px); font-weight: bold; color: #fff; padding: 6px 12px; margin-left: 8px;
   -webkit-tap-highlight-color: transparent;
 }
+.mc-instructions-close:hover { background: #6a6a6a; }
+/* Reminder that Escape (or a click outside) also dismisses the overlay. */
+.mc-instructions-hint {
+  clear: both; margin-top: 12px; padding-top: 8px; border-top: 1px solid #999;
+  font-size: var(--mc-fs-xs, 12.5px); color: #555; text-align: center;
+}
+/* "Did you know?" panel on an info card: real-world facts, visually separate
+   from the game instructions above it. */
+.mc-fact {
+  margin-top: 12px; padding: 8px 10px; border-left: 4px solid #3d7a3d;
+  background: #d8ddc8; color: #2b3a26; font-size: var(--mc-fs-sm, 14px); line-height: 1.5;
+}
+.mc-fact b { display: block; margin-bottom: 3px; color: #1f4a1f; }
 .mc-crosshair {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   width: 18px; height: 18px; pointer-events: none; z-index: 5;
@@ -125,6 +138,12 @@ const STYLE = `
 .mc-underwater {
   position: absolute; inset: 0; pointer-events: none; z-index: 4;
   background: rgba(0,60,180,0.22); opacity: 0; transition: opacity 0.3s;
+}
+/* Molten glow while standing in (or submerged by) lava. */
+.mc-lava {
+  position: absolute; inset: 0; pointer-events: none; z-index: 4;
+  background: radial-gradient(circle at 50% 65%, rgba(255,140,20,0.55), rgba(150,20,0,0.85));
+  opacity: 0; transition: opacity 0.25s;
 }
 .mc-nameplate {
   position: absolute; left: 50%; top: 40px; transform: translateX(-50%);
@@ -234,6 +253,7 @@ export class HUD {
   private readonly chatBtn: HTMLDivElement
   private readonly craftBtnHud: HTMLDivElement
   private readonly underwaterOverlay: HTMLDivElement
+  private readonly lavaOverlay: HTMLDivElement
   private readonly chestOverlay: HTMLDivElement
   private chestOverlayTimer: ReturnType<typeof setTimeout> | null = null
   private currentInfo: InfoContent | null = null
@@ -248,6 +268,10 @@ export class HUD {
   onSelectHotbar: (index: number) => void = () => {}
   /** Called when the info card closes (so the game can re-lock the pointer). */
   onInfoClose: () => void = () => {}
+  /** Called when the instructions overlay opens (so the game can free the cursor). */
+  onInstructionsOpen: () => void = () => {}
+  /** Called when the instructions overlay closes (so the game can re-lock). */
+  onInstructionsClose: () => void = () => {}
   /** Called when the music button is toggled; returns the new muted state. */
   onToggleMusic: () => boolean = () => false
 
@@ -390,6 +414,11 @@ export class HUD {
     this.underwaterOverlay.className = 'mc-underwater'
     root.appendChild(this.underwaterOverlay)
 
+    // Lava glow overlay
+    this.lavaOverlay = document.createElement('div')
+    this.lavaOverlay.className = 'mc-lava'
+    root.appendChild(this.lavaOverlay)
+
     // Transient chest-contents overview (auto-dismiss after 3s or on click).
     this.chestOverlay = document.createElement('div')
     this.chestOverlay.className = 'mc-chest-overlay'
@@ -436,7 +465,9 @@ export class HUD {
     root.appendChild(musicBtn)
 
     const overlay = document.createElement('div')
-    overlay.className = 'mc-instructions'
+    // Two overlays share the `mc-instructions` look; the modifier class names
+    // which is which for styling and for tests.
+    overlay.className = 'mc-instructions mc-help-overlay'
     const box = document.createElement('div')
     box.className = 'mc-instructions-box'
     box.innerHTML = `
@@ -448,6 +479,8 @@ export class HUD {
       <p>I — Instructions / Info &nbsp; 1–9 — Select hotbar &nbsp; Scroll — Cycle hotbar</p>
       <p>Left-click (hold) — Mine &nbsp; Right-click — Place / Use / Open chest</p>
       <p>Climb Ladders: Space (up) &nbsp; Shift (down)</p>
+      <p><b>Esc — Close whatever is open</b> (this card, the map, the bag, crafting, the market)</p>
+      <p>Every panel frees the mouse cursor while it is open, and hands it back to the game when you close it</p>
       <h3>Mobile Controls</h3>
       <p>Joystick — Move</p>
       <p>Swipe right side — Look around</p>
@@ -465,6 +498,10 @@ export class HUD {
       <p>Attack them exactly like mining: aim and hold left-click (mobile: hold the red ⛏ button)</p>
       <p>You start with a Sword in your bag — hold it to hit much harder than bare hands</p>
       <p>Defeated zombies drop Gold and sometimes a Diamond</p>
+      <h3>Digging Deep &amp; Lava</h3>
+      <p>Keep digging and the stone gives way to glowing lava lakes, at least 12 blocks under the deepest ore</p>
+      <p>Lava cannot be mined or picked up, and standing in it burns energy fast — hold Space to paddle back out</p>
+      <p>Bridge across a lava lake by placing blocks along the rim, and bring food before you go down</p>
       <h3>Diamonds &amp; Sword Upgrades</h3>
       <p>Diamond Ore hides deep underground (6+ blocks below the surface) — mine it with a pickaxe</p>
       <p>Spend Diamonds at the market smithy: Iron Blade (4💎) and Diamond Edge (8💎)</p>
@@ -476,6 +513,7 @@ export class HUD {
       <p>An island of challenges sits in a ring-shaped lake a few hundred blocks out</p>
       <p>Follow the pink flag 🏝 on your map — it always points toward the island</p>
       <p>Its arcade kiosks host mini-games — puzzles, running, math targets, word guessing — with item prizes!</p>
+      <p>Every challenge asks you to pick Easy, Normal or Hard first — harder rounds pay much bigger rewards</p>
       <h3>Furniture & Home</h3>
       <p>New worlds start with a furnished cottage (pitched roof!) and a fence-ringed farm</p>
       <p>Release tamed animals into the farm pen — toggle them to "stay" to keep them in</p>
@@ -498,18 +536,27 @@ export class HUD {
       <p>Ladder: place on a wall and walk into it to climb; Space up, Shift down</p>
       <h3>Tips</h3>
       <p>Tap any hotbar or bag item to see its name; look at an animal or block and its name shows up top</p>
-      <p>Tap the ⓘ (or press I) on a nameplate for how to tame/use it</p>
+      <p>Tap the ⓘ (or press I) on a nameplate for how to tame/use it — plus a real-world fun fact about it</p>
+      <p>Info cards rotate through their facts, so look again to learn something new about the same animal or material</p>
       <p>Open a treasure box to auto-collect its loot — the box is used up, not kept</p>
       <p>Open the BAG to browse items by category (Blocks, Tools, Food, Animals, Furniture)</p>
       <p>In multiplayer each player shows up in a unique shirt colour</p>
       <p>Villages appear across the world — explore to find houses, campfires, and friendly villagers</p>
     `
+    // Footer repeat of the close affordance: the overlay scrolls, and on a long
+    // screen the header button ends up far above the reader.
+    const hint = document.createElement('p')
+    hint.className = 'mc-instructions-hint'
+    hint.textContent = 'Press Esc, click outside this card, or use ✕ Close to get back to the game.'
+    box.appendChild(hint)
+
     const closeBtn = box.querySelector('.mc-instructions-close')!
-    closeBtn.addEventListener('click', () => { overlay.style.display = 'none' })
-    closeBtn.addEventListener('touchstart', (e) => { e.preventDefault(); overlay.style.display = 'none' }, { passive: false })
-    overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) overlay.style.display = 'none' })
+    const closeInstructions = (e?: Event) => { e?.preventDefault(); this.closeInstructions() }
+    closeBtn.addEventListener('click', closeInstructions)
+    closeBtn.addEventListener('touchstart', closeInstructions, { passive: false })
+    overlay.addEventListener('mousedown', (e) => { if (e.target === overlay) this.closeInstructions() })
     overlay.addEventListener('touchstart', (e) => {
-      if (e.target === overlay) { e.preventDefault(); overlay.style.display = 'none' }
+      if (e.target === overlay) { e.preventDefault(); this.closeInstructions() }
     }, { passive: false })
     overlay.appendChild(box)
     root.appendChild(overlay)
@@ -531,9 +578,9 @@ export class HUD {
     root.appendChild(this.nameplate)
 
     const infoOverlay = document.createElement('div')
-    infoOverlay.className = 'mc-instructions'
+    infoOverlay.className = 'mc-instructions mc-info-overlay'
     this.infoBox = document.createElement('div')
-    this.infoBox.className = 'mc-instructions-box'
+    this.infoBox.className = 'mc-instructions-box mc-info-box'
     infoOverlay.addEventListener('mousedown', (e) => { if (e.target === infoOverlay) this.closeInfo() })
     infoOverlay.addEventListener('touchstart', (e) => {
       if (e.target === infoOverlay) { e.preventDefault(); this.closeInfo() }
@@ -635,8 +682,22 @@ export class HUD {
     }
   }
 
+  get isInstructionsOpen(): boolean {
+    return this.instructionsOverlay.style.display === 'flex'
+  }
+
   showInstructions(): void {
+    if (this.isInstructionsOpen) return
     this.instructionsOverlay.style.display = 'flex'
+    // Scrolled-down state from a previous read would hide the close button.
+    this.instructionsOverlay.querySelector('.mc-instructions-box')!.scrollTop = 0
+    this.onInstructionsOpen()
+  }
+
+  closeInstructions(): void {
+    if (!this.isInstructionsOpen) return
+    this.instructionsOverlay.style.display = 'none'
+    this.onInstructionsClose()
   }
 
   /** Show (or hide, when null) the nameplate for the targeted animal / block. */
@@ -658,7 +719,7 @@ export class HUD {
     return this.infoOverlay.style.display === 'flex'
   }
 
-  private closeInfo(): void {
+  closeInfo(): void {
     if (!this.isInfoOpen) return
     this.infoOverlay.style.display = 'none'
     this.onInfoClose()
@@ -668,13 +729,35 @@ export class HUD {
   openTargetInfo(): boolean {
     const info = this.currentInfo
     if (!info) return false
-    const lines = info.lines.map((l) => `<p>${l}</p>`).join('')
-    this.infoBox.innerHTML =
-      `<button class="mc-instructions-close">✕ Close</button><h3>${info.title}</h3>${lines}`
-    const closeBtn = this.infoBox.querySelector('.mc-instructions-close')!
+    this.infoBox.innerHTML = ''
+    const closeBtn = document.createElement('button')
+    closeBtn.className = 'mc-instructions-close'
+    closeBtn.textContent = '✕ Close'
     const close = (e: Event) => { e.preventDefault(); this.closeInfo() }
     closeBtn.addEventListener('click', close)
     closeBtn.addEventListener('touchstart', close, { passive: false })
+    const heading = document.createElement('h3')
+    heading.textContent = info.title
+    this.infoBox.append(closeBtn, heading)
+    for (const line of info.lines) {
+      const p = document.createElement('p')
+      p.textContent = line
+      this.infoBox.appendChild(p)
+    }
+    // Real-world note, set apart from the how-to-play lines above it.
+    if (info.fact) {
+      const fact = document.createElement('div')
+      fact.className = 'mc-fact'
+      const label = document.createElement('b')
+      label.textContent = '🔎 Did you know?'
+      fact.append(label, document.createTextNode(info.fact))
+      this.infoBox.appendChild(fact)
+    }
+    const hint = document.createElement('p')
+    hint.className = 'mc-instructions-hint'
+    hint.textContent = 'Press Esc, click outside this card, or use ✕ Close to get back to the game.'
+    this.infoBox.appendChild(hint)
+    this.infoBox.scrollTop = 0
     this.infoOverlay.style.display = 'flex'
     return true
   }
@@ -762,5 +845,13 @@ export class HUD {
 
   setUnderwater(under: boolean): void {
     this.underwaterOverlay.style.opacity = under ? '1' : '0'
+  }
+
+  /**
+   * Molten tint: a warm rim while any part of the player is touching lava, and
+   * a full blaze once their eyes go under.
+   */
+  setLava(touching: boolean, submerged: boolean): void {
+    this.lavaOverlay.style.opacity = submerged ? '1' : touching ? '0.45' : '0'
   }
 }

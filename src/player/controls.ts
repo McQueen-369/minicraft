@@ -18,6 +18,15 @@ export class Controls {
   joystickDir: { x: number; z: number } | null = null
 
   private locked = false
+  /**
+   * Whether the game currently wants the pointer captured. Requesting and
+   * exiting pointer lock are both asynchronous, so closing one panel and
+   * opening another in the same tick used to leave a pending lock request in
+   * flight that landed *after* the new panel was up — cursor gone, panel
+   * unusable. This records the intent and the lock is undone the moment it
+   * arrives against it.
+   */
+  private wantLock = false
 
   constructor(private readonly element: HTMLElement) {
     document.addEventListener('keydown', (e) => {
@@ -30,6 +39,8 @@ export class Controls {
     document.addEventListener('pointerlockchange', () => {
       this.locked = document.pointerLockElement === this.element
       if (!this.locked) this.keys.clear()
+      // A lock that arrived after the game changed its mind: give it straight back.
+      else if (!this.wantLock) document.exitPointerLock()
     })
     document.addEventListener('mousemove', (e) => {
       if (!this.locked || !this.gameplayInput) return
@@ -47,11 +58,16 @@ export class Controls {
   }
 
   requestLock(): void {
-    if (!this.isTouchDevice) this.element.requestPointerLock()
+    if (this.isTouchDevice) return
+    this.wantLock = true
+    this.element.requestPointerLock()
   }
 
   releaseLock(): void {
-    if (this.locked) document.exitPointerLock()
+    this.wantLock = false
+    // Unconditional: a request made moments ago may not have resolved yet, and
+    // `locked` would still read false while the lock is on its way.
+    document.exitPointerLock()
   }
 
   /** Apply a touch-drag delta to yaw/pitch (used by mobile look area). */

@@ -137,4 +137,30 @@ describe('meshChunk shading', () => {
     // One dark corner (index 3, the -X/-Z corner): the split flips to 1–3.
     expect(diagonalEnds({ '5,10,5': BlockId.Stone, '4,11,4': BlockId.Stone })).toEqual(new Set([1, 3]))
   })
+
+  it('lights self-lit blocks evenly, ignoring face direction and occlusion', () => {
+    // A lava block boxed in on three sides: every vertex of every face must
+    // still come out at the same, above-ambient brightness.
+    const data = meshChunk(0, 0, samplerFrom({
+      '5,10,5': BlockId.Lava,
+      '4,11,4': BlockId.Stone,
+      '4,10,5': BlockId.Stone,
+      '5,10,4': BlockId.Stone,
+    }))
+    // Self-lit vertices are the ones brighter than any shaded surface can be.
+    const lit = [...data.colors].filter((_, i) => i % 3 === 0).filter((c) => c > 1)
+    expect(new Set(lit).size).toBe(1)
+    // Four faces survive (two are culled against the stone), 4 vertices each.
+    expect(lit.length).toBe(4 * 4)
+  })
+
+  it('still shades and occludes ordinary blocks', () => {
+    const data = meshChunk(0, 0, samplerFrom({ '5,10,5': BlockId.Stone }))
+    const shades = new Set<number>()
+    for (let v = 0; v < data.positions.length / 3; v++) shades.add(data.colors[v * 3])
+    // Top, sides and bottom differ, and none exceed full brightness.
+    expect(shades.size).toBeGreaterThan(1)
+    expect(Math.max(...shades)).toBeLessThanOrEqual(1)
+  })
+
 })

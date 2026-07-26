@@ -41,7 +41,7 @@ import { MarketPanel } from './ui/market'
 import { playAnimalSound, playExplosionSound } from './audio/sounds'
 import { FishSchool } from './render/fish'
 import { BirdFlock } from './render/birds'
-import { Terrain } from './world/terrain'
+import { LAVA_MAX_Y, Terrain } from './world/terrain'
 import { World } from './world/world'
 
 type Mode = 'single' | 'host' | 'guest'
@@ -85,6 +85,13 @@ export class Game {
   private islandFound = false
   /** Throttles the "too tired" toast while grinding at 0 energy. */
   private tiredToastAt = 0
+  /** Warm point light that lights up a lava cavern as the player nears it. */
+  private readonly lavaGlow = new THREE.PointLight(0xff7420, 0, LAVA_GLOW_RANGE * 1.4, 1.4)
+  private nearestLava: { x: number; y: number; z: number } | null = null
+  private lavaScanTimer = 0
+  /** Seconds the player has been standing in lava (throttles the warning). */
+  private lavaBurn = 0
+  private lavaToastAt = 0
   private mountedHorseId: string | null = null
   /** When the current horse was mounted; lets a mounting double-tap settle. */
   private mountedAtMs = 0
@@ -130,10 +137,7 @@ export class Game {
     this.crafting = new CraftingPanel(root, this.inventory, this.atlas.canvas)
     this.market = new MarketPanel(root, this.inventory, this.atlas.canvas)
     this.arcade = new ArcadePanel(root, this.inventory)
-    this.arcade.onClose = () => {
-      this.updateInputState()
-      if (this.playing && !this.panels.isOpen && !this.menu.isOpen) this.controls.requestLock()
-    }
+    this.arcade.onClose = () => this.closedOverlay()
     this.arcade.onPrize = (summary) => this.hud.showToast(`🏆 You won ${summary}!`)
     this.menu = new Menu(root, {
       listLocalSlots: () => this.worldStore.listSlots(),
@@ -178,9 +182,8 @@ export class Game {
       if (this.panels.isOpen) {
         this.panels.close()
       } else {
-        this.controls.releaseLock()
         this.panels.openInventory()
-        this.updateInputState()
+        this.openedOverlay()
       }
     }
     this.hud.onInventory = openInventory
@@ -193,33 +196,33 @@ export class Game {
       if (this.crafting.isOpen) {
         this.crafting.close()
       } else {
-        this.controls.releaseLock()
         this.crafting.open()
         this.hud.setCraftOpen(true)
-        this.updateInputState()
+        this.openedOverlay()
       }
     }
     this.crafting.onClose = () => {
       this.hud.setCraftOpen(false)
-      this.updateInputState()
-      if (this.playing && !this.panels.isOpen && !this.menu.isOpen) this.controls.requestLock()
+      this.closedOverlay()
     }
     this.crafting.onCraft = (name, count) => {
       this.hud.showToast(`✓ Crafted ${count > 1 ? `${count}× ` : ''}${name}!`)
     }
-    this.market.onClose = () => {
-      this.updateInputState()
-      if (this.playing && !this.panels.isOpen && !this.menu.isOpen) this.controls.requestLock()
-    }
+    this.market.onClose = () => this.closedOverlay()
     this.market.onTrade = (name, count) => {
       this.hud.showToast(`🛒 Traded for ${count > 1 ? `${count}× ` : ''}${name}!`)
     }
     this.market.onSell = (name, count, gold) => {
       this.hud.showToast(`💰 Sold ${count > 1 ? `${count}× ` : ''}${name} for ${gold} gold!`)
     }
-    this.hud.onInfoClose = () => {
-      if (this.playing && !this.menu.isOpen && !this.panels.isOpen) this.controls.requestLock()
-    }
+    // Info card and the instructions overlay are modal too: they free the mouse
+    // cursor on the way in (otherwise pointer lock hides it and nothing on the
+    // card is clickable) and hand control back to the game on the way out.
+    this.hud.onInfoClose = () => this.closedOverlay()
+    this.hud.onInstructionsOpen = () => this.openedOverlay()
+    this.hud.onInstructionsClose = () => this.closedOverlay()
+    this.minimap.onMapOpen = () => this.openedOverlay()
+    this.minimap.onMapClose = () => this.closedOverlay()
     this.hud.onToggleMusic = () => this.music.toggle()
     // Browsers block audio until a user gesture; start the soundtrack on the first one.
     const startMusic = () => {
@@ -241,8 +244,7 @@ export class Game {
     this.inventory.onChange = () => this.hud.refresh()
     this.panels.onClose = () => {
       this.openChestKey = null
-      this.updateInputState()
-      if (this.playing) this.controls.requestLock()
+      this.closedOverlay()
     }
     this.panels.onChestChange = () => {
       if (this.openChestKey && this.session && this.mp) {
@@ -268,17 +270,11 @@ export class Game {
       setTimeout(applySize, 300)
     })
     applySize()
+    // Losing pointer lock with nothing open means the player pressed Escape at
+    // the game itself — that is the pause gesture. When an overlay is open the
+    // lock was released deliberately, so the pause menu must stay away.
     document.addEventListener('pointerlockchange', () => {
-      if (
-        !this.controls.isLocked &&
-        this.playing &&
-        !this.panels.isOpen &&
-        !this.menu.isOpen &&
-        !this.hud.isInfoOpen &&
-        !this.crafting.isOpen &&
-        !this.market.isOpen &&
-        !this.arcade.isOpen
-      ) {
+      if (!this.controls.isLocked && this.playing && !this.overlayOpen) {
         this.menu.showPause(
           [
             this.cloudWorld ? `"${this.cloudWorld.name}" saves to ${this.profile?.username ?? 'your profile'}` : null,
@@ -293,21 +289,43 @@ export class Game {
     })
     document.addEventListener('keydown', (e) => {
       if (!this.playing) return
+      // Escape always means "get me out of whatever is on screen", and it is
+      // checked before every other shortcut so it works from inside any panel.
+      // (The pause menu owns Escape once the game itself has focus, via the
+      // browser's own pointer-lock exit.)
+      if (e.code === 'Escape') {
+        // Escape out of the pause screen resumes, the way it got there.
+        if (this.menu.isPaused) {
+          e.preventDefault()
+          this.resume()
+          return
+        }
+        if (!this.menu.isOpen && this.closeTopOverlay()) {
+          e.preventDefault()
+          return
+        }
+      }
       // While a mini-game is open, all keys belong to the arcade (letters,
       // space to jump, …) — don't let game shortcuts fire underneath it.
       if (this.arcade.isOpen) return
+      // Shortcuts that would open a second panel behind the one already up.
+      const uiBusy = this.menu.isOpen || this.hud.isInstructionsOpen || this.hud.isInfoOpen
       if (e.code === 'KeyF' && this.mountedHorseId && !this.menu.isOpen) {
         // Undo the fly toggle Controls just made, and dismount instead.
         this.controls.fly = !this.controls.fly
         this.dismountHorse()
       }
-      if (e.code === 'KeyE' && !this.menu.isOpen) openInventory()
+      if (e.code === 'KeyE' && !uiBusy) openInventory()
       if (e.code === 'KeyI' && !this.menu.isOpen && !this.panels.isOpen) {
-        // I with a named target → open target info; otherwise open instructions.
-        if (this.hud.openTargetInfo()) this.controls.releaseLock()
+        e.preventDefault()
+        // I toggles: close whichever card is showing, else open the info card
+        // for the crosshair target, else fall back to the instructions.
+        if (this.hud.isInfoOpen) this.hud.closeInfo()
+        else if (this.hud.isInstructionsOpen) this.hud.closeInstructions()
+        else if (this.hud.openTargetInfo()) this.openedOverlay()
         else this.hud.showInstructions()
       }
-      if (e.code === 'KeyC' && !this.panels.isOpen && !this.menu.isOpen && !this.chat.isOpen && !this.crafting.isOpen) {
+      if (e.code === 'KeyC' && !this.panels.isOpen && !uiBusy && !this.chat.isOpen && !this.crafting.isOpen) {
         e.preventDefault()
         this.chat.openPanel()
         this.hud.setChatOpen(true)
@@ -315,22 +333,21 @@ export class Game {
         e.preventDefault()
         this.chat.closePanel()
       }
-      if (e.code === 'KeyZ' && !this.panels.isOpen && !this.menu.isOpen && !this.chat.isOpen) {
+      if (e.code === 'KeyZ' && !this.panels.isOpen && !uiBusy && !this.chat.isOpen) {
         e.preventDefault()
         if (this.crafting.isOpen) {
           this.crafting.close()
         } else {
-          this.controls.releaseLock()
           this.crafting.open()
           this.hud.setCraftOpen(true)
-          this.updateInputState()
+          this.openedOverlay()
         }
       }
-      if (e.code === 'KeyM' && !this.menu.isOpen) {
+      if (e.code === 'KeyM' && !uiBusy) {
         e.preventDefault()
         this.minimap.toggleMap()
       }
-      if (e.code === 'Enter' && this.mp && !this.panels.isOpen && !this.menu.isOpen && !this.chat.isOpen) {
+      if (e.code === 'Enter' && this.mp && !this.panels.isOpen && !uiBusy && !this.chat.isOpen) {
         e.preventDefault()
         this.chat.openPanel(true)
       }
@@ -493,9 +510,8 @@ export class Game {
       })
     }
     interaction.onOpenArcade = (kind) => {
-      this.controls.releaseLock()
       this.arcade.open(kind)
-      this.updateInputState()
+      this.openedOverlay()
     }
     interaction.onCollectEgg = (animalId) => {
       if (!this.session) return
@@ -518,9 +534,8 @@ export class Game {
       this.hud.showToast(bonusDiamond ? '⚔️ Zombie defeated! +2 Gold +1 Diamond' : '⚔️ Zombie defeated! +2 Gold')
     }
     interaction.onOpenMarket = () => {
-      this.controls.releaseLock()
       this.market.open(seed)
-      this.updateInputState()
+      this.openedOverlay()
     }
     interaction.onCarry = (carrying) => {
       this.hud.showToast(carrying ? 'Carrying villager — left-click to set down' : 'Set the villager down')
@@ -559,9 +574,8 @@ export class Game {
       }
       const contents = world.getChestContents(x, y, z)
       this.openChestKey = blockKey(x, y, z)
-      this.controls.releaseLock()
       this.panels.openChest(contents)
-      this.updateInputState()
+      this.openedOverlay()
       // Brief on-screen overview of what the chest holds.
       const totals = new Map<number, number>()
       for (const slot of contents) {
@@ -885,9 +899,56 @@ export class Game {
     this.chat.hide()
   }
 
+  /**
+   * Whether anything modal is on screen. Every one of these frees the mouse
+   * cursor, so the pointer must not be re-locked and gameplay keys (WASD,
+   * jump, fly, hotbar) must not reach the player underneath.
+   */
+  private get overlayOpen(): boolean {
+    return (
+      this.panels.isOpen ||
+      this.menu.isOpen ||
+      this.chat.isOpen ||
+      this.market.isOpen ||
+      this.arcade.isOpen ||
+      this.crafting.isOpen ||
+      this.minimap.isBigOpen ||
+      this.hud.isInstructionsOpen ||
+      this.hud.isInfoOpen
+    )
+  }
+
   private updateInputState(): void {
-    this.controls.gameplayInput =
-      !this.panels.isOpen && !this.menu.isOpen && !this.chat.isOpen && !this.market.isOpen && !this.arcade.isOpen
+    this.controls.gameplayInput = !this.overlayOpen
+  }
+
+  /** A panel just opened: free the cursor and stop feeding input to the world. */
+  private openedOverlay(): void {
+    this.controls.releaseLock()
+    this.updateInputState()
+  }
+
+  /** A panel just closed: hand the mouse back to the game if nothing else is up. */
+  private closedOverlay(): void {
+    this.updateInputState()
+    if (this.playing && !this.overlayOpen) this.controls.requestLock()
+  }
+
+  /**
+   * Close the topmost open panel (Escape). Ordered so the most recently
+   * openable thing wins: a card opened on top of the bag closes first.
+   * Returns whether anything was closed.
+   */
+  private closeTopOverlay(): boolean {
+    if (this.arcade.isOpen) { this.arcade.close(); return true }
+    if (this.hud.isInfoOpen) { this.hud.closeInfo(); return true }
+    if (this.hud.isInstructionsOpen) { this.hud.closeInstructions(); return true }
+    if (this.minimap.isBigOpen) { this.minimap.closeMap(); return true }
+    if (this.market.isOpen) { this.market.close(); return true }
+    if (this.crafting.isOpen) { this.crafting.close(); return true }
+    if (this.panels.isOpen) { this.panels.close(); return true }
+    if (this.chat.isOpen) { this.chat.closePanel(); return true }
+    return false
   }
 
   private dismountHorse(): void {
@@ -913,9 +974,8 @@ export class Game {
     }
     s.world.setBlock(x, y, z, BlockId.Air)
     this.mp?.sendEdit(x, y, z, BlockId.Air)
-    this.controls.releaseLock()
     this.panels.openSummary(obtained)
-    this.updateInputState()
+    this.openedOverlay()
   }
 
   // ------------------------------------------------------------------- frame
@@ -1028,6 +1088,7 @@ export class Game {
     // Underwater blue tint
     const eyeY = pos.y + PLAYER_EYE
     this.hud.setUnderwater(eyeY < WATER_LEVEL + 0.35)
+    this.updateLava(s, dt)
 
     this.mp?.update(
       dt,
@@ -1062,6 +1123,60 @@ export class Game {
       s.sky.phaseInfo,
     )
     this.renderer.render(s.scene, this.camera)
+  }
+
+  /**
+   * Lava: light the cavern when the player gets close to a pool, tint the
+   * screen when they touch it, and burn energy while they are standing in it.
+   * At zero energy the burn pulls them out rather than trapping them — this is
+   * a game for exploring, not a death pit.
+   */
+  private updateLava(s: Session, dt: number): void {
+    const pos = s.player.state.pos
+    // Re-scan for nearby lava a few times a second; a per-frame search of the
+    // neighbourhood would cost more than the glow is worth.
+    this.lavaScanTimer -= dt
+    if (this.lavaScanTimer <= 0) {
+      this.lavaScanTimer = LAVA_SCAN_INTERVAL
+      // Lava never rises above LAVA_MAX_Y, so anyone walking around on the
+      // surface skips the search entirely.
+      this.nearestLava =
+        pos.y <= LAVA_MAX_Y + LAVA_GLOW_RANGE ? findNearestLava(s.world, pos, LAVA_GLOW_RANGE) : null
+    }
+    if (this.nearestLava) {
+      const d = Math.hypot(this.nearestLava.x + 0.5 - pos.x, this.nearestLava.y + 0.5 - pos.y, this.nearestLava.z + 0.5 - pos.z)
+      this.lavaGlow.position.set(this.nearestLava.x + 0.5, this.nearestLava.y + 0.9, this.nearestLava.z + 0.5)
+      this.lavaGlow.intensity = Math.max(0, 1 - d / LAVA_GLOW_RANGE) * LAVA_GLOW_INTENSITY
+      if (this.lavaGlow.parent !== s.scene) s.scene.add(this.lavaGlow)
+    } else {
+      this.lavaGlow.intensity = 0
+    }
+
+    if (!this.playing) return
+    const touching = s.player.isInLava()
+    this.hud.setLava(touching, s.player.eyesInLava)
+    if (!touching) {
+      this.lavaBurn = 0
+      return
+    }
+    this.lavaBurn += dt
+    this.energy = Math.max(0, this.energy - LAVA_ENERGY_PER_SECOND * dt)
+    const now = performance.now()
+    if (now - this.lavaToastAt > 2200) {
+      this.lavaToastAt = now
+      this.hud.showToast(
+        this.energy > 0
+          ? '🔥 That is molten rock! Hold Space to paddle out before it drains you.'
+          : '🔥 Too hot! Scrambling back to safety…',
+      )
+    }
+    // Out of energy while still in the lava: lift the player back to the
+    // surface of their own column so a scorching never ends the session.
+    if (this.energy <= 0) {
+      s.player.spawnAt(pos.x, pos.z)
+      this.lavaBurn = 0
+      this.energy = Math.max(this.energy, 10)
+    }
   }
 
   /** Reflect the crosshair target (animal or block) in the HUD nameplate. */
@@ -1200,6 +1315,42 @@ export class Game {
 const TNT_SESSION_COUNT = 200
 /** Energy lost each time a zombie lands a strike. */
 const ZOMBIE_HIT_ENERGY = 8
+/** Energy burned away per second of standing in lava. */
+const LAVA_ENERGY_PER_SECOND = 14
+/** How far the molten glow reaches, in blocks. */
+const LAVA_GLOW_RANGE = 12
+const LAVA_GLOW_INTENSITY = 9
+/** Seconds between searches for the nearest lava block. */
+const LAVA_SCAN_INTERVAL = 0.35
+
+/**
+ * Nearest lava block to a position within `range`, or null. Scans the cube
+ * around the player from the inside out and stops at the first hit, so a player
+ * standing in a cavern pays for a handful of lookups rather than the full cube.
+ */
+function findNearestLava(
+  world: World,
+  pos: { x: number; y: number; z: number },
+  range: number,
+): { x: number; y: number; z: number } | null {
+  const px = Math.floor(pos.x)
+  const py = Math.floor(pos.y)
+  const pz = Math.floor(pos.z)
+  for (let r = 0; r <= range; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dz = -r; dz <= r; dz++) {
+        for (let dx = -r; dx <= r; dx++) {
+          // Only the newly added shell of the cube; inner blocks were checked.
+          if (Math.max(Math.abs(dx), Math.abs(dy), Math.abs(dz)) !== r) continue
+          if (world.getBlock(px + dx, py + dy, pz + dz) === BlockId.Lava) {
+            return { x: px + dx, y: py + dy, z: pz + dz }
+          }
+        }
+      }
+    }
+  }
+  return null
+}
 
 function randomSeed(): number {
   return hashString(`${Date.now()}-${Math.random()}`)
