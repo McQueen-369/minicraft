@@ -33,6 +33,13 @@ const FACES: FaceDef[] = [
 /** Brightness for the four ambient-occlusion levels (3 = fully open, 0 = boxed in). */
 const AO_LEVELS = [0.48, 0.66, 0.83, 1.0]
 
+/**
+ * Vertex brightness for self-lit blocks. Above 1 so a lava pool still reads as
+ * molten under the dim ambient light of a deep cavern, where a plain 1.0 would
+ * leave it as dark as the stone around it.
+ */
+const EMISSIVE_SHADE = 1.7
+
 /** The two axes that span a face, given its normal axis. */
 const TANGENTS: [number, number][] = [
   [1, 2], // normal along X → span Y,Z
@@ -111,10 +118,12 @@ export function meshChunk(cx: number, cz: number, getBlock: BlockSampler): Chunk
             const s2 = corner[t2] === 1 ? 1 : -1
             // Transparent blocks (glass, leaves, fences) neither occlude much
             // nor need self-shadowing; only opaque neighbours count.
-            ao[i] = def.opaque ? cornerAO(at(s1, 0), at(0, s2), at(s1, s2)) : 3
+            ao[i] = def.opaque && !def.emissive ? cornerAO(at(s1, 0), at(0, s2), at(s1, s2)) : 3
             positions.push(origin[0] + corner[0], origin[1] + corner[1], origin[2] + corner[2])
             normals.push(face.dir[0], face.dir[1], face.dir[2])
-            const shade = face.shade * AO_LEVELS[ao[i]]
+            // A block that makes its own light is not shaped by the sun: skip
+            // the directional tint and the occlusion so it glows evenly.
+            const shade = def.emissive ? EMISSIVE_SHADE : face.shade * AO_LEVELS[ao[i]]
             colors.push(shade, shade, shade)
           }
 

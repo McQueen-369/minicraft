@@ -258,10 +258,10 @@ export class Minimap {
     const open = (e: Event) => { e.preventDefault(); this.openBig() }
     this.container.addEventListener('click', open)
     this.container.addEventListener('touchstart', open, { passive: false })
-    const closeBig = (e: Event) => { e.preventDefault(); this.overlay.style.display = 'none' }
+    const closeBig = (e: Event) => { e.preventDefault(); this.closeMap() }
     close.addEventListener('click', closeBig)
     close.addEventListener('touchstart', closeBig, { passive: false })
-    this.overlay.addEventListener('mousedown', (e) => { if (e.target === this.overlay) this.overlay.style.display = 'none' })
+    this.overlay.addEventListener('mousedown', (e) => { if (e.target === this.overlay) this.closeMap() })
   }
 
   /** Mark the player's home (starter house) so it shows on the map. */
@@ -278,20 +278,33 @@ export class Minimap {
 
   hide(): void {
     this.container.style.display = 'none'
-    this.overlay.style.display = 'none'
+    this.closeMap()
   }
 
-  private get isBigOpen(): boolean {
+  /** Called when the full map opens, so the game can free the mouse cursor. */
+  onMapOpen: () => void = () => {}
+  /** Called when the full map closes, so the game can re-lock the pointer. */
+  onMapClose: () => void = () => {}
+
+  get isBigOpen(): boolean {
     return this.overlay.style.display === 'flex'
   }
 
   private openBig(): void {
+    if (this.isBigOpen) return
     this.overlay.style.display = 'flex'
     this.drawBig()
+    this.onMapOpen()
+  }
+
+  closeMap(): void {
+    if (!this.isBigOpen) return
+    this.overlay.style.display = 'none'
+    this.onMapClose()
   }
 
   toggleMap(): void {
-    if (this.isBigOpen) this.overlay.style.display = 'none'
+    if (this.isBigOpen) this.closeMap()
     else this.openBig()
   }
 

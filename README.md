@@ -18,9 +18,10 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 - **Navigation map** — the corner radar tracks you and shows nearby animals, with 🏠/🏝 distance readouts underneath; landmarks off the edge become direction arrows rather than icons pinned to the border. Press M (or tap the radar) for the expanded map, which auto-zooms to frame you, home and the island together, so every marker always sits on its true coordinate, with live coordinates and distances listed below it
 
 ### Blocks & Resources
-- **12+ block types** — Grass, Dirt, Stone, Sand, Wood, Leaves, Apple Leaves, Planks, Brick, Glass, Fence, Ladder, TNT
+- **12+ block types** — Grass, Dirt, Stone, Sand, Wood, Leaves, Apple Leaves, Planks, Brick, Glass, Fence, Ladder, TNT (plus Lava, which lives in the world but is never an item)
 - **Gold Ore** — shiny yellow spots appear on the surface; rich veins run through deep stone layers
 - **Diamond Ore** — rare sparkling veins hidden 6+ blocks below the surface; drops Diamond gems used at the market smithy to strengthen your sword
+- **Lava** — glowing molten lakes pooled in the deepest stone. They always sit at least 12 blocks below the deepest ore, so breaking into one is the reward for a real dig. Lava lights its own cavern (the mesher skips face shading and occlusion on self-lit blocks, and a warm point light follows you into the chamber), cannot be mined, placed or collected, and burns your energy fast if you fall in — you sink slowly and paddle out with Space, so a scorching costs you stamina, never the session
 - **Mystery Boxes** — Common, Rare, and Epic variants found in the wild, each containing random loot
 - **Loot chests** — naturally generated on the surface, filled with tools and resources
 - **TNT** — every session starts with 200 in your bag; place and right-click to light the fuse, or right-click placed TNT to detonate it (2 second fuse, chain-reacts with nearby TNT)
@@ -60,12 +61,26 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 
 ### Challenge Island & Mini-Games
 - Sits inside a ring-shaped lake a few hundred blocks from spawn — a pink **🏝 flag on the map** marks its real coordinates, and the corner radar shows how far away it is
-- Its plaza has four glowing arcade kiosks, each a small educational mini-game that pays out item prizes. Every kiosk opens the same way — game badge, the prize on offer, a row of "how to play" chips, one status pill, then the game, and an end-of-round card showing what you scored and won:
-  - 🧩 **Sliding Puzzle** — reorder a shuffled 3×3 grid; fewer moves win a bigger prize
-  - 🏃 **Island Runner** — endless jump-the-obstacle runner; score 150+ to win gold
-  - 🎯 **Math Blaster** — shoot the target with the correct answer across 10 ramping arithmetic questions
-  - 🔤 **Word Wizard** — hangman-style word guessing with vocabulary hints
+- Its plaza has four glowing arcade kiosks, each a small educational mini-game that pays out item prizes. Every kiosk opens the same way — game badge, the prize on offer, a row of "how to play" chips, one status pill, then the game, and an end-of-round card showing what you scored and won
+- **Every challenge starts with a difficulty choice.** Easy, Normal or Hard each spell out both what changes about the game and what the win is worth, before you commit:
+
+  | Tier | Reward | Puzzle | Runner | Math Blaster | Word Wizard |
+  |------|--------|--------|--------|--------------|-------------|
+  | 🌱 Easy | ×0.5 | 3×3, lightly shuffled | gentle pace, wide gaps | + and − only, 5 lives | short words, 8 lives |
+  | ⚖️ Normal | ×1 | 3×3, fully shuffled | standard pace | + − × ÷ mixed, 3 lives | medium words, 6 lives |
+  | 🔥 Hard | ×2.5 | **4×4** — fifteen tiles | fast track, tight gaps | bigger numbers and two-step sums, 2 lives | long words, 4 lives, hint hidden until your first mistake |
+
+  Prize bundles are scaled by the tier multiplier, so the same clean round pays five times as much on Hard as on Easy. Every result card offers both **↻ Play again** at the same tier and **⚙ Change difficulty**:
+  - 🧩 **Sliding Puzzle** — reorder a shuffled grid; fewer moves win a bigger prize
+  - 🏃 **Island Runner** — endless jump-the-obstacle runner; clear the tier's target score to win gold
+  - 🎯 **Math Blaster** — shoot the target with the correct answer across a round of ramping arithmetic
+  - 🔤 **Word Wizard** — hangman-style word guessing with vocabulary hints drawn from science and geography
 - A couple of bonus Rare Mystery Boxes sit on plinths by the plaza gates for explorers
+
+### Fun Facts & Learning
+- Look at any animal, plant, block or item and press **I** (or tap the ⓘ on its nameplate) to open its info card. Under the how-to-play instructions sits a **🔎 Did you know?** panel with a real-world fact about the subject — why leaves are green, why gold never tarnishes, how a horse sleeps standing up, what lava is called before it reaches the surface
+- Cards **rotate through their facts**: look at the same sheep again and you get the next one, so repeat visits keep teaching
+- Coverage spans the animals (pig, chicken, sheep, rabbit, cat, dog, horse), the plants and foods (leaves, apple trees, wood, grass, apples, wheat, carrots, seeds, eggs, fish, bones) and the materials (stone, dirt, sand, glass, brick, gold, diamond, lava, TNT)
 
 ### Readability
 - All UI text is driven by one shared fluid type scale (`src/ui/theme.ts`): a comfortable floor on phones, `vmin` growth on larger screens, and a ceiling so desktop text never turns cartoonish. Short landscape phones and large portrait tablets get their own steps
@@ -178,7 +193,7 @@ Click **Create Profile** on the main menu to save worlds to the cloud (username 
 
 | Input | Action |
 |-------|--------|
-| Click canvas | Capture mouse pointer (Esc releases) |
+| Click canvas | Capture mouse pointer (Esc releases and pauses) |
 | W / A / S / D or Arrow keys | Move |
 | Space | Jump |
 | F | Toggle fly mode (Space = up, Shift = down) |
@@ -210,13 +225,17 @@ Click **Create Profile** on the main menu to save worlds to the cloud (username 
 
 | Key | Action |
 |-----|--------|
-| E or I | Open / close inventory bag |
+| **Esc** | **Close whatever is open** — info card, instructions, map, bag, crafting, market, arcade — or resume from the pause screen |
+| E | Open / close inventory bag |
 | Z | Open / close crafting panel |
-| M | Toggle minimap |
+| M | Open / close the full map |
 | C or Enter | Open chat panel (multiplayer) |
-| I (with target in view) | Show item / animal info |
+| I (with target in view) | Show item / animal info card, with its fun fact |
+| I (nothing targeted) | Open the instructions; press again to close |
 | 1 – 9 | Select hotbar slot |
 | Scroll wheel | Cycle hotbar selection |
+
+**Every panel is modal.** Opening one releases the mouse pointer so the cursor is visible and its buttons are clickable, freezes gameplay input so W/A/S/D and the hotbar do not leak through to the world underneath, and hands the pointer back to the game when it closes. Losing pointer lock with nothing open is the pause gesture, so the pause screen never appears behind a panel you just opened.
 
 **Mobile / tablet:** virtual joystick (bottom-left) to move, swipe right side to look, JUMP and BAG buttons on-screen.
 
@@ -232,7 +251,9 @@ Click **Create Profile** on the main menu to save worlds to the cloud (username 
 - The **minimap** (M) marks animals in yellow/gold so you can find tamed ones
 - Pressing **I** while looking at a block or animal shows a tooltip with taming / drop info
 - Keep an eye on your **⚡ energy bar** — carry cooked food or head home to sleep before you run out mid-dig
-- The **secret island** is worth the swim — its mini-games are a fast way to stock up on Gold
+- The **secret island** is worth the swim — its mini-games are a fast way to stock up on Gold, and picking **Hard** pays five times what Easy does for the same clean round
+- **Dig deep** for lava — but bring food and something to bridge with, and remember Space paddles you out if you fall in
+- Press **I** on anything you have not met before: the info card explains how it works *and* teaches you something true about it
 
 ---
 
@@ -248,6 +269,7 @@ src/
 ├── items/     item registry, inventory (200 slots × 200 stack), crafting recipes, chest loot tables
 ├── entities/  animal AI (wander / follow / stay / ridden), egg-laying chickens, blocky 3D models, entity manager
 ├── net/       Supabase Realtime transport, remote avatars, multiplayer protocol, cloud-save API
-├── ui/        HUD (energy bar, day timer), inventory / chest / crafting / market / arcade panels, minimap, menus, mobile controls
+├── ui/        HUD (energy bar, day timer), inventory / chest / crafting / market / arcade panels, minimap, menus, mobile controls,
+│           info cards + fun facts, challenge difficulty tiers
 └── persist/   localStorage save/load, 5-slot MultiWorldStore
 ```

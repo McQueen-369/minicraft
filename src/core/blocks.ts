@@ -19,6 +19,7 @@ export const BlockId = {
   TNT: 17,
   Fence: 18,
   DiamondOre: 19,
+  Lava: 20,
 } as const
 
 export type BlockId = (typeof BlockId)[keyof typeof BlockId]
@@ -52,6 +53,7 @@ export const Tile = {
   TNTTop: 24,
   Fence: 25,
   DiamondOreSide: 26,
+  Lava: 27,
 } as const
 
 export type ToolType = 'pickaxe' | 'axe' | 'shears'
@@ -67,6 +69,11 @@ export interface BlockDef {
   tool: ToolType | null
   /** Item ID of what is collected when broken (defaults to self). */
   drops: number
+  /**
+   * Block that makes its own light: the mesher skips the directional face tint
+   * and ambient occlusion so it stays uniformly bright in a dark cavern.
+   */
+  emissive: boolean
 }
 
 const def = (
@@ -74,7 +81,7 @@ const def = (
   tiles: { top: number; side: number; bottom: number },
   hardness: number,
   tool: ToolType | null,
-  opts: Partial<Pick<BlockDef, 'opaque' | 'solid' | 'drops'>> & { id: BlockId },
+  opts: Partial<Pick<BlockDef, 'opaque' | 'solid' | 'drops' | 'emissive'>> & { id: BlockId },
 ): BlockDef => ({
   name,
   opaque: opts.opaque ?? true,
@@ -83,6 +90,7 @@ const def = (
   hardness,
   tool,
   drops: opts.drops ?? opts.id,
+  emissive: opts.emissive ?? false,
 })
 
 const uniform = (t: number) => ({ top: t, side: t, bottom: t })
@@ -134,7 +142,17 @@ export const BLOCKS: Record<BlockId, BlockDef | null> = {
     id: BlockId.DiamondOre,
     drops: 201, // ItemId.Diamond — drops the gem, not the ore block itself
   }),
+  // Molten rock pooled in the deepest stone. Not solid (you sink into it) and
+  // Infinity hardness so no tool can ever break or collect it.
+  [BlockId.Lava]: def('Lava', uniform(Tile.Lava), Infinity, null, {
+    id: BlockId.Lava,
+    solid: false,
+    emissive: true,
+  }),
 }
+
+/** Blocks that exist in the world but can never be held or placed. */
+export const NON_ITEM_BLOCKS: ReadonlySet<number> = new Set<number>([BlockId.Lava])
 
 export function isOpaque(id: number): boolean {
   return BLOCKS[id as BlockId]?.opaque ?? false

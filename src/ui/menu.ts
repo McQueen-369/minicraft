@@ -600,6 +600,11 @@ export class Menu {
 
   // ------------------------------------------------------------------ pause
 
+  /** Whether the pause screen (rather than the main menu) is showing. */
+  get isPaused(): boolean {
+    return this.mode === 'pause'
+  }
+
   showPause(extra?: string): void {
     this.mode = 'pause'
     this.el.style.display = 'flex'

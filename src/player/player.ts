@@ -35,6 +35,9 @@ export class Player {
       if (controls.keys.has('Space')) climbY = WALK_SPEED
       else if (controls.keys.has('ShiftLeft') || controls.keys.has('ShiftRight')) climbY = -WALK_SPEED
     }
+    // Lava is thick: you sink slowly and can paddle back out with Space, the
+    // same way water works — falling in hurts, but it is never a dead end.
+    const inLava = !controls.fly && this.isInLava()
     stepPhysics(
       this.state,
       {
@@ -43,7 +46,7 @@ export class Player {
         jump: gameplay && controls.keys.has('Space') && !onLadder,
         fly: controls.fly,
         flyMoveY,
-        swim: !controls.fly && !onLadder && this.state.pos.y < WATER_LEVEL,
+        swim: !controls.fly && !onLadder && (inLava || this.state.pos.y < WATER_LEVEL),
         climb: onLadder,
         climbY,
       },
@@ -54,7 +57,23 @@ export class Player {
     if (this.state.pos.y < -20) this.spawnAt(this.state.pos.x, this.state.pos.z)
   }
 
+  /** Whether any part of the player's body is inside a lava block. */
+  isInLava(): boolean {
+    return this.occupies(BlockId.Lava)
+  }
+
+  /** Whether the player's eyes are submerged in lava (drives the screen tint). */
+  get eyesInLava(): boolean {
+    const { pos } = this.state
+    return this.world.getBlock(Math.floor(pos.x), Math.floor(pos.y + PLAYER_EYE), Math.floor(pos.z)) === BlockId.Lava
+  }
+
   private isOnLadder(): boolean {
+    return this.occupies(BlockId.Ladder)
+  }
+
+  /** Whether the player's AABB overlaps any block of the given kind. */
+  private occupies(blockId: number): boolean {
     const { pos } = this.state
     const half = PLAYER_WIDTH / 2
     const minX = Math.floor(pos.x - half + 0.05)
@@ -66,7 +85,7 @@ export class Player {
     for (let y = minY; y <= maxY; y++)
       for (let z = minZ; z <= maxZ; z++)
         for (let x = minX; x <= maxX; x++)
-          if (this.world.getBlock(x, y, z) === BlockId.Ladder) return true
+          if (this.world.getBlock(x, y, z) === blockId) return true
     return false
   }
 

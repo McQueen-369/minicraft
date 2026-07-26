@@ -27,6 +27,19 @@ const MAX_TRUNK = 6
 /** Max horizontal distance a tree canopy reaches from its trunk. */
 export const TREE_RADIUS = 2
 
+const LAVA_SEED = 0x1a7a
+/** Highest Y molten rock ever reaches — everything above is plain stone. */
+export const LAVA_MAX_Y = 12
+/** Lowest Y of a lava pool's surface, so even the coolest regions hold a puddle. */
+const LAVA_MIN_Y = 4
+/**
+ * How many blocks of stone always sit between the surface and any lava, so a
+ * pool is something you dig down to rather than something you fall into.
+ */
+export const LAVA_MIN_COVER = 12
+/** fbm value a column must beat before lava pools there at all. */
+const LAVA_THRESHOLD = 0.1
+
 const ISLAND_SEED = 0x15a7d
 /** Distance from the origin at which the secret island is placed. */
 const ISLAND_MIN_DIST = 280
@@ -43,12 +56,16 @@ export interface TreeInfo {
 export class Terrain {
   private readonly hills: Noise2D
   private readonly detail: Noise2D
+  private readonly lava: Noise2D
   /** Centre of the secret mini-game island (deterministic per seed). */
   readonly island: { x: number; z: number }
 
   constructor(readonly seed: number) {
     this.hills = makeNoise2D(seed, 4, 1 / 160)
     this.detail = makeNoise2D(seed ^ 0x5eed, 2, 1 / 31)
+    // Broad, smooth field: lava gathers in a few large basins rather than
+    // freckling the whole underground with one-block pockets.
+    this.lava = makeNoise2D(seed ^ LAVA_SEED, 3, 1 / 90)
     const angle = hash2D(seed ^ ISLAND_SEED, 17, 31) * Math.PI * 2
     const dist = ISLAND_MIN_DIST + hash2D(seed ^ ISLAND_SEED, 41, 7) * ISLAND_DIST_SPREAD
     this.island = { x: Math.round(Math.cos(angle) * dist), z: Math.round(Math.sin(angle) * dist) }
@@ -77,6 +94,29 @@ export class Terrain {
       }
     }
     return Math.max(2, Math.min(WORLD_HEIGHT - 16, Math.round(h)))
+  }
+
+  /**
+   * Y of the lava surface in this column, or -1 where the deep stone stays
+   * solid. Pools only form in the hottest basins, and their surface rises with
+   * the noise so a lake bed reads as molten rather than a flat slab.
+   */
+  lavaTopAt(x: number, z: number): number {
+    const n = this.lava.fbm(x, z)
+    if (n < LAVA_THRESHOLD) return -1
+    const heat = Math.min(1, (n - LAVA_THRESHOLD) / 0.45)
+    return Math.round(LAVA_MIN_Y + heat * (LAVA_MAX_Y - LAVA_MIN_Y))
+  }
+
+  /**
+   * Whether the generated block at (x,y,z) is molten. Lava replaces the deep
+   * stone of a hot column, but never within LAVA_MIN_COVER of the surface —
+   * players have to dig for it.
+   */
+  isLava(x: number, y: number, z: number, surfaceHeight = this.heightAt(x, z)): boolean {
+    // The bottom layer stays stone, so a pool always has a floor to stand on.
+    if (y < 1 || y > surfaceHeight - LAVA_MIN_COVER) return false
+    return y <= this.lavaTopAt(x, z)
   }
 
   /** Deterministic tree at this column, if any. */
@@ -129,6 +169,8 @@ export class Terrain {
         return BlockId.Grass
       }
       if (y >= h - 2) return BlockId.Dirt
+      // Molten basins replace the deepest stone entirely, ore included.
+      if (this.isLava(x, y, z, h)) return BlockId.Lava
       // Deepest stone — rare diamond ore (checked before gold so it wins ties)
       if (y < h - DIAMOND_DEPTH && hash2D(this.seed ^ DIAMOND_SEED ^ (y * 0x51F3A9 | 0), x, z) < DIAMOND_PROB) return BlockId.DiamondOre
       // Deep stone layer — scatter gold ore veins
@@ -177,6 +219,9 @@ export class Terrain {
         const wz = z0 + lz
         const h = heightOf(wx, wz)
         const sandy = h <= WATER_LEVEL + 1
+        // One noise lookup per column: everything at or below this Y (and deep
+        // enough under the surface) is molten.
+        const lavaTop = h - LAVA_MIN_COVER >= 1 ? Math.min(this.lavaTopAt(wx, wz), h - LAVA_MIN_COVER) : -1
         for (let y = 0; y <= h; y++) {
           let id: BlockId
           if (y >= h - 2 && sandy) id = BlockId.Sand
@@ -185,6 +230,7 @@ export class Terrain {
             else id = BlockId.Grass
           }
           else if (y >= h - 2) id = BlockId.Dirt
+          else if (y >= 1 && y <= lavaTop) id = BlockId.Lava
           else if (y < h - DIAMOND_DEPTH && hash2D(this.seed ^ DIAMOND_SEED ^ (y * 0x51F3A9 | 0), wx, wz) < DIAMOND_PROB) id = BlockId.DiamondOre
           else if (y < h - 3 && hash2D(this.seed ^ GOLD_SEED ^ (y * 0x8A3CB7 | 0), wx, wz) < GOLD_PROB) id = BlockId.GoldOre
           else id = BlockId.Stone

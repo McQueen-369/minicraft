@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { CHUNK_SIZE, WATER_LEVEL, WORLD_HEIGHT } from '../constants'
 import { BlockId } from '../core/blocks'
 import { localIndex } from '../core/coords'
-import { Terrain } from './terrain'
+import { LAVA_MAX_Y, LAVA_MIN_COVER, Terrain } from './terrain'
 
 describe('Terrain', () => {
   it('is deterministic for the same seed and differs across seeds', () => {
@@ -76,5 +76,72 @@ describe('Terrain', () => {
       }
     }
     expect(trees).toBeGreaterThan(0)
+  })
+})
+
+describe('Terrain lava', () => {
+  it('never generates lava above LAVA_MAX_Y', () => {
+    const t = new Terrain(2024)
+    for (let x = -120; x < 120; x += 11) {
+      for (let z = -120; z < 120; z += 11) {
+        const top = t.lavaTopAt(x, z)
+        expect(top).toBeLessThanOrEqual(LAVA_MAX_Y)
+      }
+    }
+  })
+
+  it('always buries lava at least LAVA_MIN_COVER blocks below the surface', () => {
+    const t = new Terrain(99)
+    for (let x = -150; x < 150; x += 9) {
+      for (let z = -150; z < 150; z += 9) {
+        const h = t.heightAt(x, z)
+        for (let y = h; y > h - LAVA_MIN_COVER; y--) {
+          expect(t.generateBlock(x, y, z)).not.toBe(BlockId.Lava)
+        }
+      }
+    }
+  })
+
+  it('keeps a solid floor under every lava pool', () => {
+    const t = new Terrain(5150)
+    for (let x = -150; x < 150; x += 7) {
+      for (let z = -150; z < 150; z += 7) {
+        expect(t.generateBlock(x, 0, z)).not.toBe(BlockId.Lava)
+      }
+    }
+  })
+
+  it('does generate lava somewhere deep underground', () => {
+    const t = new Terrain(31337)
+    let found = 0
+    for (let x = -200; x < 200; x += 5) {
+      for (let z = -200; z < 200; z += 5) {
+        const h = t.heightAt(x, z)
+        for (let y = 1; y <= LAVA_MAX_Y; y++) {
+          if (t.generateBlock(x, y, z) === BlockId.Lava) {
+            found++
+            expect(y).toBeLessThanOrEqual(h - LAVA_MIN_COVER)
+          }
+        }
+      }
+    }
+    expect(found).toBeGreaterThan(0)
+  })
+
+  it('agrees between generateBlock and generateChunkData for lava', () => {
+    const t = new Terrain(777)
+    for (const [cx, cz] of [[0, 0], [3, -2], [-5, 4]] as const) {
+      const data = t.generateChunkData(cx, cz)
+      for (let lx = 0; lx < CHUNK_SIZE; lx += 3) {
+        for (let lz = 0; lz < CHUNK_SIZE; lz += 3) {
+          const x = cx * CHUNK_SIZE + lx
+          const z = cz * CHUNK_SIZE + lz
+          for (let y = 1; y <= LAVA_MAX_Y; y++) {
+            const chunked = data[localIndex(lx, y, lz)] === BlockId.Lava
+            expect(chunked).toBe(t.generateBlock(x, y, z) === BlockId.Lava)
+          }
+        }
+      }
+    }
   })
 })

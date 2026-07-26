@@ -1,5 +1,5 @@
 import { MAX_STACK } from '../constants'
-import { BlockId, blockDef, type ToolType } from '../core/blocks'
+import { BlockId, blockDef, NON_ITEM_BLOCKS, type ToolType } from '../core/blocks'
 import type { FurnitureKind } from '../entities/furniture'
 
 export type AnimalKind = 'pig' | 'chicken' | 'sheep' | 'rabbit' | 'cat' | 'dog' | 'villager' | 'horse' | 'zombie'
@@ -85,6 +85,8 @@ export interface ItemDef {
 const ITEMS = new Map<number, ItemDef>()
 
 for (const id of Object.values(BlockId)) {
+  // Lava and friends exist as world blocks only — never as something to carry.
+  if (NON_ITEM_BLOCKS.has(id)) continue
   const def = blockDef(id)
   if (def) ITEMS.set(id, { name: def.name, kind: 'block', block: id, maxStack: MAX_STACK })
 }

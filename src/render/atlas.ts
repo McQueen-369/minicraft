@@ -369,6 +369,27 @@ function drawTile(ctx: Ctx, tile: number, x0: number, y0: number): void {
       ctx.fillRect(x0 + 8, y0 + 6, 1, 1)
       break
     }
+    case Tile.Lava: {
+      // Molten orange base with only small cooling plates: at block size the
+      // tile has to average out bright, or a pool reads as brown rock.
+      speckle(ctx, x0, y0, '#e8560a', ['#ff7a10', '#d24406', '#ff9422', '#c23c04'], 0.8, 27)
+      // Crust: dark plates drifting on the surface, kept small so the tile
+      // still averages out molten when a pool is seen from across a cavern.
+      ctx.fillStyle = '#8f2f06'
+      ctx.fillRect(x0 + 2, y0 + 2, 4, 2)
+      ctx.fillRect(x0 + 10, y0 + 9, 3, 3)
+      ctx.fillRect(x0 + 5, y0 + 12, 2, 2)
+      // Cracks between the plates — the hottest pixels in the tile.
+      ctx.fillStyle = '#ffc23c'
+      ctx.fillRect(x0 + 7, y0 + 2, 1, 5)
+      ctx.fillRect(x0 + 8, y0 + 6, 3, 1)
+      ctx.fillRect(x0 + 2, y0 + 8, 5, 1)
+      ctx.fillRect(x0 + 13, y0 + 3, 1, 4)
+      ctx.fillStyle = '#ffe07a'
+      ctx.fillRect(x0 + 7, y0 + 4, 1, 2)
+      ctx.fillRect(x0 + 3, y0 + 8, 2, 1)
+      break
+    }
     default:
       ctx.fillStyle = '#ff00ff'
       ctx.fillRect(x0, y0, SRC_PX, SRC_PX)

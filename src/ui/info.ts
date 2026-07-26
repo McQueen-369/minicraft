@@ -1,10 +1,13 @@
 import { blockDef, BlockId, type ToolType } from '../core/blocks'
 import { itemDef, type AnimalKind } from '../items/items'
+import { animalFact, itemFact } from './facts'
 
 /** A short, human-readable help card for an animal or item. */
 export interface InfoContent {
   title: string
   lines: string[]
+  /** A real-world "did you know?" note about the subject, when we have one. */
+  fact?: string
 }
 
 const TAME_FOOD: Partial<Record<AnimalKind, string>> = {
@@ -21,8 +24,19 @@ function capitalize(s: string): string {
   return s.length ? s[0].toUpperCase() + s.slice(1) : s
 }
 
-/** How to tame, command, capture and release a given animal. */
+/** How to tame, command, capture and release a given animal, plus a fun fact. */
 export function animalInfo(kind: AnimalKind): InfoContent {
+  const fact = animalFact(kind)
+  return { ...animalHelp(kind), ...(fact ? { fact } : {}) }
+}
+
+/** How to use and obtain a given item (or placed block), plus a fun fact. */
+export function itemInfo(itemId: number): InfoContent {
+  const fact = itemFact(itemId)
+  return { ...itemHelp(itemId), ...(fact ? { fact } : {}) }
+}
+
+function animalHelp(kind: AnimalKind): InfoContent {
   if (kind === 'zombie') {
     return {
       title: 'Zombie',
@@ -76,8 +90,18 @@ function toolBestFor(tool: ToolType): string {
   return 'Best for leaves and wool.'
 }
 
-/** How to use and obtain a given item (or placed block). */
-export function itemInfo(itemId: number): InfoContent {
+function itemHelp(itemId: number): InfoContent {
+  if (itemId === BlockId.Lava) {
+    return {
+      title: 'Lava',
+      lines: [
+        'Molten rock pooled in the deepest stone — dig far enough down and you will break into a glowing lake.',
+        'It cannot be mined, placed or collected: no tool touches it.',
+        'Standing in lava burns your energy (⚡) fast. You sink slowly — hold Space (mobile: the green ▲) to paddle back out.',
+        'Bridge across it by placing blocks on the rim, and carry food so a scorch does not leave you too tired to mine.',
+      ],
+    }
+  }
   const def = itemDef(itemId)
   if (!def) return { title: 'Unknown', lines: [] }
   if (itemId === BlockId.TNT) {
