@@ -7,28 +7,68 @@ export interface MapMarker {
   color: string
 }
 
-const MINI_SIZE = 116 // CSS size of the corner map
-const BIG_SIZE = 460 // CSS size of the expanded map
-const MINI_RES = 84 // sampled pixels (scaled up by CSS — keeps heightAt cheap)
-const BIG_RES = 220
-const MINI_HALF = 60 // world blocks from center to edge
-// Wide enough that the secret island (280-360 blocks from spawn) always
-// fits within the fixed, home-anchored expanded map.
-const BIG_HALF = 400
+/** A square, north-up window on the world: centre + half-extent in blocks. */
+export interface MapView {
+  cx: number
+  cz: number
+  half: number
+}
+
+/** A landmark plotted on the map. */
+interface Landmark {
+  x: number
+  z: number
+  label: string
+  color: string
+  draw: (ctx: CanvasRenderingContext2D, x: number, y: number, r: number) => void
+}
+
+const MINI_CSS = 132 // on-screen size of the corner map
+const MINI_PIX = 264 // backing store — icons and arrows stay crisp when scaled
+const MINI_SAMPLES = 88 // terrain samples per axis (keeps heightAt cheap)
+const MINI_HALF = 64 // world blocks from centre to edge
+
+const BIG_CSS = 500
+const BIG_PIX = 660
+const BIG_SAMPLES = 220
+/** Never zoom the expanded map in tighter than this, however close things are. */
+const BIG_MIN_HALF = 110
+/** Breathing room around the fitted bounding box (1.0 = icons touch the edge). */
+const BIG_PAD = 1.3
+/** Snap the zoom to steps so the view doesn't visibly breathe as you walk. */
+const BIG_QUANTUM = 40
+
 const REDRAW_INTERVAL = 0.25 // seconds
+
+const HOME_COLOR = '#f4d35e'
+const ISLAND_COLOR = '#ff5fa2'
 
 const STYLE = `
 .mc-minimap {
   position: absolute; top: 12px; right: 12px; z-index: 7;
-  width: ${MINI_SIZE}px; height: ${MINI_SIZE}px; border-radius: 8px;
+  width: var(--mc-map, ${MINI_CSS}px); border-radius: 10px;
   border: 2px solid rgba(255,255,255,0.6); overflow: hidden; cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.4); -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.45); -webkit-tap-highlight-color: transparent;
+  background: #12161d;
 }
-.mc-minimap canvas { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
-.mc-minimap-hint {
-  position: absolute; left: 0; right: 0; bottom: 0; text-align: center;
-  font-family: 'Courier New', monospace; font-size: 9px; color: #fff;
-  background: rgba(0,0,0,0.45); pointer-events: none;
+.mc-minimap canvas {
+  width: 100%; height: var(--mc-map, ${MINI_CSS}px); display: block; image-rendering: pixelated;
+}
+/* Narrow phones: keep the radar from eating a third of the screen width. */
+@media (max-width: 470px) { :root { --mc-map: 112px; } }
+.mc-minimap-tag {
+  position: absolute; left: 0; top: 0; padding: 1px 6px;
+  font-family: 'Courier New', monospace; font-size: var(--mc-fs-2xs, 11px);
+  font-weight: bold; letter-spacing: 1px; color: #fff;
+  background: rgba(0,0,0,0.5); border-bottom-right-radius: 6px; pointer-events: none;
+}
+/* Distances to the fixed landmarks, in readable DOM text rather than a few
+   pixels of canvas lettering. */
+.mc-minimap-dist {
+  display: flex; justify-content: space-around; gap: 4px; padding: 3px 4px;
+  font-family: 'Courier New', monospace; font-size: var(--mc-fs-2xs, 11px);
+  font-weight: bold; color: #fff; background: rgba(0,0,0,0.62);
+  pointer-events: none; white-space: nowrap;
 }
 .mc-map-overlay {
   position: absolute; inset: 0; background: rgba(0,0,0,0.75); z-index: 21;
@@ -36,29 +76,113 @@ const STYLE = `
 }
 .mc-map-box {
   background: #c6c6c6; border: 3px solid; border-color: #fff #555 #555 #fff;
-  padding: 12px; color: #333; font-family: 'Courier New', monospace; max-width: 95vw;
+  padding: 12px; color: #333; font-family: 'Courier New', monospace;
+  max-width: 95vw; max-height: 94vh; overflow-y: auto;
 }
-.mc-map-box h3 { margin: 0 0 8px; font-size: 15px; }
+.mc-map-box h3 { margin: 0 0 8px; font-size: var(--mc-fs-lg, 18px); }
 .mc-map-box canvas {
-  display: block; width: ${BIG_SIZE}px; max-width: 86vw; height: auto; aspect-ratio: 1;
-  image-rendering: pixelated; border: 2px solid #555;
+  display: block; width: ${BIG_CSS}px; max-width: min(86vw, 62vh); height: auto;
+  aspect-ratio: 1; image-rendering: pixelated; border: 2px solid #555;
 }
-.mc-map-legend { font-size: 12px; margin-top: 8px; line-height: 1.6; }
-.mc-map-legend .sw { display: inline-block; width: 11px; height: 11px; vertical-align: -1px; margin-right: 4px; border: 1px solid #0006; }
+.mc-map-coords {
+  display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px;
+  font-size: var(--mc-fs-sm, 14px); font-weight: bold; line-height: 1.5;
+}
+.mc-map-scale { font-size: var(--mc-fs-xs, 12.5px); color: #555; margin-top: 4px; }
+.mc-map-legend {
+  display: flex; flex-wrap: wrap; gap: 3px 14px; margin-top: 8px;
+  font-size: var(--mc-fs-xs, 12.5px); line-height: 1.7;
+}
+.mc-map-legend .lg { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.mc-map-legend .sw { width: 0.85em; height: 0.85em; flex: 0 0 auto; border: 1px solid #0006; }
 .mc-map-close {
   margin-top: 10px; cursor: pointer; background: #8b8b8b; border: 2px solid;
   border-color: #fff #555 #555 #fff; font-family: 'Courier New', monospace;
-  font-size: 13px; font-weight: bold; color: #333; padding: 8px 16px;
+  font-size: var(--mc-fs-sm, 14px); font-weight: bold; color: #333; padding: 9px 18px;
   -webkit-tap-highlight-color: transparent;
 }
 `
+
+/**
+ * Frame a view that contains every point with margin to spare.
+ *
+ * The expanded map used to be pinned to a fixed centre and a fixed span, which
+ * meant anything outside that span — the player once they wandered far, or the
+ * secret island on a seed that placed it wide — got clamped onto the border and
+ * stopped telling the truth about where it was. Fitting the view to the points
+ * instead means every icon always sits at its real coordinate.
+ */
+export function fitView(
+  points: { x: number; z: number }[],
+  minHalf = BIG_MIN_HALF,
+  pad = BIG_PAD,
+  quantum = BIG_QUANTUM,
+): MapView {
+  if (points.length === 0) return { cx: 0, cz: 0, half: minHalf }
+  let minX = Infinity
+  let maxX = -Infinity
+  let minZ = Infinity
+  let maxZ = -Infinity
+  for (const p of points) {
+    minX = Math.min(minX, p.x)
+    maxX = Math.max(maxX, p.x)
+    minZ = Math.min(minZ, p.z)
+    maxZ = Math.max(maxZ, p.z)
+  }
+  const need = (Math.max(maxX - minX, maxZ - minZ) / 2) * pad
+  return {
+    cx: Math.round((minX + maxX) / 2),
+    cz: Math.round((minZ + maxZ) / 2),
+    half: Math.max(minHalf, Math.ceil(need / quantum) * quantum),
+  }
+}
+
+/** World position → canvas pixel, with no clamping: `inside` reports the truth. */
+export function projectPoint(
+  p: { x: number; z: number },
+  view: MapView,
+  size: number,
+  margin = 0,
+): { sx: number; sy: number; inside: boolean } {
+  const step = (view.half * 2) / size
+  const sx = (p.x - view.cx) / step + size / 2
+  const sy = (p.z - view.cz) / step + size / 2
+  const inside = sx >= margin && sx <= size - margin && sy >= margin && sy <= size - margin
+  return { sx, sy, inside }
+}
+
+/**
+ * Where the ray from the map's centre towards an off-map point crosses the
+ * border, plus the heading to point an arrow along. Used to show direction to
+ * a landmark that genuinely is off the edge — an arrow, never the landmark's
+ * own icon, so an off-map marker is never mistaken for "it's right there".
+ */
+export function edgePoint(
+  sx: number,
+  sy: number,
+  size: number,
+  inset: number,
+): { x: number; y: number; angle: number } {
+  const c = size / 2
+  const dx = sx - c
+  const dy = sy - c
+  const limit = c - inset
+  const mag = Math.max(Math.abs(dx), Math.abs(dy), 1e-6)
+  const t = limit / mag
+  return { x: c + dx * t, y: c + dy * t, angle: Math.atan2(dy, dx) }
+}
 
 /** Top-down navigation map: a mini view in the corner that expands on click. */
 export class Minimap {
   private readonly container: HTMLDivElement
   private readonly miniCanvas: HTMLCanvasElement
+  private readonly distStrip: HTMLDivElement
   private readonly overlay: HTMLDivElement
   private readonly bigCanvas: HTMLCanvasElement
+  private readonly coordsEl: HTMLDivElement
+  private readonly scaleEl: HTMLDivElement
+  /** Reused offscreen buffer the terrain is sampled into before upscaling. */
+  private readonly scratch: HTMLCanvasElement
   private redrawIn = 0
   private terrain: Terrain | null = null
   private pos = { x: 0, z: 0 }
@@ -66,24 +190,26 @@ export class Minimap {
   private markers: MapMarker[] = []
   private home: { x: number; z: number } | null = null
   private island: { x: number; z: number } | null = null
-  /** Fixed world-space anchor for the expanded map — set once, from home. */
-  private origin: { x: number; z: number } | null = null
 
   constructor(root: HTMLElement) {
     const style = document.createElement('style')
     style.textContent = STYLE
     document.head.appendChild(style)
 
+    this.scratch = document.createElement('canvas')
+
     this.container = document.createElement('div')
     this.container.className = 'mc-minimap'
     this.container.style.display = 'none'
     this.miniCanvas = document.createElement('canvas')
-    this.miniCanvas.width = MINI_RES
-    this.miniCanvas.height = MINI_RES
-    const hint = document.createElement('div')
-    hint.className = 'mc-minimap-hint'
-    hint.textContent = 'MAP'
-    this.container.append(this.miniCanvas, hint)
+    this.miniCanvas.width = MINI_PIX
+    this.miniCanvas.height = MINI_PIX
+    const tag = document.createElement('div')
+    tag.className = 'mc-minimap-tag'
+    tag.textContent = 'MAP'
+    this.distStrip = document.createElement('div')
+    this.distStrip.className = 'mc-minimap-dist'
+    this.container.append(this.miniCanvas, tag, this.distStrip)
     root.appendChild(this.container)
 
     this.overlay = document.createElement('div')
@@ -93,24 +219,39 @@ export class Minimap {
     const title = document.createElement('h3')
     title.textContent = 'Navigation Map'
     this.bigCanvas = document.createElement('canvas')
-    this.bigCanvas.width = BIG_RES
-    this.bigCanvas.height = BIG_RES
+    this.bigCanvas.width = BIG_PIX
+    this.bigCanvas.height = BIG_PIX
+    this.coordsEl = document.createElement('div')
+    this.coordsEl.className = 'mc-map-coords'
+    this.scaleEl = document.createElement('div')
+    this.scaleEl.className = 'mc-map-scale'
     const legend = document.createElement('div')
     legend.className = 'mc-map-legend'
-    legend.innerHTML =
-      '<span class="sw" style="background:#d23b3b"></span>You (arrow shows facing) &nbsp; ' +
-      '<span class="sw" style="background:#ffd34d"></span>Animals &nbsp; ' +
-      '<span class="sw" style="background:#7ad0ff"></span>Players<br>' +
-      '<span class="sw" style="background:#f4d35e"></span>🏠 Home &nbsp; ' +
-      '<span class="sw" style="background:#ff5fa2"></span>🏝 Challenge Island (mini-games!) &nbsp; ' +
-      '<span class="sw" style="background:#2e6fae"></span>Water &nbsp; ' +
-      '<span class="sw" style="background:#d9cfa0"></span>Sand &nbsp; ' +
-      '<span class="sw" style="background:#5cab46"></span>Grass &nbsp; ' +
-      '<span class="sw" style="background:#9a9a9a"></span>Hills'
+    // Built as flex items rather than one text run: a wrapping line must never
+    // orphan a colour swatch from the thing it labels.
+    for (const [color, text] of [
+      ['#d23b3b', 'You (arrow shows facing)'],
+      [HOME_COLOR, '🏠 Home'],
+      [ISLAND_COLOR, '🏝 Challenge Island (mini-games!)'],
+      ['#ffd34d', 'Animals'],
+      ['#7ad0ff', 'Players'],
+      ['#2e6fae', 'Water'],
+      ['#d9cfa0', 'Sand'],
+      ['#5cab46', 'Grass'],
+      ['#9a9a9a', 'Hills'],
+    ] as const) {
+      const item = document.createElement('span')
+      item.className = 'lg'
+      const sw = document.createElement('span')
+      sw.className = 'sw'
+      sw.style.background = color
+      item.append(sw, document.createTextNode(text))
+      legend.appendChild(item)
+    }
     const close = document.createElement('button')
     close.className = 'mc-map-close'
     close.textContent = '✕ Close'
-    box.append(title, this.bigCanvas, legend, close)
+    box.append(title, this.bigCanvas, this.coordsEl, this.scaleEl, legend, close)
     this.overlay.appendChild(box)
     root.appendChild(this.overlay)
 
@@ -126,10 +267,6 @@ export class Minimap {
   /** Mark the player's home (starter house) so it shows on the map. */
   setHome(x: number, z: number): void {
     this.home = { x, z }
-    // The expanded map is anchored to home the first time it's known, so
-    // home/island stay pixel-fixed on screen instead of sliding with the
-    // player — only the player's own arrow moves across that view.
-    if (!this.origin) this.origin = { x, z }
   }
 
   /** Mark the challenge island (arcade mini-games) so players can find it. */
@@ -150,7 +287,7 @@ export class Minimap {
 
   private openBig(): void {
     this.overlay.style.display = 'flex'
-    this.draw(this.bigCanvas, BIG_HALF, true)
+    this.drawBig()
   }
 
   toggleMap(): void {
@@ -166,40 +303,123 @@ export class Minimap {
     this.redrawIn -= dt
     if (this.redrawIn > 0) return
     this.redrawIn = REDRAW_INTERVAL
-    this.draw(this.miniCanvas, MINI_HALF, false)
-    if (this.isBigOpen) this.draw(this.bigCanvas, BIG_HALF, true)
+    this.drawMini()
+    if (this.isBigOpen) this.drawBig()
+  }
+
+  private landmarks(): Landmark[] {
+    const out: Landmark[] = []
+    if (this.home) out.push({ ...this.home, label: 'Home', color: HOME_COLOR, draw: drawHouseIcon })
+    if (this.island) out.push({ ...this.island, label: 'Island', color: ISLAND_COLOR, draw: drawIslandIcon })
+    return out
+  }
+
+  /** Corner radar: always centred on the player, so it scrolls with them. */
+  private drawMini(): void {
+    const ctx = this.miniCanvas.getContext('2d')
+    if (!this.terrain || !ctx) return
+    const view: MapView = { cx: this.pos.x, cz: this.pos.z, half: MINI_HALF }
+    this.drawTerrain(ctx, view, MINI_SAMPLES, MINI_PIX)
+
+    const iconR = 13
+    for (const lm of this.landmarks()) {
+      const { sx, sy, inside } = projectPoint(lm, view, MINI_PIX, iconR + 4)
+      // In view → the real icon at its real spot. Out of view → an arrow on the
+      // border pointing the way, which reads as "that direction" rather than
+      // pretending the landmark is parked on the edge.
+      if (inside) lm.draw(ctx, sx, sy, iconR)
+      else {
+        const e = edgePoint(sx, sy, MINI_PIX, 14)
+        drawEdgeArrow(ctx, e.x, e.y, e.angle, lm.color)
+      }
+    }
+
+    for (const m of this.markers) {
+      const { sx, sy, inside } = projectPoint(m, view, MINI_PIX)
+      if (!inside) continue
+      dot(ctx, sx, sy, 5, m.color)
+    }
+
+    drawPlayerArrow(ctx, MINI_PIX / 2, MINI_PIX / 2, this.yaw, 14)
+    this.updateDistances()
   }
 
   /**
-   * `fixed` selects the map's frame of reference:
-   *  - false (corner radar): centered on the player, terrain scrolls — good
-   *    for local awareness, but any fixed-world icon slides on screen as a
-   *    natural consequence of recentering every frame.
-   *  - true (expanded map): centered on the fixed `origin` (home), so home
-   *    and the secret island stay pinned to accurate, stable screen
-   *    positions; only the player's own arrow moves within that view.
+   * Expanded map: framed to hold the player and every landmark at once, so
+   * nothing is ever clamped and every icon sits on its true coordinate. The
+   * view re-fits (in zoom steps) as the player travels.
    */
-  private draw(canvas: HTMLCanvasElement, half: number, fixed: boolean): void {
-    const terrain = this.terrain
-    const ctx = canvas.getContext('2d')
-    if (!terrain || !ctx) return
-    const size = canvas.width
-    const step = (half * 2) / size
-    const anchor = fixed && this.origin ? this.origin : this.pos
-    const cx = anchor.x
-    const cz = anchor.z
-    const margin = size > 200 ? 9 : 6
-    const project = (wx: number, wz: number): { sx: number; sy: number } => {
-      const sx = Math.max(margin, Math.min(size - margin, ((wx - cx) / step) + size / 2))
-      const sy = Math.max(margin, Math.min(size - margin, ((wz - cz) / step) + size / 2))
-      return { sx, sy }
+  private drawBig(): void {
+    const ctx = this.bigCanvas.getContext('2d')
+    if (!this.terrain || !ctx) return
+    const marks = this.landmarks()
+    const view = fitView([this.pos, ...marks.map((l) => ({ x: l.x, z: l.z }))])
+    this.drawTerrain(ctx, view, BIG_SAMPLES, BIG_PIX)
+
+    const player = projectPoint(this.pos, view, BIG_PIX)
+
+    // Faint route lines from the player to each landmark: they make the real
+    // bearing obvious at a glance, and they move because the player does.
+    ctx.save()
+    ctx.setLineDash([7, 7])
+    ctx.lineWidth = 2
+    for (const lm of marks) {
+      const p = projectPoint(lm, view, BIG_PIX)
+      ctx.strokeStyle = lm.color + 'aa'
+      ctx.beginPath()
+      ctx.moveTo(player.sx, player.sy)
+      ctx.lineTo(p.sx, p.sy)
+      ctx.stroke()
     }
-    const img = ctx.createImageData(size, size)
+    ctx.restore()
+
+    for (const m of this.markers) {
+      const { sx, sy, inside } = projectPoint(m, view, BIG_PIX)
+      if (!inside) continue
+      dot(ctx, sx, sy, 5, m.color)
+    }
+
+    const iconR = 17
+    for (const lm of marks) {
+      const p = projectPoint(lm, view, BIG_PIX)
+      lm.draw(ctx, p.sx, p.sy, iconR)
+      label(ctx, `${lm.label} ${Math.round(lm.x)}, ${Math.round(lm.z)}`, p.sx, p.sy - iconR - 16, lm.color)
+    }
+
+    drawPlayerArrow(ctx, player.sx, player.sy, this.yaw, 18)
+    label(ctx, `You ${Math.round(this.pos.x)}, ${Math.round(this.pos.z)}`, player.sx, player.sy + 36, '#ffdede')
+
+    this.coordsEl.textContent = ''
+    this.coordsEl.append(
+      coordChip('🧍 You', `${Math.round(this.pos.x)}, ${Math.round(this.pos.z)}`, '#8b2020'),
+      ...marks.map((lm) =>
+        coordChip(
+          lm.label === 'Home' ? '🏠 Home' : '🏝 Island',
+          `${Math.round(lm.x)}, ${Math.round(lm.z)} · ${distance(this.pos, lm)} blocks away`,
+          '#333',
+        ),
+      ),
+    )
+    this.scaleEl.textContent = `View ${view.half * 2} × ${view.half * 2} blocks — auto-zoomed to keep everything in frame.`
+    this.updateDistances()
+  }
+
+  /** Terrain colours sampled at low res, then upscaled for crisp overlays. */
+  private drawTerrain(ctx: CanvasRenderingContext2D, view: MapView, samples: number, pix: number): void {
+    const terrain = this.terrain
+    if (!terrain) return
+    const s = this.scratch
+    s.width = samples
+    s.height = samples
+    const sctx = s.getContext('2d')
+    if (!sctx) return
+    const img = sctx.createImageData(samples, samples)
+    const step = (view.half * 2) / samples
     let i = 0
-    for (let py = 0; py < size; py++) {
-      const wz = cz - half + py * step
-      for (let px = 0; px < size; px++) {
-        const wx = cx - half + px * step
+    for (let py = 0; py < samples; py++) {
+      const wz = view.cz - view.half + (py + 0.5) * step
+      for (let px = 0; px < samples; px++) {
+        const wx = view.cx - view.half + (px + 0.5) * step
         const [r, g, b] = terrainColor(terrain.heightAt(Math.round(wx), Math.round(wz)))
         img.data[i++] = r
         img.data[i++] = g
@@ -207,59 +427,55 @@ export class Minimap {
         img.data[i++] = 255
       }
     }
-    ctx.putImageData(img, 0, 0)
-
-    // Home icon — clamped to the map edge when off-screen so it always points
-    // the player back toward their house. In fixed mode home sits exactly at
-    // the anchor, so it stays pinned to one accurate screen position.
-    if (this.home) {
-      const { sx, sy } = project(this.home.x, this.home.z)
-      drawHouseIcon(ctx, sx, sy, size > 200 ? 7 : 5)
-    }
-
-    // Challenge island flag — clamped to the map edge like home, so the
-    // mini-game island is always identifiable and points explorers to it.
-    // In fixed mode its screen position never changes as the player moves.
-    if (this.island) {
-      const { sx, sy } = project(this.island.x, this.island.z)
-      drawIslandIcon(ctx, sx, sy, size > 200 ? 7 : 5)
-    }
-
-    // Markers (animals, players).
-    for (const m of this.markers) {
-      const sx = ((m.x - cx) / step) + size / 2
-      const sy = ((m.z - cz) / step) + size / 2
-      if (sx < 0 || sx >= size || sy < 0 || sy >= size) continue
-      ctx.fillStyle = m.color
-      ctx.beginPath()
-      ctx.arc(sx, sy, size > 200 ? 4 : 2.5, 0, Math.PI * 2)
-      ctx.fill()
-    }
-
-    // Player arrow: dead-center on the local radar (it's always "you"), or
-    // plotted (and edge-clamped) against the fixed anchor on the expanded map
-    // so it's the one thing that actually moves across that view.
-    const dirX = -Math.sin(this.yaw)
-    const dirZ = -Math.cos(this.yaw)
-    const ang = Math.atan2(dirZ, dirX)
-    const { sx: cxp, sy: cyp } = fixed ? project(this.pos.x, this.pos.z) : { sx: size / 2, sy: size / 2 }
-    const r = size > 200 ? 9 : 6
-    ctx.save()
-    ctx.translate(cxp, cyp)
-    ctx.rotate(ang + Math.PI / 2)
-    ctx.fillStyle = '#d23b3b'
-    ctx.strokeStyle = '#fff'
-    ctx.lineWidth = 1.5
-    ctx.beginPath()
-    ctx.moveTo(0, -r)
-    ctx.lineTo(r * 0.66, r * 0.7)
-    ctx.lineTo(0, r * 0.3)
-    ctx.lineTo(-r * 0.66, r * 0.7)
-    ctx.closePath()
-    ctx.fill()
-    ctx.stroke()
-    ctx.restore()
+    sctx.putImageData(img, 0, 0)
+    ctx.imageSmoothingEnabled = false
+    ctx.clearRect(0, 0, pix, pix)
+    ctx.drawImage(s, 0, 0, samples, samples, 0, 0, pix, pix)
   }
+
+  /** Live distance readout under the corner map. */
+  private updateDistances(): void {
+    const parts: string[] = []
+    if (this.home) parts.push(`🏠 ${distance(this.pos, this.home)}`)
+    if (this.island) parts.push(`🏝 ${distance(this.pos, this.island)}`)
+    const text = parts.join('   ')
+    if (this.distStrip.textContent !== text) this.distStrip.textContent = text
+  }
+}
+
+function distance(a: { x: number; z: number }, b: { x: number; z: number }): number {
+  return Math.round(Math.hypot(a.x - b.x, a.z - b.z))
+}
+
+function coordChip(name: string, value: string, color: string): HTMLSpanElement {
+  const el = document.createElement('span')
+  el.style.color = color
+  el.textContent = `${name}: ${value}`
+  return el
+}
+
+function dot(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string): void {
+  ctx.fillStyle = color
+  ctx.strokeStyle = 'rgba(0,0,0,0.55)'
+  ctx.lineWidth = 1.5
+  ctx.beginPath()
+  ctx.arc(x, y, r, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.stroke()
+}
+
+/** Outlined caption under a map icon, readable over any terrain colour. */
+function label(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, color: string): void {
+  ctx.save()
+  ctx.font = 'bold 17px "Courier New", monospace'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.lineWidth = 4
+  ctx.strokeStyle = 'rgba(0,0,0,0.85)'
+  ctx.strokeText(text, x, y)
+  ctx.fillStyle = color
+  ctx.fillText(text, x, y)
+  ctx.restore()
 }
 
 /** A little house glyph: walls with a peaked roof, outlined for contrast. */
@@ -267,14 +483,17 @@ function drawHouseIcon(ctx: CanvasRenderingContext2D, x: number, y: number, r: n
   ctx.save()
   ctx.translate(x, y)
   ctx.lineJoin = 'round'
-  ctx.lineWidth = 1.5
+  ctx.lineWidth = Math.max(1.5, r * 0.16)
   ctx.strokeStyle = '#3a2a12'
-  ctx.fillStyle = '#f4d35e'
   // Walls.
+  ctx.fillStyle = HOME_COLOR
   ctx.beginPath()
-  ctx.rect(-r * 0.7, 0, r * 1.4, r)
+  ctx.rect(-r * 0.62, 0, r * 1.24, r * 0.9)
   ctx.fill()
   ctx.stroke()
+  // Door.
+  ctx.fillStyle = '#8a5a2b'
+  ctx.fillRect(-r * 0.18, r * 0.28, r * 0.36, r * 0.62)
   // Roof.
   ctx.beginPath()
   ctx.moveTo(-r, 0)
@@ -295,24 +514,63 @@ function drawIslandIcon(ctx: CanvasRenderingContext2D, x: number, y: number, r: 
   // Sandy mound base.
   ctx.fillStyle = '#d9cfa0'
   ctx.strokeStyle = '#3a2a12'
-  ctx.lineWidth = 1
+  ctx.lineWidth = Math.max(1, r * 0.11)
   ctx.beginPath()
   ctx.ellipse(0, r * 0.7, r, r * 0.45, 0, 0, Math.PI * 2)
   ctx.fill()
   ctx.stroke()
   // Pole.
-  ctx.strokeStyle = '#3a2a12'
-  ctx.lineWidth = 1.5
+  ctx.lineWidth = Math.max(1.5, r * 0.15)
   ctx.beginPath()
   ctx.moveTo(0, r * 0.7)
   ctx.lineTo(0, -r)
   ctx.stroke()
   // Pennant flag.
-  ctx.fillStyle = '#ff5fa2'
+  ctx.fillStyle = ISLAND_COLOR
   ctx.beginPath()
   ctx.moveTo(0, -r)
   ctx.lineTo(r * 1.1, -r * 0.55)
   ctx.lineTo(0, -r * 0.1)
+  ctx.closePath()
+  ctx.fill()
+  ctx.stroke()
+  ctx.restore()
+}
+
+/** Border arrow for a landmark that is off the current view. */
+function drawEdgeArrow(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number, color: string): void {
+  ctx.save()
+  ctx.translate(x, y)
+  ctx.rotate(angle)
+  ctx.fillStyle = color
+  ctx.strokeStyle = 'rgba(0,0,0,0.8)'
+  ctx.lineWidth = 2
+  ctx.lineJoin = 'round'
+  ctx.beginPath()
+  ctx.moveTo(11, 0)
+  ctx.lineTo(-7, -9)
+  ctx.lineTo(-3, 0)
+  ctx.lineTo(-7, 9)
+  ctx.closePath()
+  ctx.fill()
+  ctx.stroke()
+  ctx.restore()
+}
+
+function drawPlayerArrow(ctx: CanvasRenderingContext2D, x: number, y: number, yaw: number, r: number): void {
+  const ang = Math.atan2(-Math.cos(yaw), -Math.sin(yaw))
+  ctx.save()
+  ctx.translate(x, y)
+  ctx.rotate(ang + Math.PI / 2)
+  ctx.fillStyle = '#d23b3b'
+  ctx.strokeStyle = '#fff'
+  ctx.lineWidth = 2
+  ctx.lineJoin = 'round'
+  ctx.beginPath()
+  ctx.moveTo(0, -r)
+  ctx.lineTo(r * 0.66, r * 0.7)
+  ctx.lineTo(0, r * 0.3)
+  ctx.lineTo(-r * 0.66, r * 0.7)
   ctx.closePath()
   ctx.fill()
   ctx.stroke()

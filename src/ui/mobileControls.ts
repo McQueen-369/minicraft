@@ -62,7 +62,7 @@ const STYLE = `
 .mc-btn {
   width: 60px; height: 60px; border-radius: 50%;
   background: rgba(255,255,255,0.18); border: 2px solid rgba(255,255,255,0.4);
-  color: #fff; font-size: 12px; font-weight: bold;
+  color: #fff; font-size: var(--mc-fs-xs, 12.5px); font-weight: bold;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; user-select: none; text-shadow: 0 1px 2px #000;
   -webkit-tap-highlight-color: transparent;
@@ -91,7 +91,7 @@ const STYLE = `
     right: calc(170px + env(safe-area-inset-right, 0px));
     flex-direction: column; gap: 8px;
   }
-  .mc-btn { width: 50px; height: 50px; font-size: 11px; }
+  .mc-btn { width: 50px; height: 50px; font-size: var(--mc-fs-xs, 12.5px); }
 }
 `
 

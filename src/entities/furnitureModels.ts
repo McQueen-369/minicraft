@@ -230,67 +230,118 @@ function buildMarket(): FurnitureModel {
   return { group: g, pivot: null }
 }
 
+/** Accent colour per mini-game, shared by the cabinet and its UI panel. */
+const ARCADE_ACCENTS: Record<string, number> = {
+  arcadePuzzle: 0x2e86de,
+  arcadeRunner: 0x27ae60,
+  arcadeMath: 0xe67e22,
+  arcadeWord: 0x9b59b6,
+}
+
 /**
  * Mini-game arcade kiosk for the secret island: a bright cabinet with a
- * glowing screen and a per-game accent colour + screen doodle.
+ * bezelled glowing screen, a per-game accent colour and screen art, a proper
+ * control deck with a coin slot, speaker grills and a lit marquee.
  */
 function buildArcade(kind: 'arcadePuzzle' | 'arcadeRunner' | 'arcadeMath' | 'arcadeWord'): FurnitureModel {
-  const accents: Record<string, number> = {
-    arcadePuzzle: 0x2e86de,
-    arcadeRunner: 0x27ae60,
-    arcadeMath: 0xe67e22,
-    arcadeWord: 0x9b59b6,
-  }
-  const accent = accents[kind]
+  const accent = ARCADE_ACCENTS[kind]
   const g = new THREE.Group()
   const dark = 0x2c2c34
+  const darker = 0x1b1b21
+  const glow = (c: number, strength = 0.55) =>
+    new THREE.MeshLambertMaterial({ color: c, emissive: new THREE.Color(c).multiplyScalar(strength) })
 
-  // Cabinet body
-  part(g, 1.0, 1.5, 0.7, 0, 0.75, -0.1, dark)
-  // Accent side panels
-  part(g, 0.06, 1.5, 0.7, -0.53, 0.75, -0.1, accent)
-  part(g, 0.06, 1.5, 0.7, 0.53, 0.75, -0.1, accent)
-  // Glowing screen (front face)
-  const screenMat = new THREE.MeshLambertMaterial({ color: 0x0a1a2a, emissive: new THREE.Color(0.05, 0.15, 0.2) })
-  const screen = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 0.06), screenMat)
-  screen.position.set(0, 1.35, 0.26)
-  screen.rotation.x = -0.15
-  g.add(screen)
-  // Screen doodle per game, glowing in the accent colour.
-  const doodleMat = new THREE.MeshLambertMaterial({ color: accent, emissive: new THREE.Color(accent).multiplyScalar(0.5) })
-  const doodle = (w: number, h: number, x: number, y: number) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.03), doodleMat)
-    m.position.set(x, y, 0.32)
-    m.rotation.x = -0.15
-    g.add(m)
+  // Plinth: a slightly wider base so the cabinet reads as standing, not floating.
+  part(g, 1.12, 0.16, 0.82, 0, 0.08, -0.06, darker)
+  // Underglow strip — the cabinet keeps a presence after dark.
+  const under = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.05, 0.04), glow(accent, 0.7))
+  under.position.set(0, 0.18, 0.34)
+  g.add(under)
+
+  // Cabinet body, with accent side panels and a diagonal stripe of side art.
+  part(g, 1.0, 1.42, 0.7, 0, 0.87, -0.1, dark)
+  for (const sx of [-1, 1]) {
+    part(g, 0.06, 1.42, 0.7, sx * 0.53, 0.87, -0.1, accent)
+    part(g, 0.02, 0.5, 0.16, sx * 0.57, 1.2, 0.1, 0xf6f4ee)
+    part(g, 0.02, 0.34, 0.16, sx * 0.57, 0.78, 0.02, 0xf6f4ee)
+  }
+
+  // Screen: a dark bezel with the glowing panel recessed into it.
+  const bezel = new THREE.Group()
+  bezel.position.set(0, 1.36, 0.24)
+  bezel.rotation.x = -0.15
+  g.add(bezel)
+  const bezelPart = (w: number, h: number, x: number, y: number, z: number, color: number, emissive?: number) => {
+    const mat = emissive === undefined
+      ? new THREE.MeshLambertMaterial({ color })
+      : new THREE.MeshLambertMaterial({ color, emissive: new THREE.Color(emissive) })
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.05), mat)
+    m.position.set(x, y, z)
+    bezel.add(m)
+    return m
+  }
+  bezelPart(0.92, 0.72, 0, 0, 0, darker)
+  bezelPart(0.78, 0.58, 0, 0, 0.03, 0x081420, 0x0d2233)
+  // Screen art per game, glowing in the accent colour.
+  const artMat = glow(accent, 0.6)
+  const art = (w: number, h: number, x: number, y: number) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.02), artMat)
+    m.position.set(x, y, 0.06)
+    bezel.add(m)
   }
   if (kind === 'arcadePuzzle') {
-    doodle(0.16, 0.16, -0.14, 1.44)
-    doodle(0.16, 0.16, 0.06, 1.44)
-    doodle(0.16, 0.16, -0.14, 1.24)
-    doodle(0.16, 0.16, 0.1, 1.28)
+    // A 2×2 of sliding tiles with one cell left empty.
+    for (const [x, y] of [[-0.12, 0.12], [0.12, 0.12], [-0.12, -0.12]] as const) art(0.18, 0.18, x, y)
   } else if (kind === 'arcadeRunner') {
-    doodle(0.1, 0.28, -0.1, 1.35)
-    doodle(0.12, 0.1, 0.14, 1.22)
-    doodle(0.3, 0.04, 0, 1.14)
+    // Runner, cactus and ground line.
+    art(0.09, 0.24, -0.16, 0.02)
+    art(0.11, 0.14, 0.14, -0.05)
+    art(0.62, 0.04, 0, -0.17)
   } else if (kind === 'arcadeMath') {
-    doodle(0.3, 0.08, -0.1, 1.38)
-    doodle(0.08, 0.3, -0.1, 1.38)
-    doodle(0.2, 0.06, 0.18, 1.28)
+    // A plus sign beside an equals sign.
+    art(0.3, 0.07, -0.14, 0.04)
+    art(0.07, 0.3, -0.14, 0.04)
+    art(0.22, 0.05, 0.18, 0.1)
+    art(0.22, 0.05, 0.18, -0.02)
   } else {
-    doodle(0.12, 0.2, -0.2, 1.35)
-    doodle(0.12, 0.2, 0, 1.35)
-    doodle(0.12, 0.2, 0.2, 1.35)
+    // Three blank letter slots with one filled in.
+    for (const x of [-0.22, 0, 0.22] as const) art(0.14, 0.04, x, -0.14)
+    art(0.12, 0.2, 0, 0.02)
   }
-  // Control deck with two buttons and a joystick
-  part(g, 0.9, 0.08, 0.35, 0, 0.98, 0.32, 0x3c3c46)
-  part(g, 0.1, 0.06, 0.1, -0.18, 1.04, 0.34, 0xd63031)
-  part(g, 0.1, 0.06, 0.1, 0.02, 1.04, 0.34, 0xf6e58d)
-  part(g, 0.05, 0.16, 0.05, 0.24, 1.1, 0.34, 0x999999)
-  part(g, 0.1, 0.06, 0.1, 0.24, 1.18, 0.34, accent)
-  // Marquee top
-  part(g, 1.1, 0.3, 0.5, 0, 1.85, -0.12, accent)
-  part(g, 0.9, 0.18, 0.05, 0, 1.85, 0.14, 0xf6f4ee)
+
+  // Control deck: angled panel, three buttons, a ball-top joystick and a coin
+  // slot with a return tray on the cabinet front.
+  part(g, 0.94, 0.09, 0.38, 0, 0.97, 0.33, 0x3c3c46)
+  part(g, 0.94, 0.03, 0.05, 0, 1.02, 0.5, darker)
+  for (const [dx, c] of [[-0.26, 0xd63031], [-0.08, 0xf6e58d], [0.1, 0x74b9ff]] as const) {
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.05, 10), glow(c, 0.35))
+    b.position.set(dx, 1.04, 0.34)
+    g.add(b)
+  }
+  part(g, 0.05, 0.16, 0.05, 0.3, 1.08, 0.34, 0x999999)
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshLambertMaterial({ color: accent }))
+  ball.position.set(0.3, 1.19, 0.34)
+  g.add(ball)
+  part(g, 0.16, 0.2, 0.04, 0, 0.72, 0.26, darker) // coin plate
+  part(g, 0.02, 0.09, 0.03, 0, 0.77, 0.29, 0xf6e58d) // coin slot
+  part(g, 0.12, 0.05, 0.03, 0, 0.64, 0.29, 0x3c3c46) // coin return
+
+  // Marquee: a lit sign board flanked by speaker grills.
+  part(g, 1.14, 0.34, 0.52, 0, 1.79, -0.12, accent)
+  const sign = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.22, 0.05), glow(0xf6f4ee, 0.5))
+  sign.position.set(0, 1.79, 0.16)
+  g.add(sign)
+  const emblem = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 0.02), glow(accent, 0.5))
+  emblem.position.set(0, 1.79, 0.19)
+  g.add(emblem)
+  for (const sx of [-1, 1]) {
+    for (let i = 0; i < 3; i++) part(g, 0.1, 0.02, 0.04, sx * 0.46, 1.72 + i * 0.06, 0.16, darker)
+  }
+  part(g, 1.18, 0.05, 0.56, 0, 1.98, -0.12, darker) // canopy lip
+  // Back placard: the kiosks are approached from outside the ring, so the rear
+  // face gets an accent panel rather than a blank slab.
+  part(g, 0.84, 0.5, 0.03, 0, 1.24, -0.46, accent)
+  part(g, 0.6, 0.06, 0.02, 0, 1.36, -0.48, 0xf6f4ee)
   return { group: g, pivot: null }
 }
 
