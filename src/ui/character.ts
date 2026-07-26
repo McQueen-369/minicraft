@@ -19,9 +19,9 @@ const STYLE = `
 .mc-char-preview { display: flex; justify-content: center; margin: 4px 0 10px; }
 .mc-char-preview canvas { border: 2px solid #3a3f4a; background: #1a2028; border-radius: 4px; }
 .mc-char-row { display: flex; align-items: center; gap: 6px; margin: 7px 0; }
-.mc-char-row .label { width: 74px; flex-shrink: 0; color: #8c8; font-size: 12px; }
-.mc-char-row .value { flex: 1; text-align: center; font-size: 13px; color: #fff; }
-.mc-char-row button.arrow { display: inline-block; width: 34px; margin: 0; padding: 6px 0; font-size: 14px; flex-shrink: 0; }
+.mc-char-row .label { width: 74px; flex-shrink: 0; color: #8c8; font-size: var(--mc-fs-xs, 12.5px); }
+.mc-char-row .value { flex: 1; text-align: center; font-size: var(--mc-fs-sm, 14px); color: #fff; }
+.mc-char-row button.arrow { display: inline-block; width: 34px; margin: 0; padding: 6px 0; font-size: var(--mc-fs-sm, 14px); flex-shrink: 0; }
 .mc-char-swatches { display: flex; flex-wrap: wrap; gap: 5px; flex: 1; }
 .mc-char button.mc-char-swatch {
   display: inline-block; width: 22px; height: 22px; border: 2px solid #2e2e2e;
@@ -30,10 +30,10 @@ const STYLE = `
 .mc-char button.mc-char-swatch.sel { border-color: #fff; outline: 2px solid #4a7; }
 .mc-char-presets { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0 2px; }
 .mc-char-presets button {
-  display: inline-block; width: auto; flex: 1 1 40%; margin: 0; padding: 7px 4px; font-size: 12px;
+  display: inline-block; width: auto; flex: 1 1 40%; margin: 0; padding: 7px 4px; font-size: var(--mc-fs-xs, 12.5px);
 }
 .mc-char-presets button.sel { background: #3a7d4f; border-color: #7fce9a #1e4a2c #1e4a2c #7fce9a; }
-.mc-char-section-label { color: #8c8; font-size: 13px; margin: 12px 0 2px; }
+.mc-char-section-label { color: #8c8; font-size: var(--mc-fs-sm, 14px); margin: 12px 0 2px; }
 `
 
 const STYLE_LABELS: Record<string, string> = {

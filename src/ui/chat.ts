@@ -4,7 +4,7 @@ const STYLE = `
   z-index: 8; pointer-events: none; display: flex; flex-direction: column; gap: 2px;
 }
 .mc-chat-float-msg {
-  font-family: 'Courier New', monospace; font-size: 13px; color: #fff;
+  font-family: 'Courier New', monospace; font-size: var(--mc-fs-sm, 14px); color: #fff;
   text-shadow: 1px 1px 0 #000; background: rgba(0,0,0,0.42);
   padding: 3px 7px; border-radius: 3px; transition: opacity 1s;
   max-width: 100%; word-break: break-word;
@@ -21,11 +21,11 @@ const STYLE = `
 .mc-chat-header {
   flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
   padding: 10px 12px; border-bottom: 1px solid #444;
-  font-family: 'Courier New', monospace; color: #fff; font-size: 14px; font-weight: bold;
+  font-family: 'Courier New', monospace; color: #fff; font-size: var(--mc-fs-sm, 14px); font-weight: bold;
 }
 .mc-chat-header-title { flex: 1; }
 .mc-chat-close {
-  background: none; border: none; color: #aaa; font-size: 18px; cursor: pointer;
+  background: none; border: none; color: #aaa; font-size: var(--mc-fs-lg, 18px); cursor: pointer;
   padding: 0 4px; line-height: 1; -webkit-tap-highlight-color: transparent;
 }
 .mc-chat-close:hover, .mc-chat-close:active { color: #fff; }
@@ -34,7 +34,7 @@ const STYLE = `
   display: flex; flex-direction: column; gap: 6px;
 }
 .mc-chat-panel-msg {
-  font-family: 'Courier New', monospace; font-size: 13px; color: #eee;
+  font-family: 'Courier New', monospace; font-size: var(--mc-fs-sm, 14px); color: #eee;
   line-height: 1.4; word-break: break-word;
 }
 .mc-chat-panel-msg .mc-chat-name { color: #7ec8e3; font-weight: bold; }
@@ -44,14 +44,14 @@ const STYLE = `
   border-top: 1px solid #444;
 }
 .mc-chat-input {
-  flex: 1; font-family: 'Courier New', monospace; font-size: 13px;
+  flex: 1; font-family: 'Courier New', monospace; font-size: var(--mc-fs-sm, 14px);
   background: rgba(255,255,255,0.08); color: #fff; border: 1px solid #555;
   padding: 6px 10px; outline: none; border-radius: 4px;
 }
 .mc-chat-input:focus { border-color: #888; }
 .mc-chat-send {
   background: #2a5a3a; border: 1px solid #3a7a4a; color: #fff;
-  font-family: 'Courier New', monospace; font-size: 12px; font-weight: bold;
+  font-family: 'Courier New', monospace; font-size: var(--mc-fs-xs, 12.5px); font-weight: bold;
   padding: 6px 12px; border-radius: 4px; cursor: pointer;
   -webkit-tap-highlight-color: transparent; white-space: nowrap;
 }

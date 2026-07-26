@@ -13,9 +13,9 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 - **Ambient occlusion & detailed textures** — corner shadows and directional face shading are baked into every chunk, and block textures are drawn at double resolution with a grain-and-relief pass, so terrain reads with real depth under filmic tone mapping
 - **Day/night cycle** — a bright sun disc and drifting clouds by day, moon and stars by night; a live HUD timer shows the day count and current phase
 - **Villages** — procedurally placed settlements with three furnished cottages (stone plinths, timber-framed brick walls, pitched gable roofs, chimneys and porches), a market stall on a stone forecourt, a covered well, fenced kitchen gardens, lantern-lit stone lanes and villager NPCs. The whole site is levelled and packed down to the natural ground first, so nothing ever floats — over water the village stands on a sand-and-dirt embankment
-- **Secret Island** — a hidden dome of land tucked inside a ring-shaped lake a few hundred blocks from spawn, deterministic per world seed. Its plaza hosts an arcade of four educational mini-games plus bonus mystery boxes (see below)
+- **Secret Island** — a hidden dome of land tucked inside a ring-shaped lake a few hundred blocks from spawn, deterministic per world seed. Its arcade plaza is a designed place: a plank courtyard around the campfire, a dashed stone-and-brick ring path, four kiosks on raised podiums lit by lantern posts, a palm grove, a fenced rim with gates on the diagonals, prize plinths and a lighthouse beacon you can spot from the mainland (see below)
 - **Carry villagers** — left-click a villager NPC to pick it up and carry it around; left-click again to set it back down (NPCs are never stored in your bag)
-- **Minimap** — press M to toggle; shows nearby animals, your home spawn, and (once discovered) the secret island
+- **Navigation map** — the corner radar tracks you and shows nearby animals, with 🏠/🏝 distance readouts underneath; landmarks off the edge become direction arrows rather than icons pinned to the border. Press M (or tap the radar) for the expanded map, which auto-zooms to frame you, home and the island together, so every marker always sits on its true coordinate, with live coordinates and distances listed below it
 
 ### Blocks & Resources
 - **12+ block types** — Grass, Dirt, Stone, Sand, Wood, Leaves, Apple Leaves, Planks, Brick, Glass, Fence, Ladder, TNT
@@ -59,13 +59,16 @@ No assets — terrain, textures, animals, buildings, and UI are all generated pr
 - Energy, the day count, and island discovery all persist in your save
 
 ### Challenge Island & Mini-Games
-- Sits inside a ring-shaped lake a few hundred blocks from spawn — a pink **🏝 flag on the map** always points the way (clamped to the map edge until you get close)
-- Its plaza has four glowing arcade kiosks, each a small educational mini-game that pays out item prizes:
+- Sits inside a ring-shaped lake a few hundred blocks from spawn — a pink **🏝 flag on the map** marks its real coordinates, and the corner radar shows how far away it is
+- Its plaza has four glowing arcade kiosks, each a small educational mini-game that pays out item prizes. Every kiosk opens the same way — game badge, the prize on offer, a row of "how to play" chips, one status pill, then the game, and an end-of-round card showing what you scored and won:
   - 🧩 **Sliding Puzzle** — reorder a shuffled 3×3 grid; fewer moves win a bigger prize
   - 🏃 **Island Runner** — endless jump-the-obstacle runner; score 150+ to win gold
   - 🎯 **Math Blaster** — shoot the target with the correct answer across 10 ramping arithmetic questions
   - 🔤 **Word Wizard** — hangman-style word guessing with vocabulary hints
-- A couple of bonus Rare Mystery Boxes sit at the plaza's edge for explorers
+- A couple of bonus Rare Mystery Boxes sit on plinths by the plaza gates for explorers
+
+### Readability
+- All UI text is driven by one shared fluid type scale (`src/ui/theme.ts`): a comfortable floor on phones, `vmin` growth on larger screens, and a ceiling so desktop text never turns cartoonish. Short landscape phones and large portrait tablets get their own steps
 
 ### Fishing
 - Start with a **Fishing Net** in your hotbar

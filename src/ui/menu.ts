@@ -10,40 +10,40 @@ const STYLE = `
   display: flex; align-items: center; justify-content: center; color: #eee;
 }
 .mc-menu-box { text-align: center; width: 380px; max-width: 92vw; max-height: 92vh; overflow-y: auto; padding: 0 4px; }
-.mc-menu-box h1 { font-size: 42px; letter-spacing: 4px; margin-bottom: 6px; color: #fff; text-shadow: 3px 3px 0 #2a4; }
-.mc-menu-box .sub { color: #aaa; margin-bottom: 24px; font-size: 13px; }
+.mc-menu-box h1 { font-size: var(--mc-fs-3xl, 42px); letter-spacing: 4px; margin-bottom: 6px; color: #fff; text-shadow: 3px 3px 0 #2a4; }
+.mc-menu-box .sub { color: #aaa; margin-bottom: 24px; font-size: var(--mc-fs-sm, 14px); }
 .mc-menu-box button {
-  display: block; width: 100%; margin: 8px 0; padding: 12px; font-size: 16px;
+  display: block; width: 100%; margin: 8px 0; padding: 12px; font-size: var(--mc-fs-md, 16px);
   font-family: inherit; background: #6b6b6b; color: #fff; border: 2px solid;
   border-color: #a8a8a8 #2e2e2e #2e2e2e #a8a8a8; cursor: pointer;
 }
 .mc-menu-box button:hover { background: #7d7d9d; }
 .mc-menu-box button:disabled { opacity: 0.4; cursor: default; }
 .mc-menu-box input {
-  display: block; width: 100%; margin: 8px 0; padding: 10px; font-size: 15px;
+  display: block; width: 100%; margin: 8px 0; padding: 10px; font-size: var(--mc-fs-md, 16px);
   font-family: inherit; background: #222; color: #fff; border: 2px solid #555; box-sizing: border-box;
 }
-.mc-menu-box .error { color: #ff7b6b; font-size: 13px; min-height: 18px; margin-top: 6px; }
-.mc-menu-box .hint { color: #999; font-size: 12px; margin-top: 14px; line-height: 1.6; }
+.mc-menu-box .error { color: #ff7b6b; font-size: var(--mc-fs-sm, 14px); min-height: 18px; margin-top: 6px; }
+.mc-menu-box .hint { color: #999; font-size: var(--mc-fs-xs, 12.5px); margin-top: 14px; line-height: 1.6; }
 .mc-menu-box .section { border-top: 1px solid #3a3f4a; margin-top: 16px; padding-top: 12px; }
-.mc-menu-box .section-title { color: #8c8; font-size: 13px; margin-bottom: 4px; text-align: left; }
-.mc-menu-box .profile-bar { display: flex; align-items: center; gap: 8px; color: #ccc; font-size: 14px; }
+.mc-menu-box .section-title { color: #8c8; font-size: var(--mc-fs-sm, 14px); margin-bottom: 4px; text-align: left; }
+.mc-menu-box .profile-bar { display: flex; align-items: center; gap: 8px; color: #ccc; font-size: var(--mc-fs-sm, 14px); }
 .mc-menu-box .profile-bar .who { flex: 1; text-align: left; }
 .mc-menu-box .profile-bar .who b { color: #afa; }
-.mc-menu-box .profile-bar button { width: auto; margin: 0; padding: 6px 10px; font-size: 13px; }
+.mc-menu-box .profile-bar button { width: auto; margin: 0; padding: 6px 10px; font-size: var(--mc-fs-sm, 14px); }
 .mc-menu-box .world-row { display: flex; align-items: center; gap: 6px; margin: 6px 0; }
 .mc-menu-box .world-row .meta { flex: 1; text-align: left; min-width: 0; }
-.mc-menu-box .world-row .meta .name { font-size: 15px; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mc-menu-box .world-row .meta .when { font-size: 11px; color: #888; }
-.mc-menu-box .world-row button { width: auto; margin: 0; padding: 8px 10px; font-size: 13px; flex-shrink: 0; }
+.mc-menu-box .world-row .meta .name { font-size: var(--mc-fs-md, 16px); color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mc-menu-box .world-row .meta .when { font-size: var(--mc-fs-xs, 12.5px); color: #888; }
+.mc-menu-box .world-row button { width: auto; margin: 0; padding: 8px 10px; font-size: var(--mc-fs-sm, 14px); flex-shrink: 0; }
 .mc-menu-box .world-row button.danger:hover { background: #a33; }
-.mc-menu-box .empty { color: #888; font-size: 13px; margin: 10px 0; }
+.mc-menu-box .empty { color: #888; font-size: var(--mc-fs-sm, 14px); margin: 10px 0; }
 .mc-menu-box .save-notice {
   background: rgba(40,90,60,0.2); border: 1px solid #4a7; border-radius: 3px;
-  padding: 8px 10px; color: #9c9; font-size: 13px; margin-bottom: 4px;
+  padding: 8px 10px; color: #9c9; font-size: var(--mc-fs-sm, 14px); margin-bottom: 4px;
 }
 .mc-room-code {
-  font-size: 36px; letter-spacing: 8px; color: #aff; font-weight: bold;
+  font-size: var(--mc-fs-3xl, 36px); letter-spacing: 8px; color: #aff; font-weight: bold;
   text-align: center; padding: 16px; margin: 12px 0;
   background: rgba(0,50,20,0.4); border: 2px solid #4a7; border-radius: 4px;
 }

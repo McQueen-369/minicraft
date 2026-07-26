@@ -17,11 +17,11 @@ const STYLE = `
 .mc-craft-header {
   flex: 0 0 auto; padding: 10px 14px; border-bottom: 2px solid #555;
   display: flex; align-items: center; justify-content: space-between;
-  font-size: 15px; font-weight: bold;
+  font-size: var(--mc-fs-md, 16px); font-weight: bold;
 }
 .mc-craft-close {
   background: #888; border: none; border-radius: 4px; color: #fff;
-  font-size: 13px; font-weight: bold; padding: 3px 10px; cursor: pointer;
+  font-size: var(--mc-fs-sm, 14px); font-weight: bold; padding: 3px 10px; cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 .mc-craft-close:hover { background: #666; }
@@ -41,15 +41,15 @@ const STYLE = `
 }
 .mc-craft-icon canvas { width: 100%; height: 100%; image-rendering: pixelated; }
 .mc-craft-icon .mc-craft-count {
-  position: absolute; right: 1px; bottom: 0; font-size: 11px;
+  position: absolute; right: 1px; bottom: 0; font-size: var(--mc-fs-xs, 12.5px);
   font-weight: bold; color: #fff; text-shadow: 1px 1px 0 #000; pointer-events: none;
 }
-.mc-craft-arrow { font-size: 16px; color: #555; flex: 0 0 auto; }
-.mc-craft-label { flex: 1 1 auto; font-size: 12px; line-height: 1.4; }
-.mc-craft-label strong { font-size: 13px; }
+.mc-craft-arrow { font-size: var(--mc-fs-md, 16px); color: #555; flex: 0 0 auto; }
+.mc-craft-label { flex: 1 1 auto; font-size: var(--mc-fs-xs, 12.5px); line-height: 1.4; }
+.mc-craft-label strong { font-size: var(--mc-fs-sm, 14px); }
 .mc-craft-btn {
   flex: 0 0 auto; background: #2a5a3a; border: 2px solid #3a7a4a; color: #fff;
-  font-family: 'Courier New', monospace; font-size: 12px; font-weight: bold;
+  font-family: 'Courier New', monospace; font-size: var(--mc-fs-xs, 12.5px); font-weight: bold;
   padding: 5px 10px; cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
 .mc-craft-btn:hover { background: #3a7a4a; }
@@ -63,7 +63,7 @@ const STYLE = `
   100% { box-shadow: 0 0 0 12px rgba(70,190,70,0); }
 }
 .mc-craft-made {
-  flex: 0 0 auto; color: #1a6e1a; font-size: 11px; font-weight: bold;
+  flex: 0 0 auto; color: #1a6e1a; font-size: var(--mc-fs-xs, 12.5px); font-weight: bold;
   margin-left: 4px; white-space: nowrap;
 }
 .mc-craft-icon.crafted-pop { animation: mc-craft-spin 0.5s ease; }
@@ -75,26 +75,26 @@ const STYLE = `
 .mc-craft-info-btn {
   flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%;
   background: #8b8b8b; border: 2px solid; border-color: #fff #555 #555 #fff;
-  color: #333; font-family: Georgia, 'Times New Roman', serif; font-size: 14px;
+  color: #333; font-family: Georgia, 'Times New Roman', serif; font-size: var(--mc-fs-sm, 14px);
   font-weight: bold; font-style: italic; cursor: pointer; padding: 0;
   -webkit-tap-highlight-color: transparent;
 }
 .mc-craft-info-btn:hover { background: #e7d9a0; }
-.mc-craft-detail { display: flex; flex-direction: column; gap: 10px; font-size: 12px; }
+.mc-craft-detail { display: flex; flex-direction: column; gap: 10px; font-size: var(--mc-fs-xs, 12.5px); }
 .mc-craft-detail-head { display: flex; align-items: center; gap: 10px; }
 .mc-craft-detail-head .mc-craft-icon { width: 44px; height: 44px; flex: 0 0 44px; }
-.mc-craft-detail-head strong { font-size: 15px; }
+.mc-craft-detail-head strong { font-size: var(--mc-fs-md, 16px); }
 .mc-craft-detail-desc { line-height: 1.5; background: #d7d7d7; border: 2px solid; border-color: #555 #fff #fff #555; padding: 8px; }
-.mc-craft-detail h4 { margin: 4px 0 0; font-size: 12px; border-bottom: 1px solid #999; padding-bottom: 2px; }
+.mc-craft-detail h4 { margin: 4px 0 0; font-size: var(--mc-fs-xs, 12.5px); border-bottom: 1px solid #999; padding-bottom: 2px; }
 .mc-craft-need-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; background: #b0b0b0; border: 2px solid; border-color: #fff #555 #555 #fff; }
 .mc-craft-need-row .who { flex: 1 1 auto; line-height: 1.35; }
 .mc-craft-need-row .have { flex: 0 0 auto; font-weight: bold; white-space: nowrap; }
 .mc-craft-need-row .have.ok { color: #1a6e1a; }
 .mc-craft-need-row .have.missing { color: #a03020; }
-.mc-craft-need-row .src { display: block; font-size: 11px; color: #444; }
+.mc-craft-need-row .src { display: block; font-size: var(--mc-fs-xs, 12.5px); color: #444; }
 .mc-craft-back {
   align-self: flex-start; background: #8b8b8b; border: 2px solid; border-color: #fff #555 #555 #fff;
-  color: #333; font-family: 'Courier New', monospace; font-size: 12px; font-weight: bold;
+  color: #333; font-family: 'Courier New', monospace; font-size: var(--mc-fs-xs, 12.5px); font-weight: bold;
   padding: 5px 10px; cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
 .mc-craft-back:hover { background: #a5a5a5; }
@@ -267,7 +267,7 @@ export class CraftingPanel {
       row.appendChild(this.makeIcon(inp.itemId, inp.count))
       if (recipe.inputs.indexOf(inp) < recipe.inputs.length - 1) {
         const plus = document.createElement('span')
-        plus.style.cssText = 'font-size:14px;color:#555;flex:0 0 auto;'
+        plus.style.cssText = 'font-size:var(--mc-fs-sm, 14px);color:#555;flex:0 0 auto;'
         plus.textContent = '+'
         row.appendChild(plus)
       }

@@ -13,20 +13,20 @@ const STYLE = `
 /* Short landscape screens: keep the bottom bar compact. */
 @media (max-height: 500px) { :root { --mc-slot: 36px; } }
 .mc-help-btn {
-  position: absolute; top: 140px; right: 12px; z-index: 7;
+  position: absolute; top: 182px; right: 12px; z-index: 7;
   width: 52px; height: 52px; border-radius: 10px;
   background: rgba(20,20,20,0.65); border: 2px solid #888;
-  color: #fff; font-size: 22px; font-weight: bold;
+  color: #fff; font-size: var(--mc-fs-xl, 22px); font-weight: bold;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 .mc-help-btn:hover, .mc-help-btn:active { border-color: #fff; background: rgba(60,60,60,0.7); }
 .mc-music-btn {
-  position: absolute; top: 140px; right: 72px; z-index: 7;
+  position: absolute; top: 182px; right: 72px; z-index: 7;
   width: 52px; height: 52px; border-radius: 10px;
   background: rgba(20,20,20,0.65); border: 2px solid #888;
-  color: #fff; font-size: 22px; font-weight: bold;
+  color: #fff; font-size: var(--mc-fs-xl, 22px); font-weight: bold;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; user-select: none;
   -webkit-tap-highlight-color: transparent;
@@ -40,14 +40,14 @@ const STYLE = `
 .mc-instructions-box {
   background: #c6c6c6; border: 3px solid; border-color: #fff #555 #555 #fff;
   padding: 16px; max-width: 480px; width: 90%; max-height: 80vh; overflow-y: auto;
-  color: #333; font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.6;
+  color: #333; font-family: 'Courier New', monospace; font-size: var(--mc-fs-sm, 14px); line-height: 1.6;
 }
-.mc-instructions-box h3 { margin: 10px 0 4px; font-size: 14px; color: #000; border-bottom: 1px solid #999; padding-bottom: 2px; }
+.mc-instructions-box h3 { margin: 10px 0 4px; font-size: var(--mc-fs-md, 16px); color: #000; border-bottom: 1px solid #999; padding-bottom: 2px; }
 .mc-instructions-box h3:first-child { margin-top: 0; }
 .mc-instructions-box p { margin: 3px 0; }
 .mc-instructions-close {
   float: right; cursor: pointer; background: #888; border: none; border-radius: 4px;
-  font-size: 14px; font-weight: bold; color: #fff; padding: 2px 8px; margin-left: 8px;
+  font-size: var(--mc-fs-sm, 14px); font-weight: bold; color: #fff; padding: 2px 8px; margin-left: 8px;
   -webkit-tap-highlight-color: transparent;
 }
 .mc-crosshair {
@@ -77,9 +77,9 @@ const STYLE = `
   max-width: 100vw; padding: 0 4px; pointer-events: auto;
 }
 .mc-held-name {
-  color: #fff; font-size: 14px; font-weight: bold; text-shadow: 1px 1px 0 #000;
+  color: #fff; font-size: var(--mc-fs-sm, 14px); font-weight: bold; text-shadow: 1px 1px 0 #000;
   font-family: 'Courier New', monospace; pointer-events: none;
-  transition: opacity 0.4s; opacity: 0; min-height: 17px;
+  transition: opacity 0.4s; opacity: 0; min-height: 1.3em;
 }
 .mc-slot {
   width: var(--mc-slot, 52px); height: var(--mc-slot, 52px); background: rgba(20,20,20,0.6);
@@ -90,38 +90,38 @@ const STYLE = `
 .mc-slot:active { background: rgba(60,60,60,0.8); }
 .mc-slot canvas { width: 100%; height: 100%; image-rendering: pixelated; }
 .mc-slot .count {
-  position: absolute; right: 3px; bottom: 1px; color: #fff; font-size: clamp(10px, calc(var(--mc-slot, 52px) * 0.27), 14px);
+  position: absolute; right: 3px; bottom: 1px; color: #fff; font-size: clamp(12px, calc(var(--mc-slot, 52px) * 0.3), 16px);
   font-weight: bold; text-shadow: 1px 1px 0 #000; pointer-events: none;
 }
 .mc-bag-slot {
   width: var(--mc-slot, 52px); height: var(--mc-slot, 52px); margin-left: 8px; border-radius: 8px;
   background: rgba(20,20,20,0.7); border: 2px solid #888; color: #fff;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 1px; font-size: 9px; font-weight: bold; cursor: pointer; user-select: none;
+  gap: 1px; font-size: var(--mc-fs-2xs, 11px); font-weight: bold; cursor: pointer; user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 .mc-bag-slot:hover, .mc-bag-slot:active { border-color: #fff; background: rgba(60,60,60,0.85); }
-.mc-bag-slot svg { width: 22px; height: 22px; }
+.mc-bag-slot svg { width: clamp(15px, calc(var(--mc-slot, 52px) * 0.42), 22px); height: clamp(15px, calc(var(--mc-slot, 52px) * 0.42), 22px); }
 .mc-chat-btn {
   height: var(--mc-slot, 52px); margin-left: 4px; padding: 0 10px; border-radius: 8px;
   background: rgba(20,20,20,0.7); border: 2px solid #888; color: #fff;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 1px; font-size: 9px; font-weight: bold; cursor: pointer; user-select: none;
+  gap: 1px; font-size: var(--mc-fs-2xs, 11px); font-weight: bold; cursor: pointer; user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 .mc-chat-btn:hover, .mc-chat-btn:active { border-color: #fff; background: rgba(60,60,60,0.85); }
 .mc-chat-btn.active { border-color: #7ec8e3; background: rgba(20,60,80,0.85); }
-.mc-chat-btn svg { width: 22px; height: 22px; }
+.mc-chat-btn svg { width: clamp(15px, calc(var(--mc-slot, 52px) * 0.42), 22px); height: clamp(15px, calc(var(--mc-slot, 52px) * 0.42), 22px); }
 .mc-craft-btn-hud {
   height: var(--mc-slot, 52px); margin-left: 4px; padding: 0 10px; border-radius: 8px;
   background: rgba(20,20,20,0.7); border: 2px solid #888; color: #fff;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 1px; font-size: 9px; font-weight: bold; cursor: pointer; user-select: none;
+  gap: 1px; font-size: var(--mc-fs-2xs, 11px); font-weight: bold; cursor: pointer; user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
 .mc-craft-btn-hud:hover, .mc-craft-btn-hud:active { border-color: #fff; background: rgba(60,60,60,0.85); }
 .mc-craft-btn-hud.active { border-color: #f4c060; background: rgba(60,40,0,0.85); }
-.mc-craft-btn-hud svg { width: 22px; height: 22px; }
+.mc-craft-btn-hud svg { width: clamp(15px, calc(var(--mc-slot, 52px) * 0.42), 22px); height: clamp(15px, calc(var(--mc-slot, 52px) * 0.42), 22px); }
 .mc-underwater {
   position: absolute; inset: 0; pointer-events: none; z-index: 4;
   background: rgba(0,60,180,0.22); opacity: 0; transition: opacity 0.3s;
@@ -133,17 +133,17 @@ const STYLE = `
   border-radius: 16px; padding: 4px 8px 4px 14px;
   font-family: 'Courier New', monospace; color: #fff; pointer-events: none;
 }
-.mc-nameplate-name { font-size: 14px; font-weight: bold; text-shadow: 1px 1px 0 #000; }
+.mc-nameplate-name { font-size: var(--mc-fs-sm, 14px); font-weight: bold; text-shadow: 1px 1px 0 #000; }
 .mc-nameplate-info {
-  width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.6);
-  background: rgba(255,255,255,0.15); color: #fff; font-size: 14px; font-weight: bold;
+  width: 1.9em; height: 1.9em; border-radius: 50%; border: 1px solid rgba(255,255,255,0.6);
+  background: rgba(255,255,255,0.15); color: #fff; font-size: var(--mc-fs-sm, 14px); font-weight: bold;
   font-style: italic; font-family: Georgia, 'Times New Roman', serif;
   display: flex; align-items: center; justify-content: center; cursor: pointer;
   pointer-events: auto; -webkit-tap-highlight-color: transparent;
 }
 .mc-nameplate-info:hover, .mc-nameplate-info:active { background: rgba(255,220,80,0.5); }
 .mc-debug {
-  position: absolute; left: 8px; top: 8px; color: #fff; font-size: 12px;
+  position: absolute; left: 8px; top: 8px; color: #fff; font-size: var(--mc-fs-xs, 12.5px);
   text-shadow: 1px 1px 0 #000; z-index: 5; white-space: pre; pointer-events: none;
 }
 /* Phones: the dev stats line would collide with the centred day timer. */
@@ -153,7 +153,7 @@ const STYLE = `
 /* Sits clear of the hotbar stack (and above it) so messages stay readable. */
 .mc-toast {
   position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%);
-  color: #fff; font-size: 14px; text-shadow: 1px 1px 0 #000; z-index: 8;
+  color: #fff; font-size: var(--mc-fs-sm, 14px); text-shadow: 1px 1px 0 #000; z-index: 8;
   max-width: min(560px, 90vw); text-align: center; line-height: 1.4;
   background: rgba(12,12,14,0.62); padding: 6px 14px; border-radius: 6px;
   pointer-events: none; transition: opacity 0.5s; opacity: 0;
@@ -161,19 +161,19 @@ const STYLE = `
 /* On phones the bottom half belongs to the touch controls, so messages drop
    below the minimap and the music/help buttons instead. */
 @media (max-width: 900px) {
-  .mc-toast { bottom: auto; top: 200px; font-size: 13px; max-width: 86vw; }
+  .mc-toast { bottom: auto; top: 248px; max-width: 86vw; }
 }
 /* Landscape phones have no room up top; go back above the hotbar. */
 @media (max-height: 560px) {
-  .mc-toast { top: auto; bottom: 120px; font-size: 13px; }
+  .mc-toast { top: auto; bottom: 120px; }
 }
 .mc-daytimer {
   position: absolute; left: 50%; top: calc(8px + env(safe-area-inset-top, 0px)); transform: translateX(-50%);
-  color: #fff; font-size: 14px; text-shadow: 1px 1px 0 #000; z-index: 5;
+  color: #fff; font-size: var(--mc-fs-sm, 14px); text-shadow: 1px 1px 0 #000; z-index: 5;
   pointer-events: none; font-family: 'Courier New', monospace; letter-spacing: 1px;
 }
 .mc-energy {
-  position: relative; width: min(240px, 70vw); height: 16px; pointer-events: none;
+  position: relative; width: min(260px, 74vw); height: clamp(18px, 2.6vmin, 24px); pointer-events: none;
   background: rgba(10,10,10,0.6); border: 2px solid #333; border-radius: 8px;
   display: flex; align-items: center; overflow: hidden;
 }
@@ -184,12 +184,12 @@ const STYLE = `
 .mc-energy-fill.low { background: linear-gradient(90deg, #b03020, #e05540); }
 .mc-energy-label {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  color: #fff; font-size: 10px; font-weight: bold; text-shadow: 1px 1px 0 #000;
+  color: #fff; font-size: var(--mc-fs-2xs, 11px); font-weight: bold; text-shadow: 1px 1px 0 #000;
   font-family: 'Courier New', monospace; letter-spacing: 1px; white-space: nowrap;
 }
 .mc-players {
-  position: absolute; top: 200px; right: 12px; z-index: 5;
-  color: #fff; font-size: 12px; text-shadow: 1px 1px 0 #000;
+  position: absolute; top: 244px; right: 12px; z-index: 5;
+  color: #fff; font-size: var(--mc-fs-xs, 12.5px); text-shadow: 1px 1px 0 #000;
   pointer-events: none; text-align: right; line-height: 1.6; display: none;
 }
 .mc-chest-overlay {
@@ -200,13 +200,13 @@ const STYLE = `
   box-shadow: 0 4px 18px rgba(0,0,0,0.55); -webkit-tap-highlight-color: transparent;
   transition: opacity 0.3s; opacity: 0;
 }
-.mc-chest-overlay h4 { margin: 0 0 6px; font-size: 13px; color: #ffe39a; }
-.mc-chest-overlay-row { display: flex; align-items: center; gap: 8px; font-size: 12px; margin: 3px 0; }
+.mc-chest-overlay h4 { margin: 0 0 6px; font-size: var(--mc-fs-sm, 14px); color: #ffe39a; }
+.mc-chest-overlay-row { display: flex; align-items: center; gap: 8px; font-size: var(--mc-fs-xs, 12.5px); margin: 3px 0; }
 .mc-chest-overlay-row canvas {
   width: 24px; height: 24px; image-rendering: pixelated; flex: 0 0 24px;
   background: rgba(255,255,255,0.08); border: 1px solid #555;
 }
-.mc-chest-overlay-hint { font-size: 10px; color: #9aa; margin-top: 7px; }
+.mc-chest-overlay-hint { font-size: var(--mc-fs-2xs, 11px); color: #9aa; margin-top: 7px; }
 `
 
 export class HUD {

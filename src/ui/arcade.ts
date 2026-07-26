@@ -7,73 +7,181 @@ interface Prize {
   count: number
 }
 
+/** How one kiosk presents itself: identity, accent, briefing and reward. */
+interface GameMeta {
+  title: string
+  badge: string
+  /** Accent colour, matched to the cabinet model on the island. */
+  accent: string
+  /** Translucent accent for fills, so panels stay readable over dark chrome. */
+  accentSoft: string
+  /** Short "how to play" chips, shown before the first move. */
+  how: string[]
+  /** What a win pays out, advertised up front. */
+  reward: string
+}
+
+const GAMES: Record<string, GameMeta> = {
+  arcadePuzzle: {
+    title: 'Sliding Puzzle',
+    badge: '🧩',
+    accent: '#2e86de',
+    accentSoft: 'rgba(46,134,222,0.18)',
+    how: ['🎯 Put the tiles back in order 1–8', '👆 Tap a tile next to the gap', '⚡ 40 moves or fewer = bigger prize'],
+    reward: 'Up to 15 gold + fish stew',
+  },
+  arcadeRunner: {
+    title: 'Island Runner',
+    badge: '🏃',
+    accent: '#27ae60',
+    accentSoft: 'rgba(39,174,96,0.18)',
+    how: ['🎯 Jump the cacti, run as far as you can', '👆 SPACE or tap the track to jump', '⚡ 150+ points wins a prize'],
+    reward: 'Up to 20 gold + cooked fish',
+  },
+  arcadeMath: {
+    title: 'Math Blaster',
+    badge: '🎯',
+    accent: '#e67e22',
+    accentSoft: 'rgba(230,126,34,0.18)',
+    how: ['🎯 Shoot the target with the right answer', '❤ 10 questions, 3 lives', '⚡ 6+ correct wins gold'],
+    reward: 'Up to 25 gold + fish stew',
+  },
+  arcadeWord: {
+    title: 'Word Wizard',
+    badge: '🔤',
+    accent: '#9b59b6',
+    accentSoft: 'rgba(155,89,182,0.18)',
+    how: ['🎯 Guess the hidden word letter by letter', '⌨ Tap a key or type on your keyboard', '⚡ 6 wrong guesses and the round ends'],
+    reward: 'Up to 15 gold + apples',
+  },
+}
+
 const STYLE = `
 .mc-arc-overlay {
-  position: absolute; inset: 0; background: rgba(0,0,0,0.78); z-index: 22;
-  display: none; align-items: center; justify-content: center;
+  position: absolute; inset: 0; background: rgba(0,0,0,0.8); z-index: 22;
+  display: none; align-items: center; justify-content: center; padding: 10px;
 }
 .mc-arc-box {
-  background: #1c1e26; border: 3px solid; border-color: #4a4e60 #0c0d12 #0c0d12 #4a4e60;
-  color: #e8e8f0; font-family: 'Courier New', monospace;
-  width: 560px; max-width: 96vw; max-height: 92vh; display: flex; flex-direction: column; overflow: hidden;
+  --acc: #2e86de; --acc-soft: rgba(46,134,222,0.18);
+  background: #171922; border: 2px solid #2f3446; border-top: 5px solid var(--acc);
+  border-radius: 10px; color: #e8e8f0; font-family: 'Courier New', monospace;
+  width: 620px; max-width: 100%; max-height: 94vh;
+  display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
 }
 .mc-arc-hdr {
-  flex: 0 0 auto; padding: 10px 14px; border-bottom: 2px solid #3a3e50;
-  display: flex; align-items: center; justify-content: space-between;
-  font-size: 15px; font-weight: bold;
+  flex: 0 0 auto; padding: 10px 12px; background: #1f2230; border-bottom: 2px solid #2f3446;
+  display: flex; align-items: center; gap: 10px;
 }
+.mc-arc-badge {
+  width: 2em; height: 2em; flex: 0 0 auto; border-radius: 8px; background: var(--acc-soft);
+  border: 2px solid var(--acc); display: flex; align-items: center; justify-content: center;
+  font-size: var(--mc-fs-md, 16px);
+}
+.mc-arc-titles { flex: 1 1 auto; min-width: 0; }
+.mc-arc-title { font-size: var(--mc-fs-lg, 18px); font-weight: bold; color: #fff; }
+.mc-arc-reward { font-size: var(--mc-fs-xs, 12.5px); color: #ffd34d; margin-top: 2px; }
 .mc-arc-close {
-  background: #444a5e; border: none; border-radius: 4px; color: #fff;
-  font-size: 13px; font-weight: bold; padding: 4px 10px; cursor: pointer;
+  flex: 0 0 auto; background: #39405a; border: 2px solid #4c5678; border-radius: 6px; color: #fff;
+  font-family: 'Courier New', monospace; font-size: var(--mc-fs-sm, 14px); font-weight: bold;
+  padding: 7px 12px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.mc-arc-close:hover { background: #4c5678; }
+.mc-arc-body {
+  flex: 1 1 auto; overflow-y: auto; padding: 14px;
+  display: flex; flex-direction: column; gap: 12px; align-items: center;
+}
+/* Briefing chips: the rules of the game, before you have to guess them. */
+.mc-arc-how { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.mc-arc-chip {
+  background: var(--acc-soft); border: 1px solid var(--acc); border-radius: 999px;
+  padding: 5px 12px; font-size: var(--mc-fs-xs, 12.5px); color: #eef1ff; line-height: 1.4;
+}
+.mc-arc-status {
+  font-size: var(--mc-fs-md, 16px); font-weight: bold; color: #fff; text-align: center;
+  background: #212434; border: 2px solid #333a52; border-radius: 8px;
+  padding: 7px 16px; min-width: 190px; letter-spacing: 1px;
+}
+.mc-arc-btn {
+  background: var(--acc); border: none; border-radius: 6px; color: #0d0f16;
+  font-family: 'Courier New', monospace; font-size: var(--mc-fs-md, 16px); font-weight: bold;
+  padding: 10px 20px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.mc-arc-btn:hover { filter: brightness(1.12); }
+.mc-arc-btn.alt { background: #39405a; color: #fff; }
+.mc-arc-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+/* --- puzzle --- */
+.mc-arc-grid {
+  display: grid; grid-template-columns: repeat(3, var(--tile)); gap: 6px;
+  --tile: clamp(62px, 19vmin, 88px);
+}
+.mc-arc-tile {
+  width: var(--tile); height: var(--tile); font-size: var(--mc-fs-2xl, 28px); font-weight: bold;
+  cursor: pointer; border-radius: 6px; color: #fff; background: var(--acc);
+  border: 2px solid rgba(255,255,255,0.35); font-family: 'Courier New', monospace;
   -webkit-tap-highlight-color: transparent;
 }
-.mc-arc-close:hover { background: #5a6178; }
-.mc-arc-body { flex: 1 1 auto; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
-.mc-arc-sub { font-size: 12px; color: #9aa0b8; text-align: center; line-height: 1.5; margin: 0; }
-.mc-arc-status { font-size: 13px; font-weight: bold; color: #ffd34d; min-height: 18px; text-align: center; }
-.mc-arc-btn {
-  background: #2a5a3a; border: 2px solid #3a7a4a; color: #fff;
-  font-family: 'Courier New', monospace; font-size: 13px; font-weight: bold;
-  padding: 7px 16px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+.mc-arc-tile:hover { filter: brightness(1.15); }
+.mc-arc-tile.blank { background: #1e2130; border-color: #2f3446; cursor: default; }
+/* --- runner --- */
+.mc-arc-canvas {
+  background: #0e1220; border: 2px solid #2f3446; border-radius: 6px;
+  touch-action: none; width: 100%; max-width: 520px; height: auto;
 }
-.mc-arc-btn:hover { background: #3a7a4a; }
-.mc-arc-btn.alt { background: #444a5e; border-color: #5a6178; }
-.mc-arc-btn.alt:hover { background: #5a6178; }
-.mc-arc-grid { display: grid; grid-template-columns: repeat(3, 74px); gap: 6px; }
-.mc-arc-tile {
-  width: 74px; height: 74px; font-size: 26px; font-weight: bold; cursor: pointer;
-  background: #2e86de; color: #fff; border: 2px solid; border-color: #7ab8f0 #1a5490 #1a5490 #7ab8f0;
-  font-family: 'Courier New', monospace; -webkit-tap-highlight-color: transparent;
+/* --- math --- */
+.mc-arc-question {
+  font-size: var(--mc-fs-2xl, 28px); font-weight: bold; letter-spacing: 2px; color: #fff;
 }
-.mc-arc-tile:hover { background: #3a94ea; }
-.mc-arc-tile.blank { background: transparent; border-color: #333848; cursor: default; }
-.mc-arc-canvas { background: #0e1220; border: 2px solid #3a3e50; touch-action: none; max-width: 100%; }
-.mc-arc-question { font-size: 26px; font-weight: bold; letter-spacing: 2px; color: #fff; }
-.mc-arc-targets { position: relative; width: 100%; max-width: 480px; height: 220px; }
+.mc-arc-targets {
+  position: relative; width: 100%; max-width: 500px;
+  height: clamp(200px, 34vh, 250px);
+}
 .mc-arc-target {
-  position: absolute; width: 74px; height: 74px; border-radius: 50%; cursor: crosshair;
+  position: absolute; width: var(--target); height: var(--target); border-radius: 50%;
+  --target: clamp(62px, 17vmin, 84px); cursor: crosshair;
   background: radial-gradient(circle, #ffdf6b 0 28%, #e67e22 30% 60%, #c0392b 62% 100%);
-  border: 3px solid #7a1e12; color: #1a1a1a; font-size: 20px; font-weight: bold;
+  border: 3px solid #7a1e12; color: #1a1a1a; font-size: var(--mc-fs-lg, 20px); font-weight: bold;
   font-family: 'Courier New', monospace; -webkit-tap-highlight-color: transparent;
   animation: mc-arc-bob 2.2s ease-in-out infinite;
 }
 .mc-arc-target:nth-child(2n) { animation-duration: 2.8s; }
 .mc-arc-target:nth-child(3n) { animation-delay: 0.6s; }
 @keyframes mc-arc-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
-.mc-arc-word { font-size: 30px; letter-spacing: 10px; font-weight: bold; color: #fff; }
-.mc-arc-kb { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; max-width: 440px; }
-.mc-arc-key {
-  width: 38px; height: 40px; background: #444a5e; color: #fff; font-weight: bold;
-  border: 2px solid; border-color: #5a6178 #2a2e3c #2a2e3c #5a6178; cursor: pointer;
-  font-family: 'Courier New', monospace; font-size: 15px; -webkit-tap-highlight-color: transparent;
+/* --- word --- */
+.mc-arc-word {
+  font-size: var(--mc-fs-2xl, 30px); letter-spacing: 0.32em; font-weight: bold; color: #fff;
+  text-align: center; word-break: break-all; line-height: 1.4;
 }
-.mc-arc-key:hover { background: #5a6178; }
-.mc-arc-key:disabled { opacity: 0.3; cursor: default; }
-.mc-arc-key.good { background: #2a5a3a; border-color: #3a7a4a; }
-.mc-arc-key.bad { background: #6e2a22; border-color: #8a3a30; }
+.mc-arc-hint {
+  font-size: var(--mc-fs-sm, 14px); color: #c9cfe8; text-align: center; line-height: 1.5;
+  background: #212434; border-left: 4px solid var(--acc); border-radius: 6px; padding: 8px 12px;
+  max-width: 460px;
+}
+.mc-arc-kb { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: 460px; }
+.mc-arc-key {
+  width: clamp(34px, 9vmin, 44px); height: clamp(38px, 10vmin, 48px);
+  background: #39405a; color: #fff; font-weight: bold; border-radius: 5px;
+  border: 2px solid #4c5678; cursor: pointer;
+  font-family: 'Courier New', monospace; font-size: var(--mc-fs-md, 16px);
+  -webkit-tap-highlight-color: transparent;
+}
+.mc-arc-key:hover { background: #4c5678; }
+.mc-arc-key:disabled { opacity: 0.35; cursor: default; }
+.mc-arc-key.good { background: #2a5a3a; border-color: #46a05e; }
+.mc-arc-key.bad { background: #6e2a22; border-color: #a04a3a; }
+/* --- results --- */
+.mc-arc-result {
+  width: 100%; max-width: 460px; border-radius: 8px; padding: 12px 16px; text-align: center;
+  border: 2px solid #3a7a4a; background: #1d2a20;
+}
+.mc-arc-result.lose { border-color: #7a4a3a; background: #2a201d; }
+.mc-arc-result-head {
+  font-size: var(--mc-fs-lg, 18px); font-weight: bold; color: #9ee89e; margin-bottom: 4px;
+}
+.mc-arc-result.lose .mc-arc-result-head { color: #ffb38a; }
+.mc-arc-result-body { font-size: var(--mc-fs-sm, 14px); color: #e2e6f5; line-height: 1.6; }
 .mc-arc-prize {
-  background: #2a3a2a; border: 2px solid #3a7a4a; padding: 10px 16px;
-  font-size: 13px; font-weight: bold; color: #9ee89e; text-align: center; line-height: 1.7;
+  margin-top: 8px; font-size: var(--mc-fs-md, 16px); font-weight: bold; color: #ffd34d; line-height: 1.6;
 }
 `
 
@@ -96,10 +204,17 @@ const WORDS: { word: string; hint: string }[] = [
  * The secret island's mini-game arcade: four small educational games
  * (sliding puzzle, endless runner, math target shooting, word guessing)
  * that pay out item prizes into the player's inventory.
+ *
+ * Every game is framed the same way — badge, title, advertised reward, a row
+ * of "how to play" chips, one status pill, then the game — so a player who has
+ * learned one kiosk already knows how to read the next.
  */
 export class ArcadePanel {
   private readonly overlay: HTMLDivElement
-  private readonly titleEl: HTMLSpanElement
+  private readonly box: HTMLDivElement
+  private readonly badgeEl: HTMLSpanElement
+  private readonly titleEl: HTMLDivElement
+  private readonly rewardEl: HTMLDivElement
   private readonly body: HTMLDivElement
   private _isOpen = false
   private runnerRaf = 0
@@ -122,24 +237,32 @@ export class ArcadePanel {
     this.overlay.className = 'mc-arc-overlay'
     this.overlay.addEventListener('mousedown', (e) => { if (e.target === this.overlay) this.close() })
 
-    const box = document.createElement('div')
-    box.className = 'mc-arc-box'
+    this.box = document.createElement('div')
+    this.box.className = 'mc-arc-box'
     const hdr = document.createElement('div')
     hdr.className = 'mc-arc-hdr'
-    this.titleEl = document.createElement('span')
+    this.badgeEl = document.createElement('span')
+    this.badgeEl.className = 'mc-arc-badge'
+    const titles = document.createElement('div')
+    titles.className = 'mc-arc-titles'
+    this.titleEl = document.createElement('div')
+    this.titleEl.className = 'mc-arc-title'
+    this.rewardEl = document.createElement('div')
+    this.rewardEl.className = 'mc-arc-reward'
+    titles.append(this.titleEl, this.rewardEl)
     const closeBtn = document.createElement('button')
     closeBtn.className = 'mc-arc-close'
     closeBtn.textContent = '✕ Close'
     const doClose = (e: Event) => { e.preventDefault(); this.close() }
     closeBtn.addEventListener('click', doClose)
     closeBtn.addEventListener('touchstart', doClose, { passive: false })
-    hdr.append(this.titleEl, closeBtn)
+    hdr.append(this.badgeEl, titles, closeBtn)
 
     this.body = document.createElement('div')
     this.body.className = 'mc-arc-body'
 
-    box.append(hdr, this.body)
-    this.overlay.appendChild(box)
+    this.box.append(hdr, this.body)
+    this.overlay.appendChild(this.box)
     root.appendChild(this.overlay)
   }
 
@@ -176,21 +299,60 @@ export class ArcadePanel {
     return e
   }
 
-  private award(prizes: Prize[]): void {
+  /** Reset the panel to one game's identity: accent, header and briefing. */
+  private frame(kind: keyof typeof GAMES | string): GameMeta {
+    this.stopLoops()
+    const meta = GAMES[kind] ?? GAMES.arcadePuzzle
+    this.box.style.setProperty('--acc', meta.accent)
+    this.box.style.setProperty('--acc-soft', meta.accentSoft)
+    this.badgeEl.textContent = meta.badge
+    this.titleEl.textContent = meta.title
+    this.rewardEl.textContent = `🏆 ${meta.reward}`
+    this.body.innerHTML = ''
+    const how = this.el('div', 'mc-arc-how')
+    for (const line of meta.how) how.appendChild(this.el('span', 'mc-arc-chip', line))
+    this.body.appendChild(how)
+    return meta
+  }
+
+  private award(prizes: Prize[]): string {
     for (const p of prizes) this.inventory.add(p.itemId, p.count)
     const summary = prizes.map((p) => `${p.count}× ${itemDef(p.itemId)?.name ?? 'item'}`).join(' + ')
-    const banner = this.el('div', 'mc-arc-prize', `🏆 Prize collected: ${summary}!`)
-    this.body.appendChild(banner)
     this.onPrize(summary)
+    return summary
+  }
+
+  /**
+   * The end-of-round card: what happened, what it earned, and what to do next.
+   * Always the same shape, win or lose, so the outcome is never ambiguous.
+   */
+  private showResult(
+    won: boolean,
+    headline: string,
+    detail: string,
+    prizeSummary: string | null,
+    actions: { label: string; onClick: () => void; alt?: boolean }[],
+  ): void {
+    const card = this.el('div', `mc-arc-result${won ? '' : ' lose'}`)
+    card.appendChild(this.el('div', 'mc-arc-result-head', headline))
+    card.appendChild(this.el('div', 'mc-arc-result-body', detail))
+    if (prizeSummary) card.appendChild(this.el('div', 'mc-arc-prize', `🏆 Prize collected: ${prizeSummary}`))
+    const row = this.el('div', 'mc-arc-actions')
+    for (const a of actions) {
+      const b = this.el('button', `mc-arc-btn${a.alt ? ' alt' : ''}`, a.label)
+      const press = (e: Event) => { e.preventDefault(); a.onClick() }
+      b.addEventListener('click', press)
+      b.addEventListener('touchstart', press, { passive: false })
+      row.appendChild(b)
+    }
+    this.body.append(card, row)
+    card.scrollIntoView({ block: 'nearest' })
   }
 
   // ------------------------------------------------------------ 1. puzzle
 
   private startPuzzle(): void {
-    this.stopLoops()
-    this.titleEl.textContent = '🧩 Sliding Puzzle'
-    this.body.innerHTML = ''
-    this.body.appendChild(this.el('p', 'mc-arc-sub', 'Slide the tiles into order 1–8. Click a tile next to the gap to move it. Fewer moves = bigger prize!'))
+    this.frame('arcadePuzzle')
     const status = this.el('div', 'mc-arc-status', 'Moves: 0')
     const grid = this.el('div', 'mc-arc-grid')
     this.body.append(status, grid)
@@ -226,9 +388,19 @@ export class ArcadePanel {
             if (tiles.every((v, j) => v === (j + 1) % 9)) {
               won = true
               status.textContent = `✨ Solved in ${moves} moves!`
-              this.award(moves <= 40
+              const swift = moves <= 40
+              const prize = this.award(swift
                 ? [{ itemId: ItemId.Gold, count: 15 }, { itemId: ItemId.FishStew, count: 1 }]
                 : [{ itemId: ItemId.Gold, count: 8 }, { itemId: ItemId.Apple, count: 2 }])
+              render()
+              this.showResult(
+                true,
+                `✨ Solved in ${moves} moves!`,
+                swift ? 'Under 40 moves — top prize tier.' : 'Solve it in 40 moves or fewer for the top prize tier.',
+                prize,
+                [{ label: '↻ New puzzle', onClick: () => this.startPuzzle(), alt: true }],
+              )
+              return
             }
             render()
           }
@@ -244,10 +416,7 @@ export class ArcadePanel {
   // ------------------------------------------------------------ 2. runner
 
   private startRunner(): void {
-    this.stopLoops()
-    this.titleEl.textContent = '🏃 Island Runner'
-    this.body.innerHTML = ''
-    this.body.appendChild(this.el('p', 'mc-arc-sub', 'Jump the cacti! Press SPACE / tap the screen. Survive longer for a bigger gold prize (150+ points wins).'))
+    this.frame('arcadeRunner')
     const status = this.el('div', 'mc-arc-status', 'Score: 0')
     const canvas = this.el('canvas', 'mc-arc-canvas') as HTMLCanvasElement
     canvas.width = 500
@@ -263,7 +432,6 @@ export class ArcadePanel {
     let spawnIn = 1.2
     let alive = true
     let last = performance.now()
-    let collected = false
 
     const jump = () => {
       if (alive && player.y >= GROUND - 0.5) player.vy = -430
@@ -273,23 +441,6 @@ export class ArcadePanel {
     }
     document.addEventListener('keydown', this.keyHandler)
     canvas.addEventListener('pointerdown', (e) => { e.preventDefault(); jump() })
-
-    const restartBtn = this.el('button', 'mc-arc-btn alt', '↻ Run again')
-    restartBtn.style.display = 'none'
-    restartBtn.addEventListener('click', () => {
-      obstacles = []
-      speed = 170
-      score = 0
-      spawnIn = 1.2
-      player.y = GROUND
-      player.vy = 0
-      alive = true
-      collected = false
-      restartBtn.style.display = 'none'
-      last = performance.now()
-      loop()
-    })
-    this.body.appendChild(restartBtn)
 
     const loop = () => {
       if (!this._isOpen) return
@@ -309,17 +460,27 @@ export class ArcadePanel {
         }
         for (const o of obstacles) o.x -= speed * dt
         obstacles = obstacles.filter((o) => o.x + o.w > -10)
-        // Collision (player fixed at x=60)
+        // Collision (player fixed at x=60). One crash ends the run, so stop at
+        // the first hit rather than paying out once per overlapping cactus.
         for (const o of obstacles) {
-          if (60 + player.w > o.x && 60 < o.x + o.w && player.y > GROUND - o.h) {
+          if (alive && 60 + player.w > o.x && 60 < o.x + o.w && player.y > GROUND - o.h) {
             alive = false
             const points = Math.floor(score)
             status.textContent = `💥 Wiped out at ${points} points!`
-            if (points >= 150 && !collected) {
-              collected = true
-              this.award([{ itemId: ItemId.Gold, count: Math.min(20, Math.floor(points / 40) * 4) }, { itemId: ItemId.CookedFish, count: 1 }])
-            }
-            restartBtn.style.display = ''
+            const cleared = points >= 150
+            const prize = cleared
+              ? this.award([
+                { itemId: ItemId.Gold, count: Math.min(20, Math.floor(points / 40) * 4) },
+                { itemId: ItemId.CookedFish, count: 1 },
+              ])
+              : null
+            this.showResult(
+              cleared,
+              cleared ? `🏁 ${points} points — you made it!` : `💥 Wiped out at ${points} points`,
+              cleared ? 'The longer the run, the more gold it pays.' : 'Reach 150 points to win a prize — the cacti speed up, so jump early.',
+              prize,
+              [{ label: '↻ Run again', onClick: () => this.startRunner(), alt: true }],
+            )
           }
         }
         status.textContent = alive ? `Score: ${Math.floor(score)}` : status.textContent
@@ -328,12 +489,25 @@ export class ArcadePanel {
       // Draw
       ctx.fillStyle = '#0e1220'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
+      // Parallax dunes, so the track reads as a place rather than a void.
+      ctx.fillStyle = '#161d33'
+      for (let i = 0; i < 4; i++) {
+        const bx = ((i * 160 - (score * 6) % 640) + 640) % 640 - 80
+        ctx.beginPath()
+        ctx.ellipse(bx, GROUND + 4, 90, 34, 0, Math.PI, 0)
+        ctx.fill()
+      }
       ctx.fillStyle = '#3a7a4a'
       ctx.fillRect(0, GROUND + 1, canvas.width, 4)
       ctx.fillStyle = alive ? '#ffd34d' : '#c0392b'
       ctx.fillRect(60, player.y - player.h, player.w, player.h)
       ctx.fillStyle = '#27ae60'
-      for (const o of obstacles) ctx.fillRect(o.x, GROUND - o.h, o.w, o.h)
+      for (const o of obstacles) {
+        ctx.fillRect(o.x, GROUND - o.h, o.w, o.h)
+        // Cactus arms — a silhouette beats a plain rectangle.
+        ctx.fillRect(o.x - 5, GROUND - o.h * 0.7, 5, o.w * 0.4)
+        ctx.fillRect(o.x + o.w, GROUND - o.h * 0.85, 5, o.w * 0.4)
+      }
       if (alive) this.runnerRaf = requestAnimationFrame(loop)
     }
     loop()
@@ -342,10 +516,7 @@ export class ArcadePanel {
   // ------------------------------------------------------------ 3. math
 
   private startMath(): void {
-    this.stopLoops()
-    this.titleEl.textContent = '🎯 Math Blaster'
-    this.body.innerHTML = ''
-    this.body.appendChild(this.el('p', 'mc-arc-sub', 'Shoot the target with the right answer! 10 questions, 3 lives. Get 6+ right to win gold.'))
+    this.frame('arcadeMath')
     const status = this.el('div', 'mc-arc-status')
     const question = this.el('div', 'mc-arc-question')
     const targets = this.el('div', 'mc-arc-targets')
@@ -360,24 +531,29 @@ export class ArcadePanel {
       done = true
       question.textContent = ''
       targets.innerHTML = ''
-      status.textContent = `Finished: ${correct}/10 correct!`
-      if (correct >= 6) {
-        this.award(correct === 10
+      status.textContent = `${correct}/10 correct`
+      const won = correct >= 6
+      const prize = won
+        ? this.award(correct === 10
           ? [{ itemId: ItemId.Gold, count: 25 }, { itemId: ItemId.FishStew, count: 1 }]
           : [{ itemId: ItemId.Gold, count: correct * 2 }])
-      } else {
-        this.body.appendChild(this.el('p', 'mc-arc-sub', 'Score 6 or more to earn a prize — try again!'))
-      }
-      const again = this.el('button', 'mc-arc-btn alt', '↻ Play again')
-      again.addEventListener('click', () => this.startMath())
-      this.body.appendChild(again)
+        : null
+      this.showResult(
+        won,
+        won ? `🎯 ${correct}/10 correct!` : `🎯 ${correct}/10 correct`,
+        won
+          ? correct === 10 ? 'A perfect round — top prize tier.' : 'Every extra correct answer pays more gold.'
+          : 'Score 6 or more to earn a prize — the questions ramp from + and − to × and ÷.',
+        prize,
+        [{ label: '↻ Play again', onClick: () => this.startMath(), alt: true }],
+      )
     }
 
     const nextQuestion = () => {
       if (done) return
       if (qIndex >= 10 || lives <= 0) { finish(); return }
       qIndex++
-      status.textContent = `Question ${qIndex}/10   ❤ ${lives}   ✔ ${correct}`
+      status.textContent = `Q${qIndex}/10   ${'❤'.repeat(lives)}${'♡'.repeat(3 - lives)}   ✔ ${correct}`
       // Difficulty ramps: + / − first, then ×, then ÷ with whole answers.
       const level = qIndex <= 3 ? 0 : qIndex <= 6 ? 1 : 2
       let text: string
@@ -410,8 +586,8 @@ export class ArcadePanel {
       targets.innerHTML = ''
       shuffled.forEach((val, i) => {
         const t = this.el('button', 'mc-arc-target', String(val))
-        t.style.left = `${8 + i * 24 + Math.random() * 4}%`
-        t.style.top = `${18 + Math.random() * 45}%`
+        t.style.left = `${6 + i * 23 + Math.random() * 4}%`
+        t.style.top = `${14 + Math.random() * 48}%`
         const shoot = (e: Event) => {
           e.preventDefault()
           if (done) return
@@ -433,15 +609,13 @@ export class ArcadePanel {
   // ------------------------------------------------------------ 4. word
 
   private startWord(): void {
-    this.stopLoops()
-    this.titleEl.textContent = '🔤 Word Wizard'
-    this.body.innerHTML = ''
+    this.frame('arcadeWord')
     const pick = WORDS[Math.floor(Math.random() * WORDS.length)]
-    this.body.appendChild(this.el('p', 'mc-arc-sub', `Guess the word one letter at a time — 6 wrong guesses allowed.\nHint: ${pick.hint}`))
+    const hint = this.el('div', 'mc-arc-hint', `💡 Hint: ${pick.hint}`)
     const status = this.el('div', 'mc-arc-status', '❤❤❤❤❤❤')
     const wordEl = this.el('div', 'mc-arc-word')
     const kb = this.el('div', 'mc-arc-kb')
-    this.body.append(status, wordEl, kb)
+    this.body.append(hint, status, wordEl, kb)
 
     const guessed = new Set<string>()
     let lives = 6
@@ -466,17 +640,27 @@ export class ArcadePanel {
       render()
       if ([...pick.word].every((c) => guessed.has(c))) {
         done = true
-        status.textContent = `✨ ${pick.word} — you got it!`
-        this.award(lives === 6
+        const flawless = lives === 6
+        const prize = this.award(flawless
           ? [{ itemId: ItemId.Gold, count: 15 }, { itemId: ItemId.Apple, count: 3 }]
           : [{ itemId: ItemId.Gold, count: 6 + lives }, { itemId: ItemId.Apple, count: 1 }])
+        this.showResult(
+          true,
+          `✨ ${pick.word} — you got it!`,
+          flawless ? 'Not a single wrong guess — top prize tier.' : `${6 - lives} wrong guess${6 - lives === 1 ? '' : 'es'}; a clean round pays more.`,
+          prize,
+          [{ label: '↻ New word', onClick: () => this.startWord(), alt: true }],
+        )
       } else if (lives <= 0) {
         done = true
         wordEl.textContent = pick.word
-        status.textContent = `The word was ${pick.word} — try another round!`
-        const again = this.el('button', 'mc-arc-btn alt', '↻ New word')
-        again.addEventListener('click', () => this.startWord())
-        this.body.appendChild(again)
+        this.showResult(
+          false,
+          `The word was ${pick.word}`,
+          'Out of guesses — the hint narrows it down fast, so read it before picking letters.',
+          null,
+          [{ label: '↻ New word', onClick: () => this.startWord(), alt: true }],
+        )
       }
     }
 
