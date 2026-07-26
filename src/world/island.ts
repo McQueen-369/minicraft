@@ -41,9 +41,9 @@ const KIOSKS = [
  *
  * The layout reads as a designed place rather than four cabinets on grass: a
  * paved courtyard around the campfire, a dashed stone ring path linking four
- * raised kiosk podiums, lantern posts flanking every kiosk, a fenced rim with
- * gates on the diagonals, palms framing each cabinet, prize plinths by the
- * gates, and a lighthouse-style beacon visible from the mainland.
+ * raised kiosk podiums, lantern posts flanking every kiosk, a palm grove, a
+ * fenced rim with gates on the diagonals, prize plinths by the gates, and a
+ * lighthouse-style beacon visible from the mainland.
  *
  * Furniture uses fixed ids so re-building on every session stays idempotent.
  */
@@ -69,7 +69,7 @@ export function buildIsland(world: World, furniture: FurnitureManager): void {
   furniture.place('campfire', ix, floorY + 1, iz, 0, 'isle-campfire')
 
   // Kiosks stand on brick podiums so they read as exhibits, each lit by a pair
-  // of lantern posts and backed by a palm.
+  // of lantern posts.
   for (const k of KIOSKS) {
     const kx = ix + k.dx
     const kz = iz + k.dz
