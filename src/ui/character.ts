@@ -26,13 +26,13 @@ const STYLE = `
 .mc-char-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
 .mc-char-row .label {
   width: 78px; flex-shrink: 0; color: var(--mc-text-faint, #888);
-  font-size: var(--mc-fs-2xs, 11px); font-weight: 600;
+  font-size: var(--mc-fs-2xs, 14px); font-weight: 600;
   letter-spacing: 1px; text-transform: uppercase;
 }
-.mc-char-row .value { flex: 1; text-align: center; font-size: var(--mc-fs-sm, 14px); color: var(--mc-text, #fff); }
+.mc-char-row .value { flex: 1; text-align: center; font-size: var(--mc-fs-sm, 16px); color: var(--mc-text, #fff); }
 .mc-char-row button.arrow {
   display: inline-block; width: 36px; margin: 0; padding: 7px 0;
-  font-size: var(--mc-fs-sm, 14px); flex-shrink: 0;
+  font-size: var(--mc-fs-sm, 16px); flex-shrink: 0;
 }
 .mc-char-swatches { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
 .mc-char button.mc-char-swatch {
@@ -49,14 +49,14 @@ const STYLE = `
 .mc-char-presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 2px; }
 .mc-char-presets button {
   display: inline-block; width: auto; flex: 1 1 40%; margin: 0; padding: 8px 6px;
-  font-size: var(--mc-fs-xs, 12.5px);
+  font-size: var(--mc-fs-xs, 14px);
 }
 .mc-char-presets button.sel {
   background: var(--mc-good-soft, rgba(99,221,151,0.18));
   border-color: rgba(99,221,151,0.55); color: #d8ffe8;
 }
 .mc-char-section-label {
-  color: var(--mc-text-faint, #888); font-size: var(--mc-fs-2xs, 11px);
+  color: var(--mc-text-faint, #888); font-size: var(--mc-fs-2xs, 14px);
   font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase;
   margin: 16px 0 4px;
 }

@@ -596,7 +596,6 @@ export class BlockInteraction {
   private tryPickupFurniture(): boolean {
     const f = this.targetFurniture
     if (!f) return false
-    if (f.kind === 'campfire') return false
     const itemId = furnitureItemFor(f.kind)
     if (itemId === undefined) return false
     this.furniture.remove(f.id)

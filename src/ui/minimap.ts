@@ -67,7 +67,7 @@ const STYLE = `
 @media (max-width: 470px) { :root { --mc-map: 112px; } }
 .mc-minimap-tag {
   position: absolute; left: 0; top: 0; padding: 3px 9px;
-  font-family: var(--mc-font, sans-serif); font-size: var(--mc-fs-2xs, 11px);
+  font-family: var(--mc-font, sans-serif); font-size: var(--mc-fs-2xs, 14px);
   font-weight: 600; letter-spacing: 1.2px; color: var(--mc-text, #fff);
   background: rgba(10,12,16,0.55); border-bottom-right-radius: var(--mc-radius-sm, 10px);
   pointer-events: none;
@@ -76,7 +76,7 @@ const STYLE = `
    pixels of canvas lettering. */
 .mc-minimap-dist {
   display: flex; justify-content: space-around; gap: 4px; padding: 5px 6px;
-  font-family: var(--mc-font-mono, monospace); font-size: var(--mc-fs-2xs, 11px);
+  font-family: var(--mc-font-mono, monospace); font-size: var(--mc-fs-2xs, 14px);
   font-weight: 600; color: var(--mc-text-dim, #ccc);
   border-top: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
   pointer-events: none; white-space: nowrap;
@@ -89,7 +89,7 @@ const STYLE = `
   padding: 18px 20px; max-width: 95vw; max-height: 94vh; overflow-y: auto;
 }
 .mc-map-box h3 {
-  margin: 0 0 12px; font-size: var(--mc-fs-xs, 12.5px); font-weight: 600;
+  margin: 0 0 12px; font-size: var(--mc-fs-xs, 14px); font-weight: 600;
   letter-spacing: 1.2px; text-transform: uppercase; color: var(--mc-text-faint, #888);
 }
 .mc-map-box canvas {
@@ -100,15 +100,17 @@ const STYLE = `
 }
 .mc-map-coords {
   display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 12px;
-  font-size: var(--mc-fs-sm, 14px); font-weight: 600; line-height: 1.6;
+  font-size: var(--mc-fs-sm, 16px); font-weight: 600; line-height: 1.6;
   color: var(--mc-text, #fff);
 }
-.mc-map-scale { font-size: var(--mc-fs-xs, 12.5px); color: var(--mc-text-faint, #888); margin-top: 6px; }
+.mc-map-scale { font-size: var(--mc-fs-xs, 14px); color: var(--mc-text-faint, #888); margin-top: 6px; }
 .mc-map-legend {
   display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 12px;
-  font-size: var(--mc-fs-xs, 12.5px); line-height: 1.8; color: var(--mc-text-dim, #ccc);
+  font-size: var(--mc-fs-xs, 14px); line-height: 1.8; color: var(--mc-text-dim, #ccc);
 }
-.mc-map-legend .lg { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.mc-map-legend .lg {
+  display: inline-flex; align-items: center; gap: var(--mc-gap-badge, 8px); white-space: nowrap;
+}
 .mc-map-legend .sw {
   width: 0.85em; height: 0.85em; flex: 0 0 auto; border-radius: 3px;
   border: 1px solid rgba(255,255,255,0.25);

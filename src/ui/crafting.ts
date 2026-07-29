@@ -42,21 +42,21 @@ const STYLE = `
 }
 .mc-craft-icon canvas { width: 100%; height: 100%; image-rendering: pixelated; padding: 2px; }
 .mc-craft-icon .mc-craft-count {
-  position: absolute; right: 2px; bottom: 0; font-size: var(--mc-fs-2xs, 11px);
+  position: absolute; right: 2px; bottom: 0; font-size: var(--mc-fs-2xs, 14px);
   font-family: var(--mc-font-mono, monospace); font-weight: 700; color: #fff;
   text-shadow: 0 1px 3px rgba(0,0,0,0.9); pointer-events: none;
 }
-.mc-craft-arrow { font-size: var(--mc-fs-sm, 14px); color: var(--mc-text-faint, #888); flex: 0 0 auto; }
+.mc-craft-arrow { font-size: var(--mc-fs-sm, 16px); color: var(--mc-text-faint, #888); flex: 0 0 auto; }
 .mc-craft-label {
-  flex: 1 1 auto; font-size: var(--mc-fs-xs, 12.5px); line-height: 1.45;
+  flex: 1 1 auto; font-size: var(--mc-fs-xs, 14px); line-height: 1.45;
   color: var(--mc-text-dim, #ccc);
 }
-.mc-craft-label strong { font-size: var(--mc-fs-sm, 14px); color: var(--mc-text, #fff); font-weight: 600; }
+.mc-craft-label strong { font-size: var(--mc-fs-sm, 16px); color: var(--mc-text, #fff); font-weight: 600; }
 .mc-craft-btn {
   flex: 0 0 auto;
   background: var(--mc-good-soft, rgba(99,221,151,0.18));
   border: 1px solid rgba(99,221,151,0.5); color: #d8ffe8;
-  font-family: var(--mc-font, sans-serif); font-size: var(--mc-fs-xs, 12.5px); font-weight: 600;
+  font-family: var(--mc-font, sans-serif); font-size: var(--mc-fs-xs, 14px); font-weight: 600;
   border-radius: var(--mc-radius-sm, 10px);
   padding: 7px 14px; cursor: pointer; -webkit-tap-highlight-color: transparent;
   transition: background 0.16s var(--mc-ease, ease), border-color 0.16s var(--mc-ease, ease);
@@ -76,8 +76,8 @@ const STYLE = `
   100% { box-shadow: 0 0 0 14px rgba(99,221,151,0); }
 }
 .mc-craft-made {
-  flex: 0 0 auto; color: var(--mc-good, #63dd97); font-size: var(--mc-fs-xs, 12.5px); font-weight: 700;
-  margin-left: 4px; white-space: nowrap;
+  flex: 0 0 auto; color: var(--mc-good, #63dd97); font-size: var(--mc-fs-xs, 14px); font-weight: 700;
+  margin-left: var(--mc-gap-badge, 8px); white-space: nowrap;
 }
 .mc-craft-icon.crafted-pop { animation: mc-craft-spin 0.5s ease; }
 @keyframes mc-craft-spin {
@@ -89,7 +89,7 @@ const STYLE = `
   flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%;
   background: transparent; border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
   color: var(--mc-text-dim, #ccc); font-family: Georgia, 'Times New Roman', serif;
-  font-size: var(--mc-fs-sm, 14px); font-weight: bold; font-style: italic; cursor: pointer; padding: 0;
+  font-size: var(--mc-fs-sm, 16px); font-weight: bold; font-style: italic; cursor: pointer; padding: 0;
   transition: background 0.16s var(--mc-ease, ease), color 0.16s var(--mc-ease, ease);
   -webkit-tap-highlight-color: transparent;
 }
@@ -98,7 +98,7 @@ const STYLE = `
   border-color: var(--mc-accent-line, rgba(124,215,255,0.55)); color: #dcf3ff;
 }
 .mc-craft-detail {
-  display: flex; flex-direction: column; gap: 12px; font-size: var(--mc-fs-xs, 12.5px);
+  display: flex; flex-direction: column; gap: 12px; font-size: var(--mc-fs-xs, 14px);
   color: var(--mc-text-dim, #ccc);
 }
 .mc-craft-detail-head { display: flex; align-items: center; gap: 12px; }
@@ -112,7 +112,7 @@ const STYLE = `
   border-radius: var(--mc-radius-sm, 10px);
 }
 .mc-craft-detail h4 {
-  margin: 6px 0 0; font-size: var(--mc-fs-2xs, 11px); font-weight: 600;
+  margin: 6px 0 0; font-size: var(--mc-fs-2xs, 14px); font-weight: 600;
   letter-spacing: 1.1px; text-transform: uppercase; color: var(--mc-text-faint, #888);
 }
 .mc-craft-need-row {
@@ -125,7 +125,24 @@ const STYLE = `
 .mc-craft-need-row .have { flex: 0 0 auto; font-weight: 700; white-space: nowrap; }
 .mc-craft-need-row .have.ok { color: var(--mc-good, #63dd97); }
 .mc-craft-need-row .have.missing { color: var(--mc-bad, #ff8272); }
-.mc-craft-need-row .src { display: block; font-size: var(--mc-fs-2xs, 11px); color: var(--mc-text-faint, #888); }
+.mc-craft-need-row .src { display: block; font-size: var(--mc-fs-2xs, 14px); color: var(--mc-text-faint, #888); }
+/*
+ * Narrow screens: a three-ingredient recipe is the widest row in the panel and
+ * used to push its Craft button off the right edge. Tighter icons and gaps buy
+ * back most of that, and the row is allowed to wrap for the rest — the name and
+ * its buttons drop onto a second line only on the rows that need it, because
+ * the label refuses to shrink below the width of its own text.
+ */
+@media (max-width: 560px) {
+  .mc-craft-row { flex-wrap: wrap; gap: 7px; padding: 8px; }
+  .mc-craft-icon { width: 30px; height: 30px; flex: 0 0 30px; }
+  .mc-craft-label { flex: 1 1 74px; }
+  .mc-craft-info-btn { width: 24px; height: 24px; }
+  /* Whether it stays on the first line or drops to the second, the Craft
+     button ends the row on the right — so the column of them stays a column. */
+  .mc-craft-btn { padding: 7px 10px; margin-left: auto; }
+  .mc-craft-detail-head .mc-craft-icon { width: 40px; height: 40px; flex: 0 0 40px; }
+}
 `
 
 export class CraftingPanel {
@@ -300,7 +317,7 @@ export class CraftingPanel {
       row.appendChild(this.makeIcon(inp.itemId, inp.count))
       if (recipe.inputs.indexOf(inp) < recipe.inputs.length - 1) {
         const plus = document.createElement('span')
-        plus.style.cssText = 'font-size:var(--mc-fs-sm, 14px);color:#555;flex:0 0 auto;'
+        plus.style.cssText = 'font-size:var(--mc-fs-sm, 16px);color:#555;flex:0 0 auto;'
         plus.textContent = '+'
         row.appendChild(plus)
       }

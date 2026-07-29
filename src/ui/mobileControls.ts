@@ -79,7 +79,7 @@ const STYLE = `
   border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
   box-shadow: var(--mc-shadow-sm, 0 6px 18px rgba(0,0,0,0.35)), var(--mc-sheen, none);
   color: var(--mc-text, #fff); font-family: var(--mc-font, sans-serif);
-  font-size: var(--mc-fs-xs, 12.5px); font-weight: 600; letter-spacing: 0.6px;
+  font-size: var(--mc-fs-xs, 14px); font-weight: 600; letter-spacing: 0.6px;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; user-select: none;
   transition: background 0.12s var(--mc-ease, ease), transform 0.1s var(--mc-ease, ease);
@@ -110,7 +110,7 @@ const STYLE = `
     right: calc(170px + env(safe-area-inset-right, 0px));
     flex-direction: column; gap: 8px;
   }
-  .mc-btn { width: 50px; height: 50px; font-size: var(--mc-fs-xs, 12.5px); }
+  .mc-btn { width: 50px; height: 50px; font-size: var(--mc-fs-xs, 14px); }
 }
 `
 
