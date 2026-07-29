@@ -118,6 +118,7 @@ export class BlockInteraction {
         if (this.captureTargetAnimal()) return
         if (this.tryCarryAnimal()) return
         if (this.tryPickupLadder()) return
+        if (this.tryIgniteTnt()) return
         if (!this.tryPickupFurniture()) this.leftDown = true
       }
       if (e.button === 2) this.rightClick()
@@ -147,6 +148,7 @@ export class BlockInteraction {
     if (this.captureTargetAnimal()) return
     if (this.tryCarryAnimal()) return
     if (this.tryPickupLadder()) return
+    if (this.tryIgniteTnt()) return
     if (!this.tryPickupFurniture()) this.leftDown = true
   }
   stopMining(): void { this.leftDown = false }
@@ -289,11 +291,42 @@ export class BlockInteraction {
     }
   }
 
+  /** Whether the TNT block at these coordinates already has a burning fuse. */
+  private isPrimed(x: number, y: number, z: number): boolean {
+    return this.primedTnt.some((t) => t.x === x && t.y === y && t.z === z)
+  }
+
+  /** Drop any pending fuse at these coordinates. */
+  private forgetFuse(x: number, y: number, z: number): void {
+    const i = this.primedTnt.findIndex((t) => t.x === x && t.y === y && t.z === z)
+    if (i !== -1) this.primedTnt.splice(i, 1)
+  }
+
   /** Light the fuse of a placed TNT block. */
   private primeTnt(x: number, y: number, z: number, fuse = TNT_FUSE_SECONDS): void {
-    if (this.primedTnt.some((t) => t.x === x && t.y === y && t.z === z)) return
+    if (this.isPrimed(x, y, z)) return
     this.primedTnt.push({ x, y, z, timer: fuse })
     this.onTntPrimed()
+  }
+
+  /**
+   * The mining action is also the detonator.
+   *
+   * Placing TNT no longer lights it, so a stack can be built as tall and wide
+   * as you like; a swing at an unlit block is what starts its fuse. Swinging at
+   * one that is *already* lit falls through to normal mining, which defuses it
+   * and puts the stick back in your bag — so the same button both arms and
+   * disarms, depending on what the block is doing.
+   *
+   * Returns whether a fuse was lit (in which case the click is spent, and
+   * holding the button will not go on to mine the block you just armed).
+   */
+  private tryIgniteTnt(): boolean {
+    const t = this.targetBlock
+    if (!t || this.world.getBlock(t.x, t.y, t.z) !== BlockId.TNT) return false
+    if (this.isPrimed(t.x, t.y, t.z)) return false
+    this.primeTnt(t.x, t.y, t.z)
+    return true
   }
 
   private updateTnt(dt: number): void {
@@ -412,6 +445,9 @@ export class BlockInteraction {
     }
     this.world.setBlock(x, y, z, BlockId.Air)
     this.onBlockEdit(x, y, z, BlockId.Air)
+    // Mining a lit stick defuses it; forget the fuse so a TNT placed here later
+    // does not inherit a countdown it never started.
+    if (id === BlockId.TNT) this.forgetFuse(x, y, z)
     this.onBlockBroken(id)
   }
 
@@ -479,11 +515,6 @@ export class BlockInteraction {
         this.collectMysteryBoxLoot(blockId, hit.x, hit.y, hit.z)
         return
       }
-      // Right-clicking placed TNT lights its fuse.
-      if (blockId === BlockId.TNT) {
-        this.primeTnt(hit.x, hit.y, hit.z)
-        return
-      }
     }
 
     const held = this.inventory.heldSlot
@@ -536,8 +567,6 @@ export class BlockInteraction {
     this.inventory.removeFrom(this.inventory.selected)
     this.world.setBlock(px, py, pz, placed)
     this.onBlockEdit(px, py, pz, placed)
-    // Placing TNT lights its fuse immediately — step back!
-    if (placed === BlockId.TNT) this.primeTnt(px, py, pz)
   }
 
   /**

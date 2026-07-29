@@ -12,7 +12,13 @@
       @supports (height: 100dvh) {
         html, body { height: 100dvh; }
       }
-      body { font-family: 'Courier New', monospace; user-select: none; }
+      body {
+        font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+          'Helvetica Neue', Arial, sans-serif;
+        user-select: none;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
       #app { width: 100%; height: 100%; position: relative; overflow: hidden; }
       canvas { display: block; }
     </style>

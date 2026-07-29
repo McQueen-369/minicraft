@@ -1,61 +1,74 @@
 const STYLE = `
 .mc-chat-float {
-  position: absolute; bottom: 76px; left: 12px; width: 320px; max-width: calc(100vw - 24px);
-  z-index: 8; pointer-events: none; display: flex; flex-direction: column; gap: 2px;
+  position: absolute; bottom: 84px; left: 14px; width: 340px; max-width: calc(100vw - 28px);
+  z-index: 8; pointer-events: none; display: flex; flex-direction: column; gap: 4px;
 }
 .mc-chat-float-msg {
-  font-family: 'Courier New', monospace; font-size: var(--mc-fs-sm, 14px); color: #fff;
-  text-shadow: 1px 1px 0 #000; background: rgba(0,0,0,0.42);
-  padding: 3px 7px; border-radius: 3px; transition: opacity 1s;
-  max-width: 100%; word-break: break-word;
+  font-family: var(--mc-font, sans-serif); font-size: var(--mc-fs-sm, 14px);
+  color: var(--mc-text, #fff); line-height: 1.45;
+  background: var(--mc-surface-soft, rgba(16,19,26,0.52));
+  -webkit-backdrop-filter: var(--mc-blur-soft, blur(12px));
+  backdrop-filter: var(--mc-blur-soft, blur(12px));
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-radius: var(--mc-radius-sm, 10px);
+  box-shadow: var(--mc-shadow-sm, 0 6px 18px rgba(0,0,0,0.35));
+  padding: 6px 11px; transition: opacity 1s;
+  align-self: flex-start; max-width: 100%; word-break: break-word;
 }
 .mc-chat-float-msg.fading { opacity: 0; }
 .mc-chat-panel {
-  position: absolute; right: 0; top: 0; bottom: 0; width: 320px;
-  background: rgba(10,10,10,0.88); border-left: 2px solid #444;
+  position: absolute; right: 0; top: 0; bottom: 0; width: 340px;
+  background: var(--mc-surface, rgba(19,23,31,0.72));
+  -webkit-backdrop-filter: var(--mc-blur, blur(20px));
+  backdrop-filter: var(--mc-blur, blur(20px));
+  border-left: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  box-shadow: -18px 0 48px rgba(0,0,0,0.4);
+  color: var(--mc-text, #fff); font-family: var(--mc-font, sans-serif);
   display: flex; flex-direction: column; z-index: 20;
 }
 @media (max-width: 520px) {
   .mc-chat-panel { width: 100vw; left: 0; border-left: none; }
 }
 .mc-chat-header {
-  flex: 0 0 auto; display: flex; align-items: center; gap: 8px;
-  padding: 10px 12px; border-bottom: 1px solid #444;
-  font-family: 'Courier New', monospace; color: #fff; font-size: var(--mc-fs-sm, 14px); font-weight: bold;
+  flex: 0 0 auto; display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px; border-bottom: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  font-size: var(--mc-fs-sm, 14px); font-weight: 600; letter-spacing: 0.3px;
 }
 .mc-chat-header-title { flex: 1; }
-.mc-chat-close {
-  background: none; border: none; color: #aaa; font-size: var(--mc-fs-lg, 18px); cursor: pointer;
-  padding: 0 4px; line-height: 1; -webkit-tap-highlight-color: transparent;
-}
-.mc-chat-close:hover, .mc-chat-close:active { color: #fff; }
 .mc-chat-msgs {
-  flex: 1 1 auto; overflow-y: auto; padding: 10px 12px;
-  display: flex; flex-direction: column; gap: 6px;
+  flex: 1 1 auto; overflow-y: auto; padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.mc-chat-msgs::-webkit-scrollbar { width: 8px; }
+.mc-chat-msgs::-webkit-scrollbar-track { background: transparent; }
+.mc-chat-msgs::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.16); border-radius: var(--mc-radius-pill, 999px);
 }
 .mc-chat-panel-msg {
-  font-family: 'Courier New', monospace; font-size: var(--mc-fs-sm, 14px); color: #eee;
-  line-height: 1.4; word-break: break-word;
+  font-size: var(--mc-fs-sm, 14px); color: var(--mc-text-dim, #ccc);
+  line-height: 1.5; word-break: break-word;
 }
-.mc-chat-panel-msg .mc-chat-name { color: #7ec8e3; font-weight: bold; }
-.mc-chat-panel-msg.mc-chat-self .mc-chat-name { color: #a8d8a8; }
+.mc-chat-panel-msg .mc-chat-name { color: var(--mc-accent, #7cd7ff); font-weight: 600; }
+.mc-chat-panel-msg.mc-chat-self .mc-chat-name { color: var(--mc-good, #63dd97); }
 .mc-chat-input-row {
-  flex: 0 0 auto; display: flex; gap: 6px; padding: 10px 12px;
-  border-top: 1px solid #444;
+  flex: 0 0 auto; display: flex; gap: 8px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
 }
 .mc-chat-input {
-  flex: 1; font-family: 'Courier New', monospace; font-size: var(--mc-fs-sm, 14px);
-  background: rgba(255,255,255,0.08); color: #fff; border: 1px solid #555;
-  padding: 6px 10px; outline: none; border-radius: 4px;
+  flex: 1; font-family: var(--mc-font, sans-serif); font-size: var(--mc-fs-sm, 14px);
+  background: rgba(255,255,255,0.05); color: var(--mc-text, #fff);
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-radius: var(--mc-radius-sm, 10px);
+  padding: 9px 13px; outline: none; min-width: 0;
+  transition: border-color 0.16s var(--mc-ease, ease), background 0.16s var(--mc-ease, ease);
 }
-.mc-chat-input:focus { border-color: #888; }
-.mc-chat-send {
-  background: #2a5a3a; border: 1px solid #3a7a4a; color: #fff;
-  font-family: 'Courier New', monospace; font-size: var(--mc-fs-xs, 12.5px); font-weight: bold;
-  padding: 6px 12px; border-radius: 4px; cursor: pointer;
-  -webkit-tap-highlight-color: transparent; white-space: nowrap;
+.mc-chat-input::placeholder { color: var(--mc-text-faint, #888); }
+.mc-chat-input:focus {
+  border-color: var(--mc-accent-line, rgba(124,215,255,0.55));
+  background: rgba(255,255,255,0.08);
+  box-shadow: 0 0 0 3px var(--mc-accent-soft, rgba(124,215,255,0.16));
 }
-.mc-chat-send:hover, .mc-chat-send:active { background: #3a7a4a; }
+.mc-chat-send { white-space: nowrap; }
 `
 
 interface FloatMsg {
@@ -106,7 +119,7 @@ export class Chat {
     title.className = 'mc-chat-header-title'
     title.textContent = '💬 Chat'
     const closeBtn = document.createElement('button')
-    closeBtn.className = 'mc-chat-close'
+    closeBtn.className = 'mc-chat-close mc-close-btn'
     closeBtn.textContent = '✕'
     closeBtn.title = 'Close chat'
     const doClose = (e: Event) => { e.preventDefault(); this.closePanel() }
@@ -125,7 +138,7 @@ export class Chat {
     this.panelInput.maxLength = 120
     this.panelInput.placeholder = 'Type a message…'
     const sendBtn = document.createElement('button')
-    sendBtn.className = 'mc-chat-send'
+    sendBtn.className = 'mc-chat-send mc-ui-btn accent'
     sendBtn.textContent = 'Send'
     const doSend = (e: Event) => { e.preventDefault(); this.sendCurrent() }
     sendBtn.addEventListener('click', doSend)

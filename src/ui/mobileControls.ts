@@ -10,13 +10,20 @@ const STYLE = `
   width: 140px; height: 140px; pointer-events: all; touch-action: none;
 }
 .mc-joystick-base {
-  width: 140px; height: 140px; border-radius: 50%;
-  background: rgba(255,255,255,0.12); border: 2px solid rgba(255,255,255,0.3);
-  position: relative;
+  width: 140px; height: 140px; border-radius: 50%; position: relative;
+  background: var(--mc-surface-soft, rgba(16,19,26,0.52));
+  -webkit-backdrop-filter: var(--mc-blur-soft, blur(12px));
+  backdrop-filter: var(--mc-blur-soft, blur(12px));
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  box-shadow: var(--mc-shadow-sm, 0 6px 18px rgba(0,0,0,0.35)), var(--mc-sheen, none);
 }
 .mc-joystick-knob {
-  position: absolute; width: 54px; height: 54px; border-radius: 50%;
-  background: rgba(255,255,255,0.4); border: 2px solid rgba(255,255,255,0.6);
+  position: absolute; width: 56px; height: 56px; border-radius: 50%;
+  background: rgba(255,255,255,0.22);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--mc-stroke-strong, rgba(255,255,255,0.26));
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.3);
   top: 50%; left: 50%; transform: translate(-50%,-50%);
 }
 .mc-look-zone {
@@ -34,24 +41,29 @@ const STYLE = `
   position: absolute; width: 64px; height: 64px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   color: #fff; cursor: pointer; user-select: none; pointer-events: all;
+  -webkit-backdrop-filter: var(--mc-blur-soft, blur(12px));
+  backdrop-filter: var(--mc-blur-soft, blur(12px));
+  box-shadow: var(--mc-shadow-sm, 0 6px 18px rgba(0,0,0,0.35)), var(--mc-sheen, none);
+  transition: background 0.12s var(--mc-ease, ease), transform 0.1s var(--mc-ease, ease);
   -webkit-tap-highlight-color: transparent;
 }
-.mc-cbtn svg { width: 30px; height: 30px; pointer-events: none; }
+.mc-cbtn:active { transform: scale(0.93); }
+.mc-cbtn svg { width: 28px; height: 28px; pointer-events: none; }
 .mc-jump-btn {
   top: 0; left: 50%; transform: translateX(-50%);
-  background: rgba(100,200,100,0.32); border: 2px solid rgba(100,200,100,0.7);
+  background: var(--mc-good-soft, rgba(99,221,151,0.18)); border: 1px solid rgba(99,221,151,0.55);
 }
-.mc-jump-btn:active { background: rgba(100,200,100,0.6); }
+.mc-jump-btn:active { background: rgba(99,221,151,0.45); transform: translateX(-50%) scale(0.93); }
 .mc-mine-btn {
   bottom: 0; left: 0;
-  background: rgba(220,100,80,0.32); border: 2px solid rgba(220,100,80,0.7);
+  background: var(--mc-bad-soft, rgba(255,130,114,0.18)); border: 1px solid rgba(255,130,114,0.55);
 }
-.mc-mine-btn:active { background: rgba(220,100,80,0.65); }
+.mc-mine-btn:active { background: rgba(255,130,114,0.45); }
 .mc-down-btn {
   bottom: 0; right: 0;
-  background: rgba(100,120,220,0.32); border: 2px solid rgba(100,120,220,0.7);
+  background: var(--mc-accent-soft, rgba(124,215,255,0.16)); border: 1px solid var(--mc-accent-line, rgba(124,215,255,0.55));
 }
-.mc-down-btn:active { background: rgba(100,120,220,0.65); }
+.mc-down-btn:active { background: rgba(124,215,255,0.42); }
 
 /* FLY / USE row, underneath the coloured cluster. */
 .mc-action-btns {
@@ -61,15 +73,22 @@ const STYLE = `
 }
 .mc-btn {
   width: 60px; height: 60px; border-radius: 50%;
-  background: rgba(255,255,255,0.18); border: 2px solid rgba(255,255,255,0.4);
-  color: #fff; font-size: var(--mc-fs-xs, 12.5px); font-weight: bold;
+  background: var(--mc-surface-soft, rgba(16,19,26,0.52));
+  -webkit-backdrop-filter: var(--mc-blur-soft, blur(12px));
+  backdrop-filter: var(--mc-blur-soft, blur(12px));
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  box-shadow: var(--mc-shadow-sm, 0 6px 18px rgba(0,0,0,0.35)), var(--mc-sheen, none);
+  color: var(--mc-text, #fff); font-family: var(--mc-font, sans-serif);
+  font-size: var(--mc-fs-xs, 12.5px); font-weight: 600; letter-spacing: 0.6px;
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer; user-select: none; text-shadow: 0 1px 2px #000;
+  cursor: pointer; user-select: none;
+  transition: background 0.12s var(--mc-ease, ease), transform 0.1s var(--mc-ease, ease);
   -webkit-tap-highlight-color: transparent;
 }
-.mc-btn:active { background: rgba(255,255,255,0.35); }
+.mc-btn:active { background: var(--mc-raised-hover, rgba(255,255,255,0.12)); transform: scale(0.93); }
 .mc-btn-active {
-  background: rgba(255,220,50,0.45) !important; border-color: rgba(255,220,50,0.9) !important;
+  background: var(--mc-warn-soft, rgba(255,204,92,0.18)) !important;
+  border-color: rgba(255,204,92,0.7) !important; color: #ffeec2;
 }
 
 /* Short landscape screens: pull the clusters down beside the hotbar and move

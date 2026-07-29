@@ -4,6 +4,7 @@ import { itemDef } from '../items/items'
 import { drawItemIcon } from './icons'
 import type { WorldKind } from '../world/worldKind'
 import type { InfoContent } from './info'
+import { revealPane } from './theme'
 
 const STYLE = `
 :root { --mc-slot: 52px; }
@@ -13,129 +14,189 @@ const STYLE = `
 @media (max-width: 470px) { :root { --mc-slot: 32px; } }
 /* Short landscape screens: keep the bottom bar compact. */
 @media (max-height: 500px) { :root { --mc-slot: 36px; } }
-.mc-help-btn {
-  position: absolute; top: 182px; right: 12px; z-index: 7;
-  width: 52px; height: 52px; border-radius: 10px;
-  background: rgba(20,20,20,0.65); border: 2px solid #888;
-  color: #fff; font-size: var(--mc-fs-xl, 22px); font-weight: bold;
+
+/* Floating circular chrome buttons, top-right. */
+.mc-help-btn, .mc-music-btn {
+  position: absolute; top: 182px; z-index: 7;
+  width: 46px; height: 46px; border-radius: var(--mc-radius-pill, 999px);
+  background: var(--mc-surface-soft, rgba(16,19,26,0.52));
+  -webkit-backdrop-filter: var(--mc-blur-soft, blur(12px));
+  backdrop-filter: var(--mc-blur-soft, blur(12px));
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  box-shadow: var(--mc-shadow-sm, 0 6px 18px rgba(0,0,0,0.35)), var(--mc-sheen, none);
+  color: var(--mc-text, #fff); font-family: var(--mc-font, sans-serif);
+  font-size: var(--mc-fs-lg, 18px); font-weight: 600;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; user-select: none;
+  transition: background 0.16s var(--mc-ease, ease), border-color 0.16s var(--mc-ease, ease),
+    transform 0.12s var(--mc-ease, ease);
   -webkit-tap-highlight-color: transparent;
 }
-.mc-help-btn:hover, .mc-help-btn:active { border-color: #fff; background: rgba(60,60,60,0.7); }
-.mc-music-btn {
-  position: absolute; top: 182px; right: 72px; z-index: 7;
-  width: 52px; height: 52px; border-radius: 10px;
-  background: rgba(20,20,20,0.65); border: 2px solid #888;
-  color: #fff; font-size: var(--mc-fs-xl, 22px); font-weight: bold;
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; user-select: none;
-  -webkit-tap-highlight-color: transparent;
+.mc-help-btn { right: 12px; }
+.mc-music-btn { right: 66px; }
+.mc-help-btn:hover, .mc-music-btn:hover {
+  background: rgba(38,44,56,0.72); border-color: var(--mc-stroke-strong, rgba(255,255,255,0.26));
 }
-.mc-music-btn:hover, .mc-music-btn:active { border-color: #fff; background: rgba(60,60,60,0.7); }
-.mc-music-btn.muted { color: #888; }
+.mc-help-btn:active, .mc-music-btn:active { transform: scale(0.94); }
+.mc-music-btn.muted { color: var(--mc-text-faint, #888); }
+
+/* --- instructions / info card ------------------------------------------ */
 .mc-instructions {
-  position: absolute; inset: 0; background: rgba(0,0,0,0.75); z-index: 20;
-  display: none; align-items: center; justify-content: center;
+  position: absolute; inset: 0; z-index: 20;
+  display: none; align-items: center; justify-content: center; padding: 16px;
 }
 .mc-instructions-box {
-  background: #c6c6c6; border: 3px solid; border-color: #fff #555 #555 #fff;
-  padding: 16px; max-width: 480px; width: 90%; max-height: 80vh; overflow-y: auto;
-  color: #333; font-family: 'Courier New', monospace; font-size: var(--mc-fs-sm, 14px); line-height: 1.6;
+  padding: 20px 22px; max-width: 520px; width: 100%; max-height: 80vh; overflow-y: auto;
+  font-size: var(--mc-fs-sm, 14px); line-height: 1.65;
+  color: var(--mc-text-dim, #ccc);
 }
-.mc-instructions-box h3 { margin: 10px 0 4px; font-size: var(--mc-fs-md, 16px); color: #000; border-bottom: 1px solid #999; padding-bottom: 2px; }
+.mc-instructions-box h3 {
+  margin: 16px 0 8px; font-size: var(--mc-fs-2xs, 11px); font-weight: 600;
+  letter-spacing: 1.2px; text-transform: uppercase; color: var(--mc-accent, #7cd7ff);
+  border-bottom: 1px solid var(--mc-stroke, rgba(255,255,255,0.12)); padding-bottom: 6px;
+}
 .mc-instructions-box h3:first-child { margin-top: 0; }
-.mc-instructions-box p { margin: 3px 0; }
+/* Pull the first heading back up alongside the button, leaving room for it. */
+.mc-instructions-close + h3 { margin-top: -1.9em; padding-right: 2.6em; }
+.mc-instructions-box p { margin: 5px 0; }
+.mc-instructions-box b { color: var(--mc-text, #fff); font-weight: 600; }
+/* The card scrolls, so the dismiss button rides along at the top of the
+   scrollport rather than disappearing above the fold. It is a block pulled to
+   the right, not a float, because floats ignore \`position: sticky\`. */
 .mc-instructions-close {
-  float: right; cursor: pointer; background: #888; border: none; border-radius: 4px;
-  font-size: var(--mc-fs-sm, 14px); font-weight: bold; color: #fff; padding: 6px 12px; margin-left: 8px;
-  -webkit-tap-highlight-color: transparent;
+  position: sticky; top: 0; z-index: 1; margin: 0 0 0 auto;
+  -webkit-backdrop-filter: var(--mc-blur-soft, blur(12px));
+  backdrop-filter: var(--mc-blur-soft, blur(12px));
 }
-.mc-instructions-close:hover { background: #6a6a6a; }
 /* Reminder that Escape (or a click outside) also dismisses the overlay. */
 .mc-instructions-hint {
-  clear: both; margin-top: 12px; padding-top: 8px; border-top: 1px solid #999;
-  font-size: var(--mc-fs-xs, 12.5px); color: #555; text-align: center;
+  clear: both; margin-top: 16px; padding-top: 10px;
+  border-top: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  font-size: var(--mc-fs-2xs, 11px); color: var(--mc-text-faint, #888); text-align: center;
 }
 /* "Did you know?" panel on an info card: real-world facts, visually separate
    from the game instructions above it. */
 .mc-fact {
-  margin-top: 12px; padding: 8px 10px; border-left: 4px solid #3d7a3d;
-  background: #d8ddc8; color: #2b3a26; font-size: var(--mc-fs-sm, 14px); line-height: 1.5;
+  margin-top: 16px; padding: 11px 14px;
+  border: 1px solid rgba(99,221,151,0.28);
+  border-left: 2px solid var(--mc-good, #63dd97);
+  border-radius: var(--mc-radius-sm, 10px);
+  background: var(--mc-good-soft, rgba(99,221,151,0.18));
+  color: #dcf6e6; font-size: var(--mc-fs-sm, 14px); line-height: 1.6;
 }
-.mc-fact b { display: block; margin-bottom: 3px; color: #1f4a1f; }
+.mc-fact b { display: block; margin-bottom: 4px; color: var(--mc-good, #63dd97); }
+
+/* --- reticle + mining ---------------------------------------------------- */
 .mc-crosshair {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   width: 18px; height: 18px; pointer-events: none; z-index: 5;
 }
 .mc-crosshair::before, .mc-crosshair::after {
-  content: ''; position: absolute; background: rgba(255,255,255,0.85);
-  mix-blend-mode: difference;
+  content: ''; position: absolute; background: rgba(255,255,255,0.9);
+  border-radius: 1px; mix-blend-mode: difference;
 }
-.mc-crosshair::before { left: 8px; top: 0; width: 2px; height: 18px; }
-.mc-crosshair::after { left: 0; top: 8px; width: 18px; height: 2px; }
+.mc-crosshair::before { left: 8.5px; top: 1px; width: 1.5px; height: 16px; }
+.mc-crosshair::after { left: 1px; top: 8.5px; width: 16px; height: 1.5px; }
 .mc-mining {
-  position: absolute; left: 50%; top: calc(50% + 24px); transform: translateX(-50%);
-  width: 80px; height: 8px; background: rgba(0,0,0,0.5); border: 1px solid #fff;
-  z-index: 5; display: none;
+  position: absolute; left: 50%; top: calc(50% + 26px); transform: translateX(-50%);
+  width: 88px; height: 5px; border-radius: var(--mc-radius-pill, 999px);
+  background: rgba(0,0,0,0.45); border: 1px solid rgba(255,255,255,0.28);
+  overflow: hidden; z-index: 5; display: none;
 }
-.mc-mining > div { height: 100%; background: #fff; width: 0%; }
+.mc-mining > div {
+  height: 100%; width: 0%; border-radius: inherit;
+  background: linear-gradient(90deg, #ffffff, var(--mc-accent, #7cd7ff));
+}
+
+/* --- bottom stack: energy + hotbar --------------------------------------- */
 .mc-bottom {
-  position: absolute; left: 50%; bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-  transform: translateX(-50%); z-index: 7; max-width: 100vw;
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  position: absolute; left: 50%; bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%); z-index: 7;
+  /* max-content keeps the hotbar on one line: a shrink-to-fit absolute box
+     otherwise settles at a width that makes its own wrapping row wrap. */
+  width: max-content; max-width: 100vw;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
   pointer-events: none;
 }
 .mc-hotbar {
-  display: flex; flex-wrap: wrap; justify-content: center; gap: 4px;
-  max-width: 100vw; padding: 0 4px; pointer-events: auto;
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 5px;
+  max-width: 100vw; padding: 6px; pointer-events: auto;
+  background: var(--mc-surface-soft, rgba(16,19,26,0.52));
+  -webkit-backdrop-filter: var(--mc-blur-soft, blur(12px));
+  backdrop-filter: var(--mc-blur-soft, blur(12px));
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-radius: var(--mc-radius, 16px);
+  box-shadow: var(--mc-shadow-sm, 0 6px 18px rgba(0,0,0,0.35)), var(--mc-sheen, none);
 }
 .mc-held-name {
-  color: #fff; font-size: var(--mc-fs-sm, 14px); font-weight: bold; text-shadow: 1px 1px 0 #000;
-  font-family: 'Courier New', monospace; pointer-events: none;
+  color: var(--mc-text, #fff); font-size: var(--mc-fs-sm, 14px); font-weight: 600;
+  letter-spacing: 0.3px; text-shadow: 0 2px 8px rgba(0,0,0,0.85);
+  font-family: var(--mc-font, sans-serif); pointer-events: none;
   transition: opacity 0.4s; opacity: 0; min-height: 1.3em;
 }
 .mc-slot {
-  width: var(--mc-slot, 52px); height: var(--mc-slot, 52px); background: rgba(20,20,20,0.6);
-  border: 2px solid #555; position: relative; image-rendering: pixelated;
-  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  width: var(--mc-slot, 52px); height: var(--mc-slot, 52px); position: relative;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-radius: var(--mc-radius-sm, 10px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+  image-rendering: pixelated; cursor: pointer;
+  transition: background 0.14s var(--mc-ease, ease), border-color 0.14s var(--mc-ease, ease),
+    box-shadow 0.14s var(--mc-ease, ease);
+  -webkit-tap-highlight-color: transparent;
 }
-.mc-slot.selected { border-color: #fff; }
-.mc-slot:active { background: rgba(60,60,60,0.8); }
-.mc-slot canvas { width: 100%; height: 100%; image-rendering: pixelated; }
+.mc-slot.selected {
+  border-color: var(--mc-accent, #7cd7ff);
+  background: var(--mc-accent-soft, rgba(124,215,255,0.16));
+  box-shadow: 0 0 0 1px var(--mc-accent-line, rgba(124,215,255,0.55)),
+    0 0 18px rgba(124,215,255,0.32), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+.mc-slot:active { background: var(--mc-raised-hover, rgba(255,255,255,0.12)); }
+.mc-slot canvas {
+  width: 100%; height: 100%; image-rendering: pixelated; display: block;
+  padding: 3px; border-radius: inherit;
+}
 .mc-slot .count {
-  position: absolute; right: 3px; bottom: 1px; color: #fff; font-size: clamp(12px, calc(var(--mc-slot, 52px) * 0.3), 16px);
-  font-weight: bold; text-shadow: 1px 1px 0 #000; pointer-events: none;
+  position: absolute; right: 4px; bottom: 1px; color: #fff;
+  font-family: var(--mc-font-mono, monospace);
+  font-size: clamp(10px, calc(var(--mc-slot, 52px) * 0.26), 14px);
+  font-weight: 700; text-shadow: 0 1px 3px rgba(0,0,0,0.95); pointer-events: none;
 }
-.mc-bag-slot {
-  width: var(--mc-slot, 52px); height: var(--mc-slot, 52px); margin-left: 8px; border-radius: 8px;
-  background: rgba(20,20,20,0.7); border: 2px solid #888; color: #fff;
+/* Bag / chat / craft: the same pill treatment so the row reads as one control. */
+.mc-bag-slot, .mc-chat-btn, .mc-craft-btn-hud {
+  height: var(--mc-slot, 52px); border-radius: var(--mc-radius-sm, 10px);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+  color: var(--mc-text-dim, #ccc); font-family: var(--mc-font, sans-serif);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 1px; font-size: var(--mc-fs-2xs, 11px); font-weight: bold; cursor: pointer; user-select: none;
+  gap: 2px; font-size: var(--mc-fs-2xs, 11px); font-weight: 600; letter-spacing: 0.6px;
+  cursor: pointer; user-select: none;
+  transition: background 0.14s var(--mc-ease, ease), border-color 0.14s var(--mc-ease, ease),
+    color 0.14s var(--mc-ease, ease);
   -webkit-tap-highlight-color: transparent;
 }
-.mc-bag-slot:hover, .mc-bag-slot:active { border-color: #fff; background: rgba(60,60,60,0.85); }
-.mc-bag-slot svg { width: clamp(15px, calc(var(--mc-slot, 52px) * 0.42), 22px); height: clamp(15px, calc(var(--mc-slot, 52px) * 0.42), 22px); }
-.mc-chat-btn {
-  height: var(--mc-slot, 52px); margin-left: 4px; padding: 0 10px; border-radius: 8px;
-  background: rgba(20,20,20,0.7); border: 2px solid #888; color: #fff;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 1px; font-size: var(--mc-fs-2xs, 11px); font-weight: bold; cursor: pointer; user-select: none;
-  -webkit-tap-highlight-color: transparent;
+.mc-bag-slot { width: var(--mc-slot, 52px); margin-left: 6px; }
+.mc-chat-btn, .mc-craft-btn-hud { padding: 0 12px; margin-left: 4px; }
+.mc-bag-slot:hover, .mc-chat-btn:hover, .mc-craft-btn-hud:hover,
+.mc-bag-slot:active, .mc-chat-btn:active, .mc-craft-btn-hud:active {
+  background: var(--mc-raised-hover, rgba(255,255,255,0.12));
+  border-color: var(--mc-stroke-strong, rgba(255,255,255,0.26)); color: var(--mc-text, #fff);
 }
-.mc-chat-btn:hover, .mc-chat-btn:active { border-color: #fff; background: rgba(60,60,60,0.85); }
-.mc-chat-btn.active { border-color: #7ec8e3; background: rgba(20,60,80,0.85); }
-.mc-chat-btn svg { width: clamp(15px, calc(var(--mc-slot, 52px) * 0.42), 22px); height: clamp(15px, calc(var(--mc-slot, 52px) * 0.42), 22px); }
-.mc-craft-btn-hud {
-  height: var(--mc-slot, 52px); margin-left: 4px; padding: 0 10px; border-radius: 8px;
-  background: rgba(20,20,20,0.7); border: 2px solid #888; color: #fff;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 1px; font-size: var(--mc-fs-2xs, 11px); font-weight: bold; cursor: pointer; user-select: none;
-  -webkit-tap-highlight-color: transparent;
+.mc-chat-btn.active {
+  border-color: var(--mc-accent-line, rgba(124,215,255,0.55));
+  background: var(--mc-accent-soft, rgba(124,215,255,0.16)); color: #dcf3ff;
 }
-.mc-craft-btn-hud:hover, .mc-craft-btn-hud:active { border-color: #fff; background: rgba(60,60,60,0.85); }
-.mc-craft-btn-hud.active { border-color: #f4c060; background: rgba(60,40,0,0.85); }
-.mc-craft-btn-hud svg { width: clamp(15px, calc(var(--mc-slot, 52px) * 0.42), 22px); height: clamp(15px, calc(var(--mc-slot, 52px) * 0.42), 22px); }
+.mc-craft-btn-hud.active {
+  border-color: rgba(255,204,92,0.55);
+  background: var(--mc-warn-soft, rgba(255,204,92,0.18)); color: #ffeec2;
+}
+.mc-bag-slot svg, .mc-chat-btn svg, .mc-craft-btn-hud svg {
+  width: clamp(15px, calc(var(--mc-slot, 52px) * 0.4), 21px);
+  height: clamp(15px, calc(var(--mc-slot, 52px) * 0.4), 21px);
+}
+
+/* --- environment tints ---------------------------------------------------- */
 .mc-underwater {
   position: absolute; inset: 0; pointer-events: none; z-index: 4;
   background: rgba(0,60,180,0.22); opacity: 0; transition: opacity 0.3s;
@@ -146,25 +207,40 @@ const STYLE = `
   background: radial-gradient(circle at 50% 65%, rgba(255,140,20,0.55), rgba(150,20,0,0.85));
   opacity: 0; transition: opacity 0.25s;
 }
+
+/* --- crosshair nameplate --------------------------------------------------- */
 .mc-nameplate {
   position: absolute; left: 50%; top: 40px; transform: translateX(-50%);
   z-index: 6; display: none; align-items: center; gap: 8px;
-  background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.35);
-  border-radius: 16px; padding: 4px 8px 4px 14px;
-  font-family: 'Courier New', monospace; color: #fff; pointer-events: none;
+  background: var(--mc-surface-soft, rgba(16,19,26,0.52));
+  -webkit-backdrop-filter: var(--mc-blur-soft, blur(12px));
+  backdrop-filter: var(--mc-blur-soft, blur(12px));
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-radius: var(--mc-radius-pill, 999px); padding: 5px 8px 5px 16px;
+  box-shadow: var(--mc-shadow-sm, 0 6px 18px rgba(0,0,0,0.35)), var(--mc-sheen, none);
+  font-family: var(--mc-font, sans-serif); color: var(--mc-text, #fff); pointer-events: none;
 }
-.mc-nameplate-name { font-size: var(--mc-fs-sm, 14px); font-weight: bold; text-shadow: 1px 1px 0 #000; }
+.mc-nameplate-name { font-size: var(--mc-fs-sm, 14px); font-weight: 600; letter-spacing: 0.3px; }
 .mc-nameplate-info {
-  width: 1.9em; height: 1.9em; border-radius: 50%; border: 1px solid rgba(255,255,255,0.6);
-  background: rgba(255,255,255,0.15); color: #fff; font-size: var(--mc-fs-sm, 14px); font-weight: bold;
+  width: 1.9em; height: 1.9em; border-radius: 50%;
+  border: 1px solid var(--mc-stroke-strong, rgba(255,255,255,0.26));
+  background: rgba(255,255,255,0.1); color: var(--mc-text, #fff);
+  font-size: var(--mc-fs-sm, 14px); font-weight: bold;
   font-style: italic; font-family: Georgia, 'Times New Roman', serif;
   display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: background 0.16s var(--mc-ease, ease);
   pointer-events: auto; -webkit-tap-highlight-color: transparent;
 }
-.mc-nameplate-info:hover, .mc-nameplate-info:active { background: rgba(255,220,80,0.5); }
+.mc-nameplate-info:hover, .mc-nameplate-info:active {
+  background: var(--mc-accent-soft, rgba(124,215,255,0.16)); color: #dcf3ff;
+}
+
+/* --- readouts -------------------------------------------------------------- */
 .mc-debug {
-  position: absolute; left: 8px; top: 8px; color: #fff; font-size: var(--mc-fs-xs, 12.5px);
-  text-shadow: 1px 1px 0 #000; z-index: 5; white-space: pre; pointer-events: none;
+  position: absolute; left: 12px; top: 12px; color: var(--mc-text-faint, #888);
+  font-family: var(--mc-font-mono, monospace); font-size: var(--mc-fs-2xs, 11px);
+  letter-spacing: 0.3px; text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+  z-index: 5; white-space: pre; pointer-events: none;
 }
 /* Phones: the dev stats line would collide with the centred day timer. */
 @media (max-width: 900px), (max-height: 500px) {
@@ -173,9 +249,16 @@ const STYLE = `
 /* Sits clear of the hotbar stack (and above it) so messages stay readable. */
 .mc-toast {
   position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%);
-  color: #fff; font-size: var(--mc-fs-sm, 14px); text-shadow: 1px 1px 0 #000; z-index: 8;
-  max-width: min(560px, 90vw); text-align: center; line-height: 1.4;
-  background: rgba(12,12,14,0.62); padding: 6px 14px; border-radius: 6px;
+  color: var(--mc-text, #fff); font-family: var(--mc-font, sans-serif);
+  font-size: var(--mc-fs-sm, 14px); z-index: 8;
+  max-width: min(560px, 90vw); text-align: center; line-height: 1.5;
+  background: var(--mc-surface, rgba(19,23,31,0.72));
+  -webkit-backdrop-filter: var(--mc-blur-soft, blur(12px));
+  backdrop-filter: var(--mc-blur-soft, blur(12px));
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-radius: var(--mc-radius-pill, 999px);
+  box-shadow: var(--mc-shadow-sm, 0 6px 18px rgba(0,0,0,0.35)), var(--mc-sheen, none);
+  padding: 9px 18px;
   pointer-events: none; transition: opacity 0.5s; opacity: 0;
 }
 /* On phones the bottom half belongs to the touch controls, so messages drop
@@ -188,45 +271,82 @@ const STYLE = `
   .mc-toast { top: auto; bottom: 120px; }
 }
 .mc-daytimer {
-  position: absolute; left: 50%; top: calc(8px + env(safe-area-inset-top, 0px)); transform: translateX(-50%);
-  color: #fff; font-size: var(--mc-fs-sm, 14px); text-shadow: 1px 1px 0 #000; z-index: 5;
-  pointer-events: none; font-family: 'Courier New', monospace; letter-spacing: 1px;
+  position: absolute; left: 50%; top: calc(10px + env(safe-area-inset-top, 0px)); transform: translateX(-50%);
+  z-index: 5; pointer-events: none;
+  color: var(--mc-text, #fff); font-family: var(--mc-font-mono, monospace);
+  font-size: var(--mc-fs-xs, 12.5px); font-weight: 600; letter-spacing: 1px;
+  background: var(--mc-surface-soft, rgba(16,19,26,0.52));
+  -webkit-backdrop-filter: var(--mc-blur-soft, blur(12px));
+  backdrop-filter: var(--mc-blur-soft, blur(12px));
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-radius: var(--mc-radius-pill, 999px); padding: 5px 14px;
+  box-shadow: var(--mc-shadow-sm, 0 6px 18px rgba(0,0,0,0.35)), var(--mc-sheen, none);
 }
 .mc-energy {
-  position: relative; width: min(260px, 74vw); height: clamp(18px, 2.6vmin, 24px); pointer-events: none;
-  background: rgba(10,10,10,0.6); border: 2px solid #333; border-radius: 8px;
-  display: flex; align-items: center; overflow: hidden;
+  position: relative; width: min(260px, 74vw); height: clamp(14px, 2.1vmin, 18px);
+  pointer-events: none;
+  background: var(--mc-surface-soft, rgba(16,19,26,0.52));
+  -webkit-backdrop-filter: var(--mc-blur-soft, blur(12px));
+  backdrop-filter: var(--mc-blur-soft, blur(12px));
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-radius: var(--mc-radius-pill, 999px);
+  box-shadow: var(--mc-shadow-sm, 0 6px 18px rgba(0,0,0,0.35)), var(--mc-sheen, none);
+  display: flex; align-items: center; overflow: hidden; padding: 2px;
 }
 .mc-energy-fill {
-  height: 100%; background: linear-gradient(90deg, #e8b23a, #ffd34d);
-  transition: width 0.25s ease; border-radius: 5px;
+  height: 100%; border-radius: var(--mc-radius-pill, 999px);
+  background: linear-gradient(90deg, #ffcc5c, #ffe6a8);
+  box-shadow: 0 0 12px rgba(255,204,92,0.45);
+  transition: width 0.25s ease;
 }
-.mc-energy-fill.low { background: linear-gradient(90deg, #b03020, #e05540); }
+.mc-energy-fill.low {
+  background: linear-gradient(90deg, #e0503c, #ff8272);
+  box-shadow: 0 0 12px rgba(255,130,114,0.5);
+}
 .mc-energy-label {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  color: #fff; font-size: var(--mc-fs-2xs, 11px); font-weight: bold; text-shadow: 1px 1px 0 #000;
-  font-family: 'Courier New', monospace; letter-spacing: 1px; white-space: nowrap;
+  color: #fff; font-size: var(--mc-fs-2xs, 11px); font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+  font-family: var(--mc-font-mono, monospace); letter-spacing: 0.6px; white-space: nowrap;
 }
 .mc-players {
   position: absolute; top: 244px; right: 12px; z-index: 5;
-  color: #fff; font-size: var(--mc-fs-xs, 12.5px); text-shadow: 1px 1px 0 #000;
-  pointer-events: none; text-align: right; line-height: 1.6; display: none;
+  color: var(--mc-text-dim, #ccc); font-family: var(--mc-font, sans-serif);
+  font-size: var(--mc-fs-xs, 12.5px); text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+  pointer-events: none; text-align: right; line-height: 1.7; display: none;
 }
+
+/* --- chest peek ------------------------------------------------------------- */
 .mc-chest-overlay {
   position: absolute; left: 50%; top: 58px; transform: translateX(-50%);
-  z-index: 15; min-width: 220px; max-width: 320px; display: none; cursor: pointer;
-  background: rgba(18,22,28,0.92); border: 2px solid #6b6b6b; border-radius: 8px;
-  color: #fff; font-family: 'Courier New', monospace; padding: 10px 14px;
-  box-shadow: 0 4px 18px rgba(0,0,0,0.55); -webkit-tap-highlight-color: transparent;
+  z-index: 15; min-width: 240px; max-width: 340px; display: none; cursor: pointer;
+  background: var(--mc-surface, rgba(19,23,31,0.72));
+  -webkit-backdrop-filter: var(--mc-blur, blur(20px));
+  backdrop-filter: var(--mc-blur, blur(20px));
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-radius: var(--mc-radius, 16px);
+  color: var(--mc-text, #fff); font-family: var(--mc-font, sans-serif); padding: 13px 16px;
+  box-shadow: var(--mc-shadow, 0 24px 64px rgba(0,0,0,0.5)), var(--mc-sheen, none);
+  -webkit-tap-highlight-color: transparent;
   transition: opacity 0.3s; opacity: 0;
 }
-.mc-chest-overlay h4 { margin: 0 0 6px; font-size: var(--mc-fs-sm, 14px); color: #ffe39a; }
-.mc-chest-overlay-row { display: flex; align-items: center; gap: 8px; font-size: var(--mc-fs-xs, 12.5px); margin: 3px 0; }
-.mc-chest-overlay-row canvas {
-  width: 24px; height: 24px; image-rendering: pixelated; flex: 0 0 24px;
-  background: rgba(255,255,255,0.08); border: 1px solid #555;
+.mc-chest-overlay h4 {
+  margin: 0 0 8px; font-size: var(--mc-fs-2xs, 11px); font-weight: 600;
+  letter-spacing: 1.1px; text-transform: uppercase; color: var(--mc-gold, #ffd77a);
 }
-.mc-chest-overlay-hint { font-size: var(--mc-fs-2xs, 11px); color: #9aa; margin-top: 7px; }
+.mc-chest-overlay-row {
+  display: flex; align-items: center; gap: 10px;
+  font-size: var(--mc-fs-xs, 12.5px); margin: 4px 0;
+}
+.mc-chest-overlay-row canvas {
+  width: 26px; height: 26px; image-rendering: pixelated; flex: 0 0 26px; padding: 2px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-radius: var(--mc-radius-xs, 6px);
+}
+.mc-chest-overlay-hint {
+  font-size: var(--mc-fs-2xs, 11px); color: var(--mc-text-faint, #888); margin-top: 9px;
+}
 `
 
 export class HUD {
@@ -470,11 +590,11 @@ export class HUD {
     const overlay = document.createElement('div')
     // Two overlays share the `mc-instructions` look; the modifier class names
     // which is which for styling and for tests.
-    overlay.className = 'mc-instructions mc-help-overlay'
+    overlay.className = 'mc-instructions mc-help-overlay mc-scrim'
     const box = document.createElement('div')
-    box.className = 'mc-instructions-box'
+    box.className = 'mc-instructions-box mc-glass mc-pane-in'
     box.innerHTML = `
-      <button class="mc-instructions-close">✕ Close</button>
+      <button class="mc-instructions-close mc-close-btn" title="Close (Esc)">✕</button>
       <h3>Controls</h3>
       <p>WASD / Arrows — Move</p>
       <p>Space — Jump &nbsp; F — Toggle fly &nbsp; Shift (fly) — Down</p>
@@ -492,6 +612,11 @@ export class HUD {
       <p>Double-tap the look area while aiming at your animal — Store it in the bag</p>
       <p>Tap the BAG slot by the hotbar — Open inventory &nbsp; Tap hotbar slot — Select item</p>
       <div class="mc-help-world"></div>
+      <h3>TNT</h3>
+      <p>Placing TNT does <b>not</b> light it — stack it as high and wide as you want first</p>
+      <p>MINE (hold left-click / red ⛏) an unlit stick to start its 2 second fuse, then get clear</p>
+      <p>The blast lights every TNT it reaches, so one spark sets off the whole stack</p>
+      <p>MINE a stick that is already lit to defuse it and take it back</p>
       <h3>Digging Deep &amp; Lava</h3>
       <p>Keep digging and the stone gives way to glowing lava lakes, at least 12 blocks under the deepest ore</p>
       <p>Lava cannot be mined or picked up, and standing in it burns energy fast — hold Space to paddle back out</p>
@@ -541,7 +666,7 @@ export class HUD {
     // screen the header button ends up far above the reader.
     const hint = document.createElement('p')
     hint.className = 'mc-instructions-hint'
-    hint.textContent = 'Press Esc, click outside this card, or use ✕ Close to get back to the game.'
+    hint.textContent = 'Press Esc, click outside this card, or use ✕ to get back to the game.'
     box.appendChild(hint)
 
     // Food and night-mob help depend on which kind of world is loaded, so that
@@ -577,9 +702,9 @@ export class HUD {
     root.appendChild(this.nameplate)
 
     const infoOverlay = document.createElement('div')
-    infoOverlay.className = 'mc-instructions mc-info-overlay'
+    infoOverlay.className = 'mc-instructions mc-info-overlay mc-scrim'
     this.infoBox = document.createElement('div')
-    this.infoBox.className = 'mc-instructions-box mc-info-box'
+    this.infoBox.className = 'mc-instructions-box mc-info-box mc-glass mc-pane-in'
     infoOverlay.addEventListener('mousedown', (e) => { if (e.target === infoOverlay) this.closeInfo() })
     infoOverlay.addEventListener('touchstart', (e) => {
       if (e.target === infoOverlay) { e.preventDefault(); this.closeInfo() }
@@ -732,6 +857,7 @@ export class HUD {
   showInstructions(): void {
     if (this.isInstructionsOpen) return
     this.instructionsOverlay.style.display = 'flex'
+    revealPane(this.instructionsOverlay.firstElementChild as HTMLElement)
     // Scrolled-down state from a previous read would hide the close button.
     this.instructionsOverlay.querySelector('.mc-instructions-box')!.scrollTop = 0
     this.onInstructionsOpen()
@@ -774,8 +900,9 @@ export class HUD {
     if (!info) return false
     this.infoBox.innerHTML = ''
     const closeBtn = document.createElement('button')
-    closeBtn.className = 'mc-instructions-close'
-    closeBtn.textContent = '✕ Close'
+    closeBtn.className = 'mc-instructions-close mc-close-btn'
+    closeBtn.textContent = '✕'
+    closeBtn.title = 'Close (Esc)'
     const close = (e: Event) => { e.preventDefault(); this.closeInfo() }
     closeBtn.addEventListener('click', close)
     closeBtn.addEventListener('touchstart', close, { passive: false })
@@ -798,10 +925,11 @@ export class HUD {
     }
     const hint = document.createElement('p')
     hint.className = 'mc-instructions-hint'
-    hint.textContent = 'Press Esc, click outside this card, or use ✕ Close to get back to the game.'
+    hint.textContent = 'Press Esc, click outside this card, or use ✕ to get back to the game.'
     this.infoBox.appendChild(hint)
     this.infoBox.scrollTop = 0
     this.infoOverlay.style.display = 'flex'
+    revealPane(this.infoBox)
     return true
   }
 
