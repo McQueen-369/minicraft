@@ -18,7 +18,7 @@ interface GameMeta {
   accent: string
   /** Translucent accent for fills, so panels stay readable over dark chrome. */
   accentSoft: string
-  /** Short "how to play" chips, shown before the first move. */
+  /** The "how to play" lines, shown in one briefing box before the first move. */
   how: (d: Difficulty) => string[]
   /** One line about what the chosen difficulty changes about the game itself. */
   twist: Record<Difficulty, string>
@@ -123,17 +123,37 @@ const STYLE = `
 }
 .mc-arc-titles { flex: 1 1 auto; min-width: 0; }
 .mc-arc-title { font-size: var(--mc-fs-lg, 18px); font-weight: 600; color: #fff; }
-.mc-arc-reward { font-size: var(--mc-fs-xs, 12.5px); color: var(--mc-gold, #ffd77a); margin-top: 3px; }
+.mc-arc-reward { font-size: var(--mc-fs-xs, 14px); color: var(--mc-gold, #ffd77a); margin-top: 3px; }
 .mc-arc-body {
   flex: 1 1 auto; overflow-y: auto; padding: 18px;
   display: flex; flex-direction: column; gap: 14px; align-items: center;
 }
-/* Briefing chips: the rules of the game, before you have to guess them. */
-.mc-arc-how { display: flex; flex-wrap: wrap; gap: 7px; justify-content: center; }
-.mc-arc-chip {
+/*
+ * The briefing: everything a player needs before their first move, in one box
+ * at the top of the panel. It used to be a scatter of separate chips (plus a
+ * second box for the word game's hint), which read as several competing
+ * instructions; one bordered block with one line per rule is a single thing to
+ * read and then stop reading.
+ */
+.mc-arc-brief {
+  width: 100%; max-width: 520px;
   background: var(--acc-soft); border: 1px solid var(--acc);
-  border-radius: var(--mc-radius-pill, 999px);
-  padding: 6px 14px; font-size: var(--mc-fs-xs, 12.5px); color: #eef1ff; line-height: 1.4;
+  border-radius: var(--mc-radius, 16px); padding: 12px 16px;
+  display: flex; flex-direction: column; gap: 6px; text-align: left;
+}
+.mc-arc-brief-label {
+  font-size: var(--mc-fs-2xs, 14px); font-weight: 600; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--acc); margin-bottom: 2px;
+}
+.mc-arc-brief-line {
+  font-size: var(--mc-fs-sm, 16px); color: #eef1ff; line-height: 1.5;
+}
+/* The word game's clue lives in the same box, set apart by a rule above it
+   because it is the one line that changes mid-round. */
+.mc-arc-brief-hint {
+  margin-top: 6px; padding-top: 8px;
+  border-top: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  font-size: var(--mc-fs-sm, 16px); color: #eef1ff; line-height: 1.5;
 }
 .mc-arc-status {
   font-size: var(--mc-fs-md, 16px); font-weight: 600; color: #fff; text-align: center;
@@ -162,7 +182,7 @@ const STYLE = `
   font-size: var(--mc-fs-md, 16px); font-weight: 600; color: #fff; text-align: center;
 }
 .mc-arc-pick-sub {
-  font-size: var(--mc-fs-xs, 12.5px); color: var(--mc-text-faint, #888);
+  font-size: var(--mc-fs-xs, 14px); color: var(--mc-text-faint, #888);
   text-align: center; margin-top: -8px;
 }
 .mc-arc-levels {
@@ -180,10 +200,10 @@ const STYLE = `
 }
 .mc-arc-level:hover { background: var(--mc-raised-hover, rgba(255,255,255,0.12)); transform: translateY(-2px); }
 .mc-arc-level-name { font-size: var(--mc-fs-lg, 18px); font-weight: 600; color: var(--lvl); }
-.mc-arc-level-reward { font-size: var(--mc-fs-sm, 14px); font-weight: 600; color: var(--mc-gold, #ffd77a); }
-.mc-arc-level-blurb { font-size: var(--mc-fs-xs, 12.5px); color: var(--mc-text-dim, #ccc); line-height: 1.5; }
+.mc-arc-level-reward { font-size: var(--mc-fs-sm, 16px); font-weight: 600; color: var(--mc-gold, #ffd77a); }
+.mc-arc-level-blurb { font-size: var(--mc-fs-xs, 14px); color: var(--mc-text-dim, #ccc); line-height: 1.5; }
 .mc-arc-level-twist {
-  font-size: var(--mc-fs-xs, 12.5px); color: var(--mc-text-faint, #888); line-height: 1.5;
+  font-size: var(--mc-fs-xs, 14px); color: var(--mc-text-faint, #888); line-height: 1.5;
   border-top: 1px solid var(--mc-stroke, rgba(255,255,255,0.12)); padding-top: 6px;
 }
 /* --- puzzle --- */
@@ -238,13 +258,6 @@ const STYLE = `
   font-size: var(--mc-fs-2xl, 30px); letter-spacing: 0.32em; font-weight: 700; color: #fff;
   text-align: center; word-break: break-all; line-height: 1.4;
 }
-.mc-arc-hint {
-  font-size: var(--mc-fs-sm, 14px); color: var(--mc-text-dim, #ccc); text-align: center; line-height: 1.6;
-  background: var(--mc-raised, rgba(255,255,255,0.06));
-  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
-  border-left: 2px solid var(--acc); border-radius: var(--mc-radius-sm, 10px);
-  padding: 11px 14px; max-width: 460px;
-}
 .mc-arc-kb { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-width: 460px; }
 .mc-arc-key {
   width: clamp(34px, 9vmin, 44px); height: clamp(38px, 10vmin, 48px);
@@ -276,7 +289,7 @@ const STYLE = `
   font-size: var(--mc-fs-lg, 18px); font-weight: 600; color: var(--mc-good, #63dd97); margin-bottom: 5px;
 }
 .mc-arc-result.lose .mc-arc-result-head { color: var(--mc-bad, #ff8272); }
-.mc-arc-result-body { font-size: var(--mc-fs-sm, 14px); color: var(--mc-text-dim, #ccc); line-height: 1.7; }
+.mc-arc-result-body { font-size: var(--mc-fs-sm, 16px); color: var(--mc-text-dim, #ccc); line-height: 1.7; }
 .mc-arc-prize {
   margin-top: 10px; font-size: var(--mc-fs-md, 16px); font-weight: 600;
   color: var(--mc-gold, #ffd77a); line-height: 1.7;
@@ -291,7 +304,7 @@ const STYLE = `
   padding: 14px 18px;
 }
 .mc-arc-define-label {
-  font-size: var(--mc-fs-2xs, 11px); font-weight: 600; letter-spacing: 1.2px;
+  font-size: var(--mc-fs-2xs, 14px); font-weight: 600; letter-spacing: 1.2px;
   text-transform: uppercase; color: var(--mc-text-faint, #888); margin-bottom: 8px;
 }
 .mc-arc-define-head {
@@ -301,10 +314,10 @@ const STYLE = `
   font-size: var(--mc-fs-lg, 18px); font-weight: 700; letter-spacing: 1.5px; color: #fff;
 }
 .mc-arc-define-pos {
-  font-size: var(--mc-fs-xs, 12.5px); font-style: italic; color: var(--acc);
+  font-size: var(--mc-fs-xs, 14px); font-style: italic; color: var(--acc);
 }
 .mc-arc-define-meaning {
-  font-size: var(--mc-fs-sm, 14px); color: var(--mc-text-dim, #ccc); line-height: 1.65;
+  font-size: var(--mc-fs-sm, 16px); color: var(--mc-text-dim, #ccc); line-height: 1.65;
 }
 `
 
@@ -501,9 +514,9 @@ export function wordsFor(rules: { minLength: number; maxLength: number }): WordE
  * (sliding puzzle, endless runner, math target shooting, word guessing)
  * that pay out item prizes into the player's inventory.
  *
- * Every game is framed the same way — badge, title, advertised reward, a row
- * of "how to play" chips, one status pill, then the game — so a player who has
- * learned one kiosk already knows how to read the next.
+ * Every game is framed the same way — badge, title, advertised reward, one
+ * briefing box, one status pill, then the game — so a player who has learned
+ * one kiosk already knows how to read the next.
  */
 export class ArcadePanel {
   private readonly overlay: HTMLDivElement
@@ -512,6 +525,8 @@ export class ArcadePanel {
   private readonly titleEl: HTMLDivElement
   private readonly rewardEl: HTMLDivElement
   private readonly body: HTMLDivElement
+  /** The single briefing box at the top of the current round, if one is up. */
+  private brief: HTMLDivElement | null = null
   private _isOpen = false
   private runnerRaf = 0
   private keyHandler: ((e: KeyboardEvent) => void) | null = null
@@ -656,10 +671,13 @@ export class ArcadePanel {
       ? `${DIFFICULTY_META[level].badge} ${DIFFICULTY_META[level].label} · 🏆 ${rewardMultiplierLabel(level)}`
       : '🏆 Pick a difficulty to begin'
     this.body.innerHTML = ''
+    this.brief = null
     if (level) {
-      const how = this.el('div', 'mc-arc-how')
-      for (const line of meta.how(level)) how.appendChild(this.el('span', 'mc-arc-chip', line))
-      this.body.appendChild(how)
+      const brief = this.el('div', 'mc-arc-brief')
+      brief.appendChild(this.el('div', 'mc-arc-brief-label', 'How to play'))
+      for (const line of meta.how(level)) brief.appendChild(this.el('div', 'mc-arc-brief-line', line))
+      this.body.appendChild(brief)
+      this.brief = brief
     }
     return meta
   }
@@ -975,14 +993,16 @@ export class ArcadePanel {
     const maxLives = rules.lives
     const pool = wordsFor(rules)
     const pick = pool[Math.floor(Math.random() * pool.length)]
-    const hint = this.el('div', 'mc-arc-hint')
-    // Hard keeps the hint back until the first wrong guess, so the opening
-    // letters have to come from the shape of the word.
+    // The clue belongs to the briefing, so it goes inside that one box rather
+    // than opening a second one. Hard keeps it back until the first wrong
+    // guess, so the opening letters have to come from the shape of the word.
+    const hint = this.el('div', 'mc-arc-brief-hint')
     hint.textContent = rules.hintUpFront ? `💡 Hint: ${pick.hint}` : '💡 Hint unlocks after your first wrong guess'
+    ;(this.brief ?? this.body).appendChild(hint)
     const status = this.el('div', 'mc-arc-status', '❤'.repeat(maxLives))
     const wordEl = this.el('div', 'mc-arc-word')
     const kb = this.el('div', 'mc-arc-kb')
-    this.body.append(hint, status, wordEl, kb)
+    this.body.append(status, wordEl, kb)
 
     const guessed = new Set<string>()
     let lives = maxLives

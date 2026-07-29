@@ -259,6 +259,20 @@ export function drawItemIcon(canvas: HTMLCanvasElement, itemId: number, atlasCan
       p(7, 7, 6, 2, '#4f7fae') // blanket
       break
     }
+    case ItemId.Campfire: {
+      // Crossed logs on a stone ring, with a flame licking up out of them.
+      p(2, 12, 12, 2, '#6b6b6b')   // stone ring
+      p(3, 11, 3, 1, '#7d7d7d')
+      p(10, 11, 3, 1, '#7d7d7d')
+      for (let i = 0; i < 7; i++) {
+        p(3 + i, 12 - i * 0.5, 2, 1.5, '#7a5326')   // log leaning right
+        p(11 - i, 12 - i * 0.5, 2, 1.5, '#8a6136')  // log leaning left
+      }
+      p(6, 5, 4, 6, '#e8621f')     // flame body
+      p(7, 2, 2, 4, '#f59f2b')     // flame tip
+      p(7, 7, 2, 3, '#ffd75e')     // hot core
+      break
+    }
     case ItemId.Sofa: {
       p(3, 6, 10, 5, '#5b6e8c') // body
       p(3, 4, 2, 6, '#4e5f79') // left arm

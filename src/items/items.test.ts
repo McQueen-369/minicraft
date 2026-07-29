@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { BlockId } from '../core/blocks'
-import { ItemId, itemCategory, furnitureItemFor } from './items'
+import { ItemId, itemCategory, itemDef, furnitureItemFor } from './items'
 
 describe('itemCategory', () => {
   it('groups blocks, tools, food, captured animals and furniture', () => {
@@ -20,5 +20,16 @@ describe('itemCategory', () => {
   it('maps furniture kinds to their placement items', () => {
     expect(furnitureItemFor('door')).toBe(ItemId.Door)
     expect(furnitureItemFor('bed')).toBe(ItemId.Bed)
+  })
+
+  it('carries campfires as furniture, so one can be picked up and placed again', () => {
+    expect(furnitureItemFor('campfire')).toBe(ItemId.Campfire)
+    expect(itemDef(ItemId.Campfire)?.furniture).toBe('campfire')
+    expect(itemCategory(ItemId.Campfire)).toBe('furniture')
+  })
+
+  it('leaves world fixtures unplaceable — they have no bag item', () => {
+    expect(furnitureItemFor('market')).toBeUndefined()
+    expect(furnitureItemFor('arcadePuzzle')).toBeUndefined()
   })
 })

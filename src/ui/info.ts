@@ -172,7 +172,11 @@ function itemHelp(itemId: number): InfoContent {
     lines.push('Place: select it and USE (right-click) against a wall, floor or surface to set it down.')
     if (def.furniture === 'door') lines.push('USE a placed door to swing it open or closed.')
     lines.push('Pick up: MINE (hold left-click) the piece to collect it back into your bag.')
-    lines.push('Get: your starter house comes furnished, and furniture is found in treasure boxes.')
+    lines.push(
+      def.furniture === 'campfire'
+        ? 'Get: craft one from 3 Wood + 3 Stone, or MINE a campfire you find in a village.'
+        : 'Get: your starter house comes furnished, and furniture is found in treasure boxes.',
+    )
   } else if (def.kind === 'net') {
     lines.push('Use: hold it and right-click (USE on mobile) while aiming at a pond or lake to catch fish.')
     lines.push('Fish is used to tame cats. You can also find fish in treasure boxes.')

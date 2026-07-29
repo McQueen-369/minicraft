@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { HOTBAR_SIZE } from '../constants'
 import { BlockId } from '../core/blocks'
 import { Inventory } from '../items/inventory'
 import { HUD } from './hud'
@@ -139,5 +140,23 @@ describe('lava tint', () => {
     expect(overlay.style.opacity).toBe('1')
     hud.setLava(false, false)
     expect(overlay.style.opacity).toBe('0')
+  })
+})
+
+describe('hotbar', () => {
+  it('labels every slot with the number key that selects it', () => {
+    const { root } = makeHud()
+    const slots = [...root.querySelectorAll('.mc-hotbar .mc-slot')]
+    expect(slots.length).toBe(HOTBAR_SIZE)
+    expect(slots.map((s) => s.querySelector('.keynum')?.textContent)).toEqual(
+      ['1', '2', '3', '4', '5', '6', '7', '8', '9'],
+    )
+  })
+
+  it('keeps the key label clear of the stack count', () => {
+    const { root } = makeHud()
+    const slot = root.querySelector('.mc-hotbar .mc-slot')!
+    expect(slot.querySelector('.keynum')?.textContent).toBe('1')
+    expect(slot.querySelector('.count')?.textContent).not.toBe('1')
   })
 })

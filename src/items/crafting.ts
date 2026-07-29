@@ -39,6 +39,7 @@ export const RECIPES: Recipe[] = [
   { id: 'chair', inputs: [{ itemId: BlockId.Plank, count: 3 }], output: { itemId: ItemId.Chair, count: 1 }, desc: 'A simple seat — pull one up to your desk.' },
   { id: 'bed', inputs: [{ itemId: BlockId.Plank, count: 4 }, { itemId: BlockId.Leaves, count: 2 }], output: { itemId: ItemId.Bed, count: 1 }, desc: 'Use it at night to sleep until morning and fully restore your energy.' },
   { id: 'sofa', inputs: [{ itemId: BlockId.Plank, count: 4 }, { itemId: BlockId.Stone, count: 2 }], output: { itemId: ItemId.Sofa, count: 1 }, desc: 'A comfy two-seater to make your living room feel like home.' },
+  { id: 'campfire', inputs: [{ itemId: BlockId.Wood, count: 3 }, { itemId: BlockId.Stone, count: 3 }], output: { itemId: ItemId.Campfire, count: 1 }, desc: 'A ring of stones and crossed logs — light up your camp at night. MINE it to pack it back into your bag.' },
 ]
 
 /** Where to find each craftable ingredient out in the world. */

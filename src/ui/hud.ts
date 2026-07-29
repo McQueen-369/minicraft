@@ -47,11 +47,11 @@ const STYLE = `
 }
 .mc-instructions-box {
   padding: 20px 22px; max-width: 520px; width: 100%; max-height: 80vh; overflow-y: auto;
-  font-size: var(--mc-fs-sm, 14px); line-height: 1.65;
+  font-size: var(--mc-fs-sm, 16px); line-height: 1.65;
   color: var(--mc-text-dim, #ccc);
 }
 .mc-instructions-box h3 {
-  margin: 16px 0 8px; font-size: var(--mc-fs-2xs, 11px); font-weight: 600;
+  margin: 16px 0 8px; font-size: var(--mc-fs-2xs, 14px); font-weight: 600;
   letter-spacing: 1.2px; text-transform: uppercase; color: var(--mc-accent, #7cd7ff);
   border-bottom: 1px solid var(--mc-stroke, rgba(255,255,255,0.12)); padding-bottom: 6px;
 }
@@ -72,7 +72,7 @@ const STYLE = `
 .mc-instructions-hint {
   clear: both; margin-top: 16px; padding-top: 10px;
   border-top: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
-  font-size: var(--mc-fs-2xs, 11px); color: var(--mc-text-faint, #888); text-align: center;
+  font-size: var(--mc-fs-2xs, 14px); color: var(--mc-text-faint, #888); text-align: center;
 }
 /* "Did you know?" panel on an info card: real-world facts, visually separate
    from the game instructions above it. */
@@ -82,7 +82,7 @@ const STYLE = `
   border-left: 2px solid var(--mc-good, #63dd97);
   border-radius: var(--mc-radius-sm, 10px);
   background: var(--mc-good-soft, rgba(99,221,151,0.18));
-  color: #dcf6e6; font-size: var(--mc-fs-sm, 14px); line-height: 1.6;
+  color: #dcf6e6; font-size: var(--mc-fs-sm, 16px); line-height: 1.6;
 }
 .mc-fact b { display: block; margin-bottom: 4px; color: var(--mc-good, #63dd97); }
 
@@ -129,7 +129,7 @@ const STYLE = `
   box-shadow: var(--mc-shadow-sm, 0 6px 18px rgba(0,0,0,0.35)), var(--mc-sheen, none);
 }
 .mc-held-name {
-  color: var(--mc-text, #fff); font-size: var(--mc-fs-sm, 14px); font-weight: 600;
+  color: var(--mc-text, #fff); font-size: var(--mc-fs-sm, 16px); font-weight: 600;
   letter-spacing: 0.3px; text-shadow: 0 2px 8px rgba(0,0,0,0.85);
   font-family: var(--mc-font, sans-serif); pointer-events: none;
   transition: opacity 0.4s; opacity: 0; min-height: 1.3em;
@@ -162,6 +162,22 @@ const STYLE = `
   font-size: clamp(10px, calc(var(--mc-slot, 52px) * 0.26), 14px);
   font-weight: 700; text-shadow: 0 1px 3px rgba(0,0,0,0.95); pointer-events: none;
 }
+/* The key that selects this slot, printed across the top of the item so a
+   desktop player can read "press 4" straight off the hotbar instead of
+   counting slots. The selected slot lights its number up in the accent. */
+.mc-slot .keynum {
+  position: absolute; left: 0; right: 0; top: 1px; text-align: center;
+  font-family: var(--mc-font-mono, monospace);
+  font-size: clamp(10px, calc(var(--mc-slot, 52px) * 0.24), 13px);
+  font-weight: 700; line-height: 1; color: rgba(255,255,255,0.72);
+  text-shadow: 0 1px 3px rgba(0,0,0,0.95), 0 0 6px rgba(0,0,0,0.8);
+  pointer-events: none;
+}
+.mc-slot.selected .keynum { color: var(--mc-accent, #7cd7ff); }
+/* Touch-only devices have no number row to press, so the label is noise. */
+@media (hover: none) and (pointer: coarse) {
+  .mc-slot .keynum { display: none; }
+}
 /* Bag / chat / craft: the same pill treatment so the row reads as one control. */
 .mc-bag-slot, .mc-chat-btn, .mc-craft-btn-hud {
   height: var(--mc-slot, 52px); border-radius: var(--mc-radius-sm, 10px);
@@ -170,7 +186,7 @@ const STYLE = `
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
   color: var(--mc-text-dim, #ccc); font-family: var(--mc-font, sans-serif);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 2px; font-size: var(--mc-fs-2xs, 11px); font-weight: 600; letter-spacing: 0.6px;
+  gap: 2px; font-size: var(--mc-fs-2xs, 14px); font-weight: 600; letter-spacing: 0.6px;
   cursor: pointer; user-select: none;
   transition: background 0.14s var(--mc-ease, ease), border-color 0.14s var(--mc-ease, ease),
     color 0.14s var(--mc-ease, ease);
@@ -220,12 +236,12 @@ const STYLE = `
   box-shadow: var(--mc-shadow-sm, 0 6px 18px rgba(0,0,0,0.35)), var(--mc-sheen, none);
   font-family: var(--mc-font, sans-serif); color: var(--mc-text, #fff); pointer-events: none;
 }
-.mc-nameplate-name { font-size: var(--mc-fs-sm, 14px); font-weight: 600; letter-spacing: 0.3px; }
+.mc-nameplate-name { font-size: var(--mc-fs-sm, 16px); font-weight: 600; letter-spacing: 0.3px; }
 .mc-nameplate-info {
   width: 1.9em; height: 1.9em; border-radius: 50%;
   border: 1px solid var(--mc-stroke-strong, rgba(255,255,255,0.26));
   background: rgba(255,255,255,0.1); color: var(--mc-text, #fff);
-  font-size: var(--mc-fs-sm, 14px); font-weight: bold;
+  font-size: var(--mc-fs-sm, 16px); font-weight: bold;
   font-style: italic; font-family: Georgia, 'Times New Roman', serif;
   display: flex; align-items: center; justify-content: center; cursor: pointer;
   transition: background 0.16s var(--mc-ease, ease);
@@ -238,7 +254,7 @@ const STYLE = `
 /* --- readouts -------------------------------------------------------------- */
 .mc-debug {
   position: absolute; left: 12px; top: 12px; color: var(--mc-text-faint, #888);
-  font-family: var(--mc-font-mono, monospace); font-size: var(--mc-fs-2xs, 11px);
+  font-family: var(--mc-font-mono, monospace); font-size: var(--mc-fs-2xs, 14px);
   letter-spacing: 0.3px; text-shadow: 0 1px 3px rgba(0,0,0,0.9);
   z-index: 5; white-space: pre; pointer-events: none;
 }
@@ -250,7 +266,7 @@ const STYLE = `
 .mc-toast {
   position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%);
   color: var(--mc-text, #fff); font-family: var(--mc-font, sans-serif);
-  font-size: var(--mc-fs-sm, 14px); z-index: 8;
+  font-size: var(--mc-fs-sm, 16px); z-index: 8;
   max-width: min(560px, 90vw); text-align: center; line-height: 1.5;
   background: var(--mc-surface, rgba(19,23,31,0.72));
   -webkit-backdrop-filter: var(--mc-blur-soft, blur(12px));
@@ -274,7 +290,7 @@ const STYLE = `
   position: absolute; left: 50%; top: calc(10px + env(safe-area-inset-top, 0px)); transform: translateX(-50%);
   z-index: 5; pointer-events: none;
   color: var(--mc-text, #fff); font-family: var(--mc-font-mono, monospace);
-  font-size: var(--mc-fs-xs, 12.5px); font-weight: 600; letter-spacing: 1px;
+  font-size: var(--mc-fs-xs, 14px); font-weight: 600; letter-spacing: 1px;
   background: var(--mc-surface-soft, rgba(16,19,26,0.52));
   -webkit-backdrop-filter: var(--mc-blur-soft, blur(12px));
   backdrop-filter: var(--mc-blur-soft, blur(12px));
@@ -305,14 +321,14 @@ const STYLE = `
 }
 .mc-energy-label {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  color: #fff; font-size: var(--mc-fs-2xs, 11px); font-weight: 700;
+  color: #fff; font-size: var(--mc-fs-2xs, 14px); font-weight: 700;
   text-shadow: 0 1px 3px rgba(0,0,0,0.9);
   font-family: var(--mc-font-mono, monospace); letter-spacing: 0.6px; white-space: nowrap;
 }
 .mc-players {
   position: absolute; top: 244px; right: 12px; z-index: 5;
   color: var(--mc-text-dim, #ccc); font-family: var(--mc-font, sans-serif);
-  font-size: var(--mc-fs-xs, 12.5px); text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+  font-size: var(--mc-fs-xs, 14px); text-shadow: 0 1px 3px rgba(0,0,0,0.9);
   pointer-events: none; text-align: right; line-height: 1.7; display: none;
 }
 
@@ -331,12 +347,12 @@ const STYLE = `
   transition: opacity 0.3s; opacity: 0;
 }
 .mc-chest-overlay h4 {
-  margin: 0 0 8px; font-size: var(--mc-fs-2xs, 11px); font-weight: 600;
+  margin: 0 0 8px; font-size: var(--mc-fs-2xs, 14px); font-weight: 600;
   letter-spacing: 1.1px; text-transform: uppercase; color: var(--mc-gold, #ffd77a);
 }
 .mc-chest-overlay-row {
   display: flex; align-items: center; gap: 10px;
-  font-size: var(--mc-fs-xs, 12.5px); margin: 4px 0;
+  font-size: var(--mc-fs-xs, 14px); margin: 4px 0;
 }
 .mc-chest-overlay-row canvas {
   width: 26px; height: 26px; image-rendering: pixelated; flex: 0 0 26px; padding: 2px;
@@ -345,7 +361,7 @@ const STYLE = `
   border-radius: var(--mc-radius-xs, 6px);
 }
 .mc-chest-overlay-hint {
-  font-size: var(--mc-fs-2xs, 11px); color: var(--mc-text-faint, #888); margin-top: 9px;
+  font-size: var(--mc-fs-2xs, 14px); color: var(--mc-text-faint, #888); margin-top: 9px;
 }
 `
 
@@ -431,6 +447,13 @@ export class HUD {
       canvas.width = 32
       canvas.height = 32
       slot.appendChild(canvas)
+      // Hotbar keys are 1–9; a tenth slot (if HOTBAR_SIZE ever grows) has no key.
+      if (i < 9) {
+        const keynum = document.createElement('span')
+        keynum.className = 'keynum'
+        keynum.textContent = String(i + 1)
+        slot.appendChild(keynum)
+      }
       const count = document.createElement('span')
       count.className = 'count'
       slot.appendChild(count)
@@ -636,7 +659,8 @@ export class HUD {
       <h3>Furniture & Home</h3>
       <p>New worlds start with a furnished cottage (pitched roof!) and a fence-ringed farm</p>
       <p>Release tamed animals into the farm pen — toggle them to "stay" to keep them in</p>
-      <p>Place furniture (doors, windows, desk, chairs, bed, sofa) with USE; MINE to pick it back up</p>
+      <p>Place furniture (doors, windows, desk, chairs, bed, sofa, campfire) with USE; MINE to pick it back up</p>
+      <p>Campfires count as furniture — craft one from 3 Wood + 3 Stone, or MINE a village campfire to carry it home in your bag</p>
       <p>USE a door to swing it open or closed</p>
       <h3>Map & Music</h3>
       <p>Mini-map sits top-right — tap it to open the full navigation map</p>

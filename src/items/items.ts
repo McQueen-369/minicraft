@@ -59,6 +59,7 @@ export const ItemId = {
   Chair: 133,
   Bed: 134,
   Sofa: 135,
+  Campfire: 136,
   Net: 140,
   Gold: 200,
   Diamond: 201,
@@ -131,6 +132,7 @@ ITEMS.set(ItemId.Desk, { name: 'Desk', kind: 'furniture', furniture: 'desk', max
 ITEMS.set(ItemId.Chair, { name: 'Chair', kind: 'furniture', furniture: 'chair', maxStack: 16 })
 ITEMS.set(ItemId.Bed, { name: 'Bed', kind: 'furniture', furniture: 'bed', maxStack: 16 })
 ITEMS.set(ItemId.Sofa, { name: 'Sofa', kind: 'furniture', furniture: 'sofa', maxStack: 16 })
+ITEMS.set(ItemId.Campfire, { name: 'Campfire', kind: 'furniture', furniture: 'campfire', maxStack: 16 })
 ITEMS.set(ItemId.Net, { name: 'Fishing Net', kind: 'net', maxStack: 1 })
 ITEMS.set(ItemId.Gold, { name: 'Gold', kind: 'block', maxStack: MAX_STACK })
 ITEMS.set(ItemId.Diamond, { name: 'Diamond', kind: 'material', maxStack: MAX_STACK })
@@ -144,9 +146,14 @@ const FURNITURE_ITEM: Partial<Record<FurnitureKind, number>> = {
   chair: ItemId.Chair,
   bed: ItemId.Bed,
   sofa: ItemId.Sofa,
+  campfire: ItemId.Campfire,
 }
 
-/** The hotbar item that places a given furniture piece; undefined for non-placeable kinds like campfire. */
+/**
+ * The hotbar item that places a given furniture piece; undefined for fixtures
+ * that are part of the world rather than the player's kit (the market stall and
+ * the island's arcade kiosks).
+ */
 export function furnitureItemFor(kind: FurnitureKind): number | undefined {
   return FURNITURE_ITEM[kind]
 }

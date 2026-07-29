@@ -10,6 +10,12 @@
  * floor for small screens, `vmin` growth for large ones, and a ceiling so
  * desktop text never turns cartoonish.
  *
+ * The scale is anchored on two sizes and never dips below either of them:
+ * **16px is body text** (`sm` and `md` — buttons, rows, paragraphs) and
+ * **14px is a caption** (`2xs` and `xs` — micro-labels, timestamps, hints).
+ * The steps above body only grow. Nothing in the UI is allowed to render
+ * smaller than the caption floor, on any screen.
+ *
  * `vmin` (not `vw`) keeps the scale stable across rotation, so a landscape
  * phone gets the same readable floor as a portrait one. Every call site
  * repeats the old size as the `var()` fallback so a panel still renders
@@ -28,14 +34,19 @@
  */
 const STYLE = `
 :root {
-  --mc-fs-2xs: clamp(11px, 1.45vmin, 13px);
-  --mc-fs-xs: clamp(12.5px, 1.7vmin, 15px);
-  --mc-fs-sm: clamp(14px, 1.95vmin, 17px);
+  /* caption floor — 14px */
+  --mc-fs-2xs: 14px;
+  --mc-fs-xs: clamp(14px, 1.7vmin, 15px);
+  /* body floor — 16px */
+  --mc-fs-sm: clamp(16px, 1.95vmin, 17px);
   --mc-fs-md: clamp(16px, 2.3vmin, 19px);
   --mc-fs-lg: clamp(18px, 2.7vmin, 22px);
   --mc-fs-xl: clamp(22px, 3.2vmin, 28px);
   --mc-fs-2xl: clamp(28px, 4.2vmin, 36px);
   --mc-fs-3xl: clamp(34px, 6vmin, 52px);
+
+  /* Smallest gap allowed between a badge/tag and the text beside it. */
+  --mc-gap-badge: 8px;
 
   /* --- typefaces ------------------------------------------------------- */
   --mc-font: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
@@ -91,15 +102,17 @@ const STYLE = `
 
   --mc-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
 }
-/* Short landscape phones: vertical space is the scarce resource, so trim the
-   scale slightly to keep tall panels (crafting, menus) scrollable-but-sane. */
+/* Short landscape phones: vertical space is the scarce resource, so the steps
+   above body text are trimmed to keep tall panels (crafting, menus)
+   scrollable-but-sane. Body and caption stay at their floors — legibility is
+   not the thing to trade away for room. */
 @media (max-height: 430px) {
   :root {
-    --mc-fs-2xs: 11px;
-    --mc-fs-xs: 12px;
-    --mc-fs-sm: 13.5px;
-    --mc-fs-md: 15px;
-    --mc-fs-lg: 17px;
+    --mc-fs-2xs: 14px;
+    --mc-fs-xs: 14px;
+    --mc-fs-sm: 16px;
+    --mc-fs-md: 16px;
+    --mc-fs-lg: 18px;
     --mc-fs-xl: 20px;
     --mc-fs-2xl: 24px;
     --mc-fs-3xl: 30px;
@@ -109,7 +122,7 @@ const STYLE = `
    nudge body text up a step — these screens have the room for it. */
 @media (min-width: 600px) and (max-width: 900px) {
   :root {
-    --mc-fs-2xs: 13px;
+    --mc-fs-2xs: 14px;
     --mc-fs-xs: 15px;
     --mc-fs-sm: 16.5px;
     --mc-fs-md: 18px;
@@ -144,7 +157,7 @@ const STYLE = `
  */
 .mc-ui-btn {
   font-family: var(--mc-font);
-  font-size: var(--mc-fs-sm, 14px);
+  font-size: var(--mc-fs-sm, 16px);
   font-weight: 600;
   letter-spacing: 0.2px;
   color: var(--mc-text);

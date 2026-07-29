@@ -20,8 +20,15 @@ const STYLE = `
   display: flex; align-items: center; justify-content: center; padding: 20px;
   color: var(--mc-text, #eee); font-family: var(--mc-font, sans-serif);
 }
+/*
+ * The panel is 640px wide on any screen with room for it — world rows carry a
+ * name, a kind badge, a timestamp and three buttons, and at the old 420px they
+ * had to fight over it. \`max-width\` then hands the width back on phones, so
+ * the same panel scales all the way down to a narrow portrait screen instead of
+ * spilling off the side of it.
+ */
 .mc-menu-box {
-  text-align: center; width: 420px; max-width: 100%; max-height: 92vh;
+  text-align: center; width: 640px; max-width: 100%; max-height: 92vh;
   overflow-y: auto; padding: 26px 26px 22px;
   background: var(--mc-surface, rgba(19,23,31,0.72));
   border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
@@ -43,7 +50,7 @@ const STYLE = `
 }
 .mc-menu-box .sub {
   color: var(--mc-text-faint, #888); margin-bottom: 26px;
-  font-size: var(--mc-fs-sm, 14px); letter-spacing: 0.6px;
+  font-size: var(--mc-fs-sm, 16px); letter-spacing: 0.6px;
 }
 .mc-menu-box button {
   display: block; width: 100%; margin: 7px 0; padding: 12px 16px;
@@ -85,9 +92,9 @@ const STYLE = `
   border-color: var(--mc-accent-line, rgba(124,215,255,0.55));
   box-shadow: 0 0 0 3px var(--mc-accent-soft, rgba(124,215,255,0.16));
 }
-.mc-menu-box .error { color: var(--mc-bad, #ff8272); font-size: var(--mc-fs-sm, 14px); min-height: 18px; margin-top: 8px; }
+.mc-menu-box .error { color: var(--mc-bad, #ff8272); font-size: var(--mc-fs-sm, 16px); min-height: 18px; margin-top: 8px; }
 .mc-menu-box .hint {
-  color: var(--mc-text-faint, #888); font-size: var(--mc-fs-xs, 12.5px);
+  color: var(--mc-text-faint, #888); font-size: var(--mc-fs-xs, 14px);
   margin-top: 18px; line-height: 1.7;
 }
 .mc-menu-box .section {
@@ -95,17 +102,17 @@ const STYLE = `
   margin-top: 20px; padding-top: 16px;
 }
 .mc-menu-box .section-title {
-  color: var(--mc-text-faint, #888); font-size: var(--mc-fs-2xs, 11px);
+  color: var(--mc-text-faint, #888); font-size: var(--mc-fs-2xs, 14px);
   font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase;
   margin-bottom: 8px; text-align: left;
 }
 .mc-menu-box .profile-bar {
   display: flex; align-items: center; gap: 10px;
-  color: var(--mc-text-dim, #ccc); font-size: var(--mc-fs-sm, 14px);
+  color: var(--mc-text-dim, #ccc); font-size: var(--mc-fs-sm, 16px);
 }
 .mc-menu-box .profile-bar .who { flex: 1; text-align: left; }
 .mc-menu-box .profile-bar .who b { color: var(--mc-good, #63dd97); }
-.mc-menu-box .profile-bar button { width: auto; margin: 0; padding: 7px 12px; font-size: var(--mc-fs-sm, 14px); }
+.mc-menu-box .profile-bar button { width: auto; margin: 0; padding: 7px 12px; font-size: var(--mc-fs-sm, 16px); }
 .mc-menu-box .world-row {
   display: flex; align-items: center; gap: 8px; margin: 7px 0; padding: 8px;
   background: var(--mc-raised, rgba(255,255,255,0.06));
@@ -117,38 +124,46 @@ const STYLE = `
   font-size: var(--mc-fs-md, 16px); color: #fff; font-weight: 500;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.mc-menu-box .world-row .meta .when { font-size: var(--mc-fs-xs, 12.5px); color: var(--mc-text-faint, #888); }
+/* Kind badge + "saved …" timestamp on one line, never touching: the flex gap
+   is what guarantees the badge keeps clear of the text beside it. */
+.mc-menu-box .world-row .meta .when {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: var(--mc-gap-badge, 8px); margin-top: 6px;
+  font-size: var(--mc-fs-xs, 14px); color: var(--mc-text-faint, #888);
+}
 .mc-menu-box .world-kind {
-  display: inline-block; font-size: var(--mc-fs-2xs, 11px); font-weight: 600;
+  display: inline-block; font-size: var(--mc-fs-2xs, 14px); font-weight: 600;
   color: #cfe8ff; background: var(--mc-accent-soft, rgba(124,215,255,0.16));
   border: 1px solid var(--mc-accent-line, rgba(124,215,255,0.55));
   border-radius: var(--mc-radius-pill, 999px);
-  padding: 1px 8px; margin-right: 7px;
+  padding: 2px 10px;
 }
 .mc-menu-box .world-kind.robot {
   color: #ffd9c2; background: rgba(230,140,80,0.16); border-color: rgba(230,140,80,0.55);
 }
-.mc-menu-box .kind-choice { display: flex; gap: 8px; margin: 10px 0; }
-.mc-menu-box .kind-choice button { margin: 0; flex: 1; padding: 10px 6px; font-size: var(--mc-fs-sm, 14px); }
+.mc-menu-box .kind-choice { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.mc-menu-box .kind-choice button {
+  margin: 0; flex: 1 1 150px; padding: 10px 8px; font-size: var(--mc-fs-sm, 16px);
+}
 .mc-menu-box .kind-choice button.selected {
   background: var(--mc-good-soft, rgba(99,221,151,0.18));
   border-color: rgba(99,221,151,0.55); color: #d8ffe8;
 }
 .mc-menu-box .kind-blurb {
-  color: var(--mc-text-faint, #888); font-size: var(--mc-fs-xs, 12.5px);
+  color: var(--mc-text-faint, #888); font-size: var(--mc-fs-xs, 14px);
   text-align: left; min-height: 16px; line-height: 1.55;
 }
-.mc-menu-box .world-row button { width: auto; margin: 0; padding: 9px 12px; font-size: var(--mc-fs-sm, 14px); flex-shrink: 0; }
+.mc-menu-box .world-row button { width: auto; margin: 0; padding: 9px 12px; font-size: var(--mc-fs-sm, 16px); flex-shrink: 0; }
 .mc-menu-box .world-row button.danger:hover {
   background: var(--mc-bad-soft, rgba(255,130,114,0.18));
   border-color: rgba(255,130,114,0.55); color: #ffd9d3;
 }
-.mc-menu-box .empty { color: var(--mc-text-faint, #888); font-size: var(--mc-fs-sm, 14px); margin: 12px 0; }
+.mc-menu-box .empty { color: var(--mc-text-faint, #888); font-size: var(--mc-fs-sm, 16px); margin: 12px 0; }
 .mc-menu-box .save-notice {
   background: var(--mc-good-soft, rgba(99,221,151,0.18));
   border: 1px solid rgba(99,221,151,0.32);
   border-radius: var(--mc-radius-sm, 10px);
-  padding: 11px 13px; color: #d8ffe8; font-size: var(--mc-fs-sm, 14px);
+  padding: 11px 13px; color: #d8ffe8; font-size: var(--mc-fs-sm, 16px);
   margin-bottom: 6px; line-height: 1.55;
 }
 .mc-room-code {
@@ -160,6 +175,24 @@ const STYLE = `
   border: 1px solid var(--mc-accent-line, rgba(124,215,255,0.55));
   border-radius: var(--mc-radius, 16px);
   text-shadow: 0 0 24px rgba(124,215,255,0.5);
+}
+
+/*
+ * Phones. The panel has already shrunk to the viewport by here; what is left is
+ * to give the content back the room the desktop padding was eating, let the
+ * world rows stack instead of squeezing their buttons to nothing, and pull in
+ * the two wide-tracked headings (title, room code) that would otherwise run off
+ * the edge.
+ */
+@media (max-width: 560px) {
+  .mc-menu { padding: 12px; }
+  .mc-menu-box { padding: 20px 16px 18px; border-radius: var(--mc-radius, 16px); }
+  .mc-menu-box h1 { letter-spacing: 3px; }
+  .mc-menu-box .world-row { flex-wrap: wrap; }
+  /* Name + timestamp take their own line, then the actions share the next one. */
+  .mc-menu-box .world-row .meta { flex: 1 0 100%; padding-left: 0; }
+  .mc-menu-box .world-row button { flex: 1 1 auto; }
+  .mc-room-code { font-size: var(--mc-fs-2xl, 28px); letter-spacing: 5px; padding: 16px 10px; }
 }
 `
 
