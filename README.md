@@ -102,12 +102,13 @@ Both types share one seed-driven generator, so a robot world is the same landsca
   - 🧩 **Sliding Puzzle** — reorder a shuffled grid; fewer moves win a bigger prize
   - 🏃 **Island Runner** — endless jump-the-obstacle runner; clear the tier's target score to win gold
   - 🎯 **Math Blaster** — shoot the target with the correct answer across a round of ramping arithmetic
-  - 🔤 **Word Wizard** — hangman-style word guessing with vocabulary hints drawn from science and geography
+  - 🔤 **Word Wizard** — hangman-style word guessing with vocabulary hints drawn from science and geography. **Every round ends with the word's dictionary entry** — the word, its part of speech and a plain-language definition — shown on a win and a loss alike, so the word is the takeaway whether or not you guessed it. The riddle you play against and the definition you leave with are kept deliberately separate: a definition up front would hand over the round, and a riddle as the takeaway would teach nothing
 - A couple of bonus Rare Mystery Boxes sit on plinths by the plaza gates for explorers
 
 ### Fun Facts & Learning
 - Look at any animal, plant, block or item and press **I** (or tap the ⓘ on its nameplate) to open its info card. Under the how-to-play instructions sits a **🔎 Did you know?** panel with a real-world fact about the subject — why leaves are green, why gold never tarnishes, how a horse sleeps standing up, what lava is called before it reaches the surface
 - Cards **rotate through their facts**: look at the same sheep again and you get the next one, so repeat visits keep teaching
+- The **Word Wizard** kiosk teaches vocabulary the same way: each round closes on a dictionary card defining the word it hid
 - Coverage spans the animals (pig, chicken, sheep, rabbit, cat, dog, horse), the plants and foods (leaves, apple trees, wood, grass, apples, wheat, carrots, seeds, eggs, fish, bones) and the materials (stone, dirt, sand, glass, brick, gold, diamond, lava, TNT)
 
 ### Look & Readability

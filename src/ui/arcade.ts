@@ -87,6 +87,7 @@ const GAMES: Record<string, GameMeta> = {
         '🎯 Guess the hidden word letter by letter',
         '⌨ Tap a key or type on your keyboard',
         `⚡ ${r.lives} wrong guesses and the round ends`,
+        '📖 Win or lose, you end up with what the word means',
       ]
     },
     twist: {
@@ -280,48 +281,217 @@ const STYLE = `
   margin-top: 10px; font-size: var(--mc-fs-md, 16px); font-weight: 600;
   color: var(--mc-gold, #ffd77a); line-height: 1.7;
 }
+/* --- the word's dictionary entry, shown once the round is over --- */
+.mc-arc-define {
+  width: 100%; max-width: 460px; text-align: left;
+  background: var(--mc-raised, rgba(255,255,255,0.06));
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-left: 2px solid var(--acc);
+  border-radius: var(--mc-radius, 16px);
+  padding: 14px 18px;
+}
+.mc-arc-define-label {
+  font-size: var(--mc-fs-2xs, 11px); font-weight: 600; letter-spacing: 1.2px;
+  text-transform: uppercase; color: var(--mc-text-faint, #888); margin-bottom: 8px;
+}
+.mc-arc-define-head {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; margin-bottom: 6px;
+}
+.mc-arc-define-word {
+  font-size: var(--mc-fs-lg, 18px); font-weight: 700; letter-spacing: 1.5px; color: #fff;
+}
+.mc-arc-define-pos {
+  font-size: var(--mc-fs-xs, 12.5px); font-style: italic; color: var(--acc);
+}
+.mc-arc-define-meaning {
+  font-size: var(--mc-fs-sm, 14px); color: var(--mc-text-dim, #ccc); line-height: 1.65;
+}
 `
 
-const WORDS: { word: string; hint: string }[] = [
+/**
+ * One round's word.
+ *
+ * `hint` is the riddle you play against — deliberately oblique, so guessing
+ * still takes work. `pos` and `meaning` are the dictionary entry shown once the
+ * round is over: a plain definition of the word itself, the part players are
+ * meant to walk away with. Keeping the two apart matters — a definition given
+ * up front would hand over most rounds, and a riddle kept as the takeaway
+ * would teach nothing.
+ */
+export interface WordEntry {
+  word: string
+  hint: string
+  /** Part of speech, as a dictionary would label it. */
+  pos: string
+  /** What the word actually means, in a sentence a child can read. */
+  meaning: string
+}
+
+export const WORDS: WordEntry[] = [
   // short (easy)
-  { word: 'LAVA', hint: 'Molten rock once it reaches the surface' },
-  { word: 'SEED', hint: 'A tiny plant packed with its own lunch' },
-  { word: 'WOOL', hint: 'What a sheep grows and a shearer collects' },
-  { word: 'ROOT', hint: 'The part of a plant that drinks from the soil' },
-  { word: 'GILLS', hint: 'How a fish pulls oxygen out of water' },
-  { word: 'STONE', hint: 'The grey block a pickaxe is made for' },
-  { word: 'OCEAN', hint: 'Covers about seven tenths of the planet' },
-  { word: 'CRUST', hint: 'The thin outer shell of the Earth' },
+  {
+    word: 'LAVA', hint: 'Molten rock once it reaches the surface', pos: 'noun',
+    meaning: 'Molten rock that has erupted onto the surface of the Earth, where it flows, cools and hardens.',
+  },
+  {
+    word: 'SEED', hint: 'A tiny plant packed with its own lunch', pos: 'noun',
+    meaning: 'The small part a plant makes to grow a new plant, holding a tiny embryo and a store of food for it.',
+  },
+  {
+    word: 'WOOL', hint: 'What a sheep grows and a shearer collects', pos: 'noun',
+    meaning: 'The soft, curly hair that grows on a sheep, spun into yarn and woven or knitted into warm cloth.',
+  },
+  {
+    word: 'ROOT', hint: 'The part of a plant that drinks from the soil', pos: 'noun',
+    meaning: 'The underground part of a plant, which holds it in place and draws up water and nutrients from the soil.',
+  },
+  {
+    word: 'GILLS', hint: 'How a fish pulls oxygen out of water', pos: 'plural noun',
+    meaning: 'The feathery organs a fish breathes with, taking oxygen out of the water that flows over them.',
+  },
+  {
+    word: 'STONE', hint: 'The grey block a pickaxe is made for', pos: 'noun',
+    meaning: 'Hard, solid mineral matter that rock is made of — or a single piece broken from it.',
+  },
+  {
+    word: 'OCEAN', hint: 'Covers about seven tenths of the planet', pos: 'noun',
+    meaning: 'The vast body of salt water that covers most of the Earth, divided into five named parts.',
+  },
+  {
+    word: 'CRUST', hint: 'The thin outer shell of the Earth', pos: 'noun',
+    meaning: "The thin, solid outermost layer of the Earth, resting on the far hotter mantle beneath it.",
+  },
   // medium (normal)
-  { word: 'CHICKEN', hint: 'Tamed with seeds — lays eggs every two days' },
-  { word: 'ISLAND', hint: 'Land completely surrounded by water' },
-  { word: 'VOLCANO', hint: 'A mountain that can erupt with lava' },
-  { word: 'ENERGY', hint: 'You spend it mining; food and sleep restore it' },
-  { word: 'PUZZLE', hint: 'A problem you solve for fun' },
-  { word: 'TREASURE', hint: 'Hidden riches explorers hunt for' },
-  { word: 'COMPASS', hint: 'It always points north' },
-  { word: 'HARVEST', hint: 'Gathering crops when they are ready' },
-  { word: 'LANTERN', hint: 'A little light you can carry at night' },
-  { word: 'GLACIER', hint: 'A slow-moving river of ice' },
-  { word: 'ORCHARD', hint: 'A field of fruit trees' },
-  { word: 'MINERAL', hint: 'Gold ore is one of these' },
-  { word: 'MAGMA', hint: 'What lava is called while it is still underground' },
-  { word: 'BASALT', hint: 'The dark rock that cooled lava turns into' },
+  {
+    word: 'CHICKEN', hint: 'Tamed with seeds — lays eggs every two days', pos: 'noun',
+    meaning: 'A domesticated bird, descended from the wild junglefowl, kept for its eggs and its meat.',
+  },
+  {
+    word: 'ISLAND', hint: 'Land completely surrounded by water', pos: 'noun',
+    meaning: 'A piece of land smaller than a continent and completely surrounded by water.',
+  },
+  {
+    word: 'VOLCANO', hint: 'A mountain that can erupt with lava', pos: 'noun',
+    meaning: "An opening in the Earth's crust through which lava, ash and gas erupt, often building a mountain over time.",
+  },
+  {
+    word: 'ENERGY', hint: 'You spend it mining; food and sleep restore it', pos: 'noun',
+    meaning: 'The capacity to do work — what is spent whenever something moves, heats up or gives off light.',
+  },
+  {
+    word: 'PUZZLE', hint: 'A problem you solve for fun', pos: 'noun / verb',
+    meaning: 'A problem or game set as a test of cleverness. As a verb, it means to leave someone baffled.',
+  },
+  {
+    word: 'TREASURE', hint: 'Hidden riches explorers hunt for', pos: 'noun',
+    meaning: 'A store of valuable things — gold, jewels, money — especially one that has been hidden or lost.',
+  },
+  {
+    word: 'COMPASS', hint: 'It always points north', pos: 'noun',
+    meaning: "An instrument for finding direction, using a magnetised needle that swings to line up with the Earth's magnetic field.",
+  },
+  {
+    word: 'HARVEST', hint: 'Gathering crops when they are ready', pos: 'noun / verb',
+    meaning: 'The gathering in of ripe crops — also the season it happens in, and the amount brought in.',
+  },
+  {
+    word: 'LANTERN', hint: 'A little light you can carry at night', pos: 'noun',
+    meaning: 'A portable lamp with a transparent case that shields the flame or bulb inside from wind and rain.',
+  },
+  {
+    word: 'GLACIER', hint: 'A slow-moving river of ice', pos: 'noun',
+    meaning: 'A huge mass of ice, built up from packed snow, that creeps slowly downhill under its own weight.',
+  },
+  {
+    word: 'ORCHARD', hint: 'A field of fruit trees', pos: 'noun',
+    meaning: 'A piece of land planted with fruit trees, grown together so the crop can be tended and picked.',
+  },
+  {
+    word: 'MINERAL', hint: 'Gold ore is one of these', pos: 'noun',
+    meaning: 'A naturally occurring solid with a definite chemical make-up and an orderly crystal structure — what rocks are built from.',
+  },
+  {
+    word: 'MAGMA', hint: 'What lava is called while it is still underground', pos: 'noun',
+    meaning: "Molten rock still beneath the Earth's surface. The same material is called lava once it erupts.",
+  },
+  {
+    word: 'BASALT', hint: 'The dark rock that cooled lava turns into', pos: 'noun',
+    meaning: 'A dark, fine-grained volcanic rock formed when lava cools quickly — the commonest rock of the ocean floor.',
+  },
   // long (hard)
-  { word: 'CHLOROPHYLL', hint: 'The green pigment a leaf uses to catch sunlight' },
-  { word: 'PHOTOSYNTHESIS', hint: 'Turning light, air and water into sugar' },
-  { word: 'SEDIMENTARY', hint: 'Rock built up from settled layers' },
-  { word: 'CRYSTALLINE', hint: 'Made of atoms locked in a repeating pattern' },
-  { word: 'EVAPORATION', hint: 'Water leaving a puddle as invisible vapour' },
-  { word: 'HIBERNATION', hint: 'Sleeping through the winter to save energy' },
-  { word: 'ARCHAEOLOGY', hint: 'Digging up the past to study it' },
-  { word: 'CONSTELLATION', hint: 'A pattern people traced between the stars' },
-  { word: 'GERMINATION', hint: 'The moment a seed starts to sprout' },
-  { word: 'THERMOMETER', hint: 'It tells you how hot the lava is — from a safe distance' },
+  {
+    word: 'CHLOROPHYLL', hint: 'The green pigment a leaf uses to catch sunlight', pos: 'noun',
+    meaning: 'The green pigment in plants that absorbs sunlight and powers photosynthesis. It is what makes leaves green.',
+  },
+  {
+    word: 'PHOTOSYNTHESIS', hint: 'Turning light, air and water into sugar', pos: 'noun',
+    meaning: 'The process by which green plants use light energy to turn carbon dioxide and water into sugar, giving off oxygen.',
+  },
+  {
+    word: 'SEDIMENTARY', hint: 'Rock built up from settled layers', pos: 'adjective',
+    meaning: 'Of rock: formed from layers of sand, mud or shell that settled, piled up and were pressed together over ages.',
+  },
+  {
+    word: 'CRYSTALLINE', hint: 'Made of atoms locked in a repeating pattern', pos: 'adjective',
+    meaning: 'Made of atoms arranged in a regular, repeating three-dimensional pattern — or simply as clear as crystal.',
+  },
+  {
+    word: 'EVAPORATION', hint: 'Water leaving a puddle as invisible vapour', pos: 'noun',
+    meaning: 'The change of a liquid into vapour at its surface, happening below boiling point — how a puddle dries up.',
+  },
+  {
+    word: 'HIBERNATION', hint: 'Sleeping through the winter to save energy', pos: 'noun',
+    meaning: "A deep winter sleep in which an animal's heartbeat, breathing and temperature drop so it can live off stored fat.",
+  },
+  {
+    word: 'ARCHAEOLOGY', hint: 'Digging up the past to study it', pos: 'noun',
+    meaning: 'The study of human history through digging up sites and examining the buildings and objects people left behind.',
+  },
+  {
+    word: 'CONSTELLATION', hint: 'A pattern people traced between the stars', pos: 'noun',
+    meaning: 'A group of stars seen from Earth as forming a pattern, given a name — such as Orion or the Great Bear.',
+  },
+  {
+    word: 'GERMINATION', hint: 'The moment a seed starts to sprout', pos: 'noun',
+    meaning: 'The sprouting of a seed: it takes in water, splits its coat and pushes out a root and shoot to become a seedling.',
+  },
+  {
+    word: 'THERMOMETER', hint: 'It tells you how hot the lava is — from a safe distance', pos: 'noun',
+    meaning: 'An instrument for measuring temperature, reading out how hot or cold something is on a fixed scale.',
+  },
 ]
 
+/**
+ * The word's dictionary entry, built for the end-of-round card.
+ *
+ * The point of the word game is the word, not the guessing, so this is shown
+ * on a win and a loss alike: guessing it right and not knowing what it means
+ * teaches nothing.
+ */
+export function defineCard(entry: WordEntry): HTMLDivElement {
+  const box = document.createElement('div')
+  box.className = 'mc-arc-define'
+  const label = document.createElement('div')
+  label.className = 'mc-arc-define-label'
+  label.textContent = '📖 What it means'
+  const head = document.createElement('div')
+  head.className = 'mc-arc-define-head'
+  const word = document.createElement('span')
+  word.className = 'mc-arc-define-word'
+  word.textContent = entry.word
+  const pos = document.createElement('span')
+  pos.className = 'mc-arc-define-pos'
+  pos.textContent = entry.pos
+  head.append(word, pos)
+  const meaning = document.createElement('div')
+  meaning.className = 'mc-arc-define-meaning'
+  meaning.textContent = entry.meaning
+  box.append(label, head, meaning)
+  return box
+}
+
 /** Words whose length fits the tier, falling back to the whole list. */
-function wordsFor(rules: { minLength: number; maxLength: number }): typeof WORDS {
+export function wordsFor(rules: { minLength: number; maxLength: number }): WordEntry[] {
   const fit = WORDS.filter((w) => w.word.length >= rules.minLength && w.word.length <= rules.maxLength)
   return fit.length ? fit : WORDS
 }
@@ -506,6 +676,10 @@ export class ArcadePanel {
   /**
    * The end-of-round card: what happened, what it earned, and what to do next.
    * Always the same shape, win or lose, so the outcome is never ambiguous.
+   *
+   * `lesson` is the takeaway for games that teach something specific — the word
+   * game passes its word's dictionary entry, so a round always ends with the
+   * player knowing what the word means whether or not they guessed it.
    */
   private showResult(
     won: boolean,
@@ -513,6 +687,7 @@ export class ArcadePanel {
     detail: string,
     prizeSummary: string | null,
     actions: { label: string; onClick: () => void; alt?: boolean }[],
+    lesson?: WordEntry,
   ): void {
     const card = this.el('div', `mc-arc-result${won ? '' : ' lose'}`)
     card.appendChild(this.el('div', 'mc-arc-result-head', headline))
@@ -526,8 +701,14 @@ export class ArcadePanel {
       b.addEventListener('touchstart', press, { passive: false })
       row.appendChild(b)
     }
-    this.body.append(card, row)
-    card.scrollIntoView({ block: 'nearest' })
+    // The lesson sits between the outcome and the replay buttons, so it is read
+    // on the way to hitting "play again" rather than tucked under them. It is
+    // also what gets scrolled to: the spent game board above is tall enough to
+    // push the takeaway off the bottom of the panel otherwise.
+    const define = lesson ? defineCard(lesson) : null
+    if (define) this.body.append(card, define, row)
+    else this.body.append(card, row)
+    ;(define ?? card).scrollIntoView({ block: 'nearest' })
   }
 
   // ------------------------------------------------------------ 1. puzzle
@@ -840,6 +1021,7 @@ export class ArcadePanel {
             : `${misses} wrong guess${misses === 1 ? '' : 'es'}; a clean round pays more.`,
           prize,
           this.replayActions(() => this.startWord()),
+          pick,
         )
       } else if (lives <= 0) {
         done = true
@@ -851,6 +1033,7 @@ export class ArcadePanel {
           'Out of guesses — the hint narrows it down fast, so read it before picking letters.',
           null,
           this.replayActions(() => this.startWord()),
+          pick,
         )
       }
     }

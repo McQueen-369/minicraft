@@ -1,5 +1,7 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
-import { mathQuestion, neighbors } from './arcade'
+import { defineCard, mathQuestion, neighbors, WORDS, wordsFor } from './arcade'
+import { difficultyRules, DIFFICULTIES } from './challenge'
 
 describe('sliding-puzzle neighbours', () => {
   it('finds the moves around a 3×3 board', () => {
@@ -60,6 +62,58 @@ describe('math questions', () => {
     const small = biggestOperand(400, 1)
     const large = biggestOperand(400, 3)
     expect(large).toBeGreaterThan(small)
+  })
+})
+
+describe('word list', () => {
+  it('gives every word a part of speech and a real definition', () => {
+    for (const entry of WORDS) {
+      expect(entry.pos.trim(), entry.word).not.toBe('')
+      // Long enough to be a definition rather than a restated clue.
+      expect(entry.meaning.trim().length, entry.word).toBeGreaterThan(30)
+      expect(entry.meaning.trim().endsWith('.'), entry.word).toBe(true)
+    }
+  })
+
+  it('never gives the answer away in the definition', () => {
+    // The card is shown after the round, but a definition that spells the word
+    // out would also make the hint pointless if the two are ever shown together.
+    for (const entry of WORDS) {
+      expect(entry.meaning.toUpperCase(), entry.word).not.toContain(entry.word)
+    }
+  })
+
+  it('keeps hints and meanings distinct — the riddle is not the lesson', () => {
+    for (const entry of WORDS) {
+      expect(entry.meaning.toLowerCase(), entry.word).not.toBe(entry.hint.toLowerCase())
+    }
+  })
+
+  it('has words at every difficulty tier', () => {
+    for (const d of DIFFICULTIES) {
+      const pool = wordsFor(difficultyRules(d).word)
+      expect(pool.length, d).toBeGreaterThan(0)
+      for (const entry of pool) expect(entry.meaning, entry.word).toBeTruthy()
+    }
+  })
+})
+
+describe('end-of-round definition card', () => {
+  it('shows the word, its part of speech and its meaning', () => {
+    const entry = WORDS.find((w) => w.word === 'GLACIER')!
+    const card = defineCard(entry)
+    expect(card.querySelector('.mc-arc-define-word')?.textContent).toBe('GLACIER')
+    expect(card.querySelector('.mc-arc-define-pos')?.textContent).toBe(entry.pos)
+    expect(card.querySelector('.mc-arc-define-meaning')?.textContent).toBe(entry.meaning)
+  })
+
+  it('renders a card for every word without leaving a field blank', () => {
+    for (const entry of WORDS) {
+      const card = defineCard(entry)
+      for (const sel of ['.mc-arc-define-word', '.mc-arc-define-pos', '.mc-arc-define-meaning']) {
+        expect(card.querySelector(sel)?.textContent?.trim(), `${entry.word} ${sel}`).toBeTruthy()
+      }
+    }
   })
 })
 
