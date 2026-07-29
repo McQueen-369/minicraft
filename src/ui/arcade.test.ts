@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
-import { defineCard, mathQuestion, neighbors, WORDS, wordsFor } from './arcade'
+import { Inventory } from '../items/inventory'
+import { ArcadePanel, defineCard, mathQuestion, neighbors, WORDS, wordsFor } from './arcade'
 import { difficultyRules, DIFFICULTIES } from './challenge'
 
 describe('sliding-puzzle neighbours', () => {
@@ -143,3 +144,42 @@ function biggestOperand(samples: number, range: number): number {
   }
   return max
 }
+
+describe('word kiosk difficulty', () => {
+  const openWord = (level: string) => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const panel = new ArcadePanel(root, new Inventory())
+    panel.open('arcadeWord')
+    const pick = [...root.querySelectorAll('.mc-arc-level')].find((b) => b.textContent?.includes(level))!
+    pick.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    return root
+  }
+
+  it('gives a hard round five wrong guesses', () => {
+    expect(difficultyRules('hard').word.lives).toBe(5)
+  })
+
+  it('starts a hard round with a heart per life', () => {
+    const root = openWord('Hard')
+    expect(root.querySelector('.mc-arc-status')?.textContent).toBe('❤'.repeat(5))
+  })
+
+  it('briefs the player with the life count the round actually plays by', () => {
+    for (const d of DIFFICULTIES) {
+      const root = openWord(d[0].toUpperCase() + d.slice(1))
+      const brief = [...root.querySelectorAll('.mc-arc-brief-line')].map((e) => e.textContent).join(' ')
+      expect(brief, d).toContain(`${difficultyRules(d).word.lives} wrong guesses`)
+    }
+  })
+
+  it('says the same thing on the difficulty card as in the briefing', () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    new ArcadePanel(root, new Inventory()).open('arcadeWord')
+    const cards = [...root.querySelectorAll('.mc-arc-level')]
+    for (const [i, d] of DIFFICULTIES.entries()) {
+      expect(cards[i].textContent, d).toContain(`${difficultyRules(d).word.lives} lives`)
+    }
+  })
+})

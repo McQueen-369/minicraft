@@ -209,6 +209,17 @@ const STYLE = `
   background: var(--mc-bad-soft); border-color: rgba(255,130,114,0.45); color: #ffd9d3;
 }
 
+/*
+ * The key that triggers a control, printed on the control itself — "BAG (E)",
+ * "MAP (M)" — so the bar explains itself without the help card. A touch device
+ * has no keyboard to press, so the hint is dropped there rather than spending
+ * width on something the player cannot use.
+ */
+.mc-key-hint { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .mc-key-hint { display: inline; color: var(--mc-text-faint); font-weight: 700; }
+}
+
 /* Item slot / tile: an inset well that the pixel-art icon sits in. */
 .mc-tile {
   background: rgba(255, 255, 255, 0.05);

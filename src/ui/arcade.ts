@@ -93,7 +93,7 @@ const GAMES: Record<string, GameMeta> = {
     twist: {
       easy: 'short words, 8 lives, hint shown',
       normal: 'medium words, 6 lives, hint shown',
-      hard: 'long words, 4 lives, hint hidden until your first mistake',
+      hard: 'long words, 5 lives, hint hidden until your first mistake',
     },
   },
 }

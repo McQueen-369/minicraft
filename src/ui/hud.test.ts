@@ -160,3 +160,20 @@ describe('hotbar', () => {
     expect(slot.querySelector('.count')?.textContent).not.toBe('1')
   })
 })
+
+describe('keyboard hints', () => {
+  it('names the key that opens the bag, chat and crafting', () => {
+    const { root } = makeHud()
+    expect(root.querySelector('.mc-bag-slot')?.textContent).toBe('BAG (E)')
+    expect(root.querySelector('.mc-chat-btn')?.textContent).toBe('CHAT (C)')
+    expect(root.querySelector('.mc-craft-btn-hud')?.textContent).toBe('CRAFT (Z)')
+  })
+
+  it('keeps each key in its own element, so touch layouts can drop it', () => {
+    const { root } = makeHud()
+    for (const sel of ['.mc-bag-slot', '.mc-chat-btn', '.mc-craft-btn-hud']) {
+      const hint = root.querySelector(`${sel} .mc-key-hint`)
+      expect(hint?.textContent?.trim(), sel).toMatch(/^\([A-Z]\)$/)
+    }
+  })
+})
