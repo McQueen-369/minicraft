@@ -14,56 +14,152 @@ import { CharacterEditor } from './character'
 const STYLE = `
 .mc-menu {
   position: absolute; inset: 0; z-index: 20;
-  background: linear-gradient(rgba(10,14,20,0.85), rgba(10,14,20,0.92));
-  display: flex; align-items: center; justify-content: center; color: #eee;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(30,42,60,0.72), rgba(8,10,15,0.92));
+  -webkit-backdrop-filter: var(--mc-blur, blur(20px));
+  backdrop-filter: var(--mc-blur, blur(20px));
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  color: var(--mc-text, #eee); font-family: var(--mc-font, sans-serif);
 }
-.mc-menu-box { text-align: center; width: 380px; max-width: 92vw; max-height: 92vh; overflow-y: auto; padding: 0 4px; }
-.mc-menu-box h1 { font-size: var(--mc-fs-3xl, 42px); letter-spacing: 4px; margin-bottom: 6px; color: #fff; text-shadow: 3px 3px 0 #2a4; }
-.mc-menu-box .sub { color: #aaa; margin-bottom: 24px; font-size: var(--mc-fs-sm, 14px); }
+.mc-menu-box {
+  text-align: center; width: 420px; max-width: 100%; max-height: 92vh;
+  overflow-y: auto; padding: 26px 26px 22px;
+  background: var(--mc-surface, rgba(19,23,31,0.72));
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-radius: var(--mc-radius-lg, 22px);
+  box-shadow: var(--mc-shadow, 0 24px 64px rgba(0,0,0,0.5)), var(--mc-sheen, none);
+}
+.mc-menu-box::-webkit-scrollbar { width: 8px; }
+.mc-menu-box::-webkit-scrollbar-track { background: transparent; }
+.mc-menu-box::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.16); border-radius: var(--mc-radius-pill, 999px);
+}
+.mc-menu-box h1 {
+  font-size: var(--mc-fs-3xl, 42px); font-weight: 700; letter-spacing: 6px;
+  margin-bottom: 8px; color: #fff;
+  background: linear-gradient(180deg, #ffffff, #9fd8ff);
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 4px 18px rgba(124,215,255,0.35));
+}
+.mc-menu-box .sub {
+  color: var(--mc-text-faint, #888); margin-bottom: 26px;
+  font-size: var(--mc-fs-sm, 14px); letter-spacing: 0.6px;
+}
 .mc-menu-box button {
-  display: block; width: 100%; margin: 8px 0; padding: 12px; font-size: var(--mc-fs-md, 16px);
-  font-family: inherit; background: #6b6b6b; color: #fff; border: 2px solid;
-  border-color: #a8a8a8 #2e2e2e #2e2e2e #a8a8a8; cursor: pointer;
+  display: block; width: 100%; margin: 7px 0; padding: 12px 16px;
+  font-size: var(--mc-fs-md, 16px); font-family: var(--mc-font, sans-serif); font-weight: 500;
+  color: var(--mc-text, #fff);
+  background: var(--mc-raised, rgba(255,255,255,0.06));
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-radius: var(--mc-radius-sm, 10px);
+  cursor: pointer;
+  transition: background 0.16s var(--mc-ease, ease), border-color 0.16s var(--mc-ease, ease),
+    transform 0.1s var(--mc-ease, ease);
+  -webkit-tap-highlight-color: transparent;
 }
-.mc-menu-box button:hover { background: #7d7d9d; }
-.mc-menu-box button:disabled { opacity: 0.4; cursor: default; }
+.mc-menu-box button:hover:not(:disabled) {
+  background: var(--mc-raised-hover, rgba(255,255,255,0.12));
+  border-color: var(--mc-stroke-strong, rgba(255,255,255,0.26));
+}
+.mc-menu-box button:active:not(:disabled) { transform: translateY(1px); }
+.mc-menu-box button:disabled { opacity: 0.35; cursor: default; }
+/* The one action a screen most wants you to take. */
+.mc-menu-box button.primary {
+  background: var(--mc-good-soft, rgba(99,221,151,0.18));
+  border-color: rgba(99,221,151,0.5); color: #d8ffe8; font-weight: 600;
+}
+.mc-menu-box button.primary:hover:not(:disabled) {
+  background: rgba(99,221,151,0.3); border-color: var(--mc-good, #63dd97);
+}
 .mc-menu-box input {
-  display: block; width: 100%; margin: 8px 0; padding: 10px; font-size: var(--mc-fs-md, 16px);
-  font-family: inherit; background: #222; color: #fff; border: 2px solid #555; box-sizing: border-box;
+  display: block; width: 100%; margin: 7px 0; padding: 11px 14px;
+  font-size: var(--mc-fs-md, 16px); font-family: var(--mc-font, sans-serif);
+  color: var(--mc-text, #fff); background: rgba(255,255,255,0.05);
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-radius: var(--mc-radius-sm, 10px);
+  box-sizing: border-box; outline: none;
+  transition: border-color 0.16s var(--mc-ease, ease), box-shadow 0.16s var(--mc-ease, ease);
 }
-.mc-menu-box .error { color: #ff7b6b; font-size: var(--mc-fs-sm, 14px); min-height: 18px; margin-top: 6px; }
-.mc-menu-box .hint { color: #999; font-size: var(--mc-fs-xs, 12.5px); margin-top: 14px; line-height: 1.6; }
-.mc-menu-box .section { border-top: 1px solid #3a3f4a; margin-top: 16px; padding-top: 12px; }
-.mc-menu-box .section-title { color: #8c8; font-size: var(--mc-fs-sm, 14px); margin-bottom: 4px; text-align: left; }
-.mc-menu-box .profile-bar { display: flex; align-items: center; gap: 8px; color: #ccc; font-size: var(--mc-fs-sm, 14px); }
+.mc-menu-box input::placeholder { color: var(--mc-text-faint, #888); }
+.mc-menu-box input:focus {
+  border-color: var(--mc-accent-line, rgba(124,215,255,0.55));
+  box-shadow: 0 0 0 3px var(--mc-accent-soft, rgba(124,215,255,0.16));
+}
+.mc-menu-box .error { color: var(--mc-bad, #ff8272); font-size: var(--mc-fs-sm, 14px); min-height: 18px; margin-top: 8px; }
+.mc-menu-box .hint {
+  color: var(--mc-text-faint, #888); font-size: var(--mc-fs-xs, 12.5px);
+  margin-top: 18px; line-height: 1.7;
+}
+.mc-menu-box .section {
+  border-top: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  margin-top: 20px; padding-top: 16px;
+}
+.mc-menu-box .section-title {
+  color: var(--mc-text-faint, #888); font-size: var(--mc-fs-2xs, 11px);
+  font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase;
+  margin-bottom: 8px; text-align: left;
+}
+.mc-menu-box .profile-bar {
+  display: flex; align-items: center; gap: 10px;
+  color: var(--mc-text-dim, #ccc); font-size: var(--mc-fs-sm, 14px);
+}
 .mc-menu-box .profile-bar .who { flex: 1; text-align: left; }
-.mc-menu-box .profile-bar .who b { color: #afa; }
-.mc-menu-box .profile-bar button { width: auto; margin: 0; padding: 6px 10px; font-size: var(--mc-fs-sm, 14px); }
-.mc-menu-box .world-row { display: flex; align-items: center; gap: 6px; margin: 6px 0; }
-.mc-menu-box .world-row .meta { flex: 1; text-align: left; min-width: 0; }
-.mc-menu-box .world-row .meta .name { font-size: var(--mc-fs-md, 16px); color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mc-menu-box .world-row .meta .when { font-size: var(--mc-fs-xs, 12.5px); color: #888; }
-.mc-menu-box .world-kind {
-  display: inline-block; font-size: var(--mc-fs-xs, 12.5px); color: #cfe4ff;
-  background: rgba(60,110,170,0.25); border: 1px solid #4b7bb0; border-radius: 3px;
-  padding: 0 5px; margin-right: 6px;
+.mc-menu-box .profile-bar .who b { color: var(--mc-good, #63dd97); }
+.mc-menu-box .profile-bar button { width: auto; margin: 0; padding: 7px 12px; font-size: var(--mc-fs-sm, 14px); }
+.mc-menu-box .world-row {
+  display: flex; align-items: center; gap: 8px; margin: 7px 0; padding: 8px;
+  background: var(--mc-raised, rgba(255,255,255,0.06));
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-radius: var(--mc-radius-sm, 10px);
 }
-.mc-menu-box .world-kind.robot { color: #ffd9c2; background: rgba(180,90,40,0.25); border-color: #b06a3a; }
-.mc-menu-box .kind-choice { display: flex; gap: 6px; margin: 8px 0; }
-.mc-menu-box .kind-choice button { margin: 0; flex: 1; padding: 8px 6px; font-size: var(--mc-fs-sm, 14px); }
-.mc-menu-box .kind-choice button.selected { background: #4a7d5a; border-color: #8fd3a5 #24402c #24402c #8fd3a5; }
-.mc-menu-box .kind-blurb { color: #9aa; font-size: var(--mc-fs-xs, 12.5px); text-align: left; min-height: 16px; }
-.mc-menu-box .world-row button { width: auto; margin: 0; padding: 8px 10px; font-size: var(--mc-fs-sm, 14px); flex-shrink: 0; }
-.mc-menu-box .world-row button.danger:hover { background: #a33; }
-.mc-menu-box .empty { color: #888; font-size: var(--mc-fs-sm, 14px); margin: 10px 0; }
+.mc-menu-box .world-row .meta { flex: 1; text-align: left; min-width: 0; padding-left: 4px; }
+.mc-menu-box .world-row .meta .name {
+  font-size: var(--mc-fs-md, 16px); color: #fff; font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mc-menu-box .world-row .meta .when { font-size: var(--mc-fs-xs, 12.5px); color: var(--mc-text-faint, #888); }
+.mc-menu-box .world-kind {
+  display: inline-block; font-size: var(--mc-fs-2xs, 11px); font-weight: 600;
+  color: #cfe8ff; background: var(--mc-accent-soft, rgba(124,215,255,0.16));
+  border: 1px solid var(--mc-accent-line, rgba(124,215,255,0.55));
+  border-radius: var(--mc-radius-pill, 999px);
+  padding: 1px 8px; margin-right: 7px;
+}
+.mc-menu-box .world-kind.robot {
+  color: #ffd9c2; background: rgba(230,140,80,0.16); border-color: rgba(230,140,80,0.55);
+}
+.mc-menu-box .kind-choice { display: flex; gap: 8px; margin: 10px 0; }
+.mc-menu-box .kind-choice button { margin: 0; flex: 1; padding: 10px 6px; font-size: var(--mc-fs-sm, 14px); }
+.mc-menu-box .kind-choice button.selected {
+  background: var(--mc-good-soft, rgba(99,221,151,0.18));
+  border-color: rgba(99,221,151,0.55); color: #d8ffe8;
+}
+.mc-menu-box .kind-blurb {
+  color: var(--mc-text-faint, #888); font-size: var(--mc-fs-xs, 12.5px);
+  text-align: left; min-height: 16px; line-height: 1.55;
+}
+.mc-menu-box .world-row button { width: auto; margin: 0; padding: 9px 12px; font-size: var(--mc-fs-sm, 14px); flex-shrink: 0; }
+.mc-menu-box .world-row button.danger:hover {
+  background: var(--mc-bad-soft, rgba(255,130,114,0.18));
+  border-color: rgba(255,130,114,0.55); color: #ffd9d3;
+}
+.mc-menu-box .empty { color: var(--mc-text-faint, #888); font-size: var(--mc-fs-sm, 14px); margin: 12px 0; }
 .mc-menu-box .save-notice {
-  background: rgba(40,90,60,0.2); border: 1px solid #4a7; border-radius: 3px;
-  padding: 8px 10px; color: #9c9; font-size: var(--mc-fs-sm, 14px); margin-bottom: 4px;
+  background: var(--mc-good-soft, rgba(99,221,151,0.18));
+  border: 1px solid rgba(99,221,151,0.32);
+  border-radius: var(--mc-radius-sm, 10px);
+  padding: 11px 13px; color: #d8ffe8; font-size: var(--mc-fs-sm, 14px);
+  margin-bottom: 6px; line-height: 1.55;
 }
 .mc-room-code {
-  font-size: var(--mc-fs-3xl, 36px); letter-spacing: 8px; color: #aff; font-weight: bold;
-  text-align: center; padding: 16px; margin: 12px 0;
-  background: rgba(0,50,20,0.4); border: 2px solid #4a7; border-radius: 4px;
+  font-family: var(--mc-font-mono, monospace);
+  font-size: var(--mc-fs-3xl, 36px); letter-spacing: 10px; font-weight: 700;
+  color: var(--mc-accent, #7cd7ff); text-align: center;
+  padding: 20px 16px; margin: 14px 0;
+  background: var(--mc-accent-soft, rgba(124,215,255,0.16));
+  border: 1px solid var(--mc-accent-line, rgba(124,215,255,0.55));
+  border-radius: var(--mc-radius, 16px);
+  text-shadow: 0 0 24px rgba(124,215,255,0.5);
 }
 `
 
@@ -225,6 +321,7 @@ export class Menu {
       createForm.appendChild(worldNameInput)
       const pickKind = this.kindChooser(createForm)
       const createBtn = document.createElement('button')
+      createBtn.className = 'primary'
       createBtn.textContent = 'Create'
       createBtn.addEventListener('click', () => {
         this.cb.onNewSlot(firstEmpty, worldNameInput.value.trim() || `World ${firstEmpty + 1}`, pickKind())
@@ -260,7 +357,7 @@ export class Menu {
     // Button row — hidden when a form is open
     const btnRow = el('div', '', '')
     if (firstEmpty !== -1) {
-      this.button(btnRow, 'Create New World', () => {
+      this.primaryButton(btnRow, 'Create New World', () => {
         btnRow.style.display = 'none'
         createForm.style.display = ''
         ;(createForm.querySelector('input') as HTMLInputElement | null)?.focus()
@@ -300,7 +397,7 @@ export class Menu {
     this.box.appendChild(section)
 
     const skip = el('div', '', 'section')
-    this.button(skip, '▶ Play without profile', () => this.cb.onPlaySlot(slotIndex))
+    this.primaryButton(skip, '▶ Play without profile', () => this.cb.onPlaySlot(slotIndex))
     this.button(skip, '← Back to menu', () => this.showMain())
     this.box.appendChild(skip)
   }
@@ -321,6 +418,7 @@ export class Menu {
       meta.appendChild(when)
       row.appendChild(meta)
       const playBtn = document.createElement('button')
+      playBtn.className = 'primary'
       playBtn.textContent = '▶ Play'
       playBtn.addEventListener('click', () => {
         if (onBeforePlay) onBeforePlay(index, slot.name)
@@ -371,6 +469,7 @@ export class Menu {
     row.appendChild(nameInput)
     const pickKind = this.kindChooser(row)
     const createBtn = document.createElement('button')
+    createBtn.className = 'primary'
     createBtn.textContent = 'Create'
     createBtn.addEventListener('click', () => {
       this.cb.onNewSlot(index, nameInput.value.trim() || `World ${index + 1}`, pickKind())
@@ -485,7 +584,7 @@ export class Menu {
       await this.cb.onCreateCloud(newName.value.trim() || `World ${new Date().toLocaleDateString()}`, pickKind())
     })
     createForm.appendChild(createError)
-    const createBtn = this.button(worlds, 'Create New World', () => {
+    const createBtn = this.primaryButton(worlds, 'Create New World', () => {
       createBtn.style.display = 'none'
       createForm.style.display = ''
       newName.focus()
@@ -647,7 +746,7 @@ export class Menu {
     when.appendChild(document.createTextNode(`saved ${new Date(w.updatedAt).toLocaleString()}`))
     meta.appendChild(when)
     row.appendChild(meta)
-    this.asyncButton(row, 'Play', error, () => this.cb.onPlayCloud(w))
+    this.asyncButton(row, 'Play', error, () => this.cb.onPlayCloud(w)).classList.add('primary')
     this.button(row, 'Host', () => {
       const roomCode = generateRoomCode()
       this.showHostScreen(`Hosting "${w.name}"`, roomCode, () => this.cb.onHostCloud(w, roomCode))
@@ -676,7 +775,7 @@ export class Menu {
     this.box.innerHTML = ''
     this.box.appendChild(el('h1', 'PAUSED'))
     if (extra) this.box.appendChild(el('div', extra, 'sub'))
-    this.button(this.box, 'Resume', () => this.cb.onResume())
+    this.primaryButton(this.box, 'Resume', () => this.cb.onResume())
     this.button(this.box, 'Save & Quit to Menu', () => this.cb.onQuitToMenu())
   }
 
@@ -687,6 +786,13 @@ export class Menu {
     b.textContent = label
     b.addEventListener('click', onClick)
     parent.appendChild(b)
+    return b
+  }
+
+  /** The button a screen most wants you to press, tinted to say so. */
+  private primaryButton(parent: HTMLElement, label: string, onClick: () => void): HTMLButtonElement {
+    const b = this.button(parent, label, onClick)
+    b.classList.add('primary')
     return b
   }
 

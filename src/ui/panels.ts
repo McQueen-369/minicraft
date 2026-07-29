@@ -2,6 +2,7 @@ import type { Inventory } from '../items/inventory'
 import { Inventory as Inv } from '../items/inventory'
 import { itemDef, itemCategory, itemIdsForCategory, type ItemCategory, type Slot } from '../items/items'
 import { drawItemIcon } from './icons'
+import { revealPane } from './theme'
 
 type Category = 'all' | ItemCategory
 
@@ -16,71 +17,96 @@ const CATEGORIES: { id: Category; label: string }[] = [
 
 const STYLE = `
 .mc-panel-backdrop {
-  position: absolute; inset: 0; background: rgba(0,0,0,0.5); z-index: 10;
-  display: flex; align-items: center; justify-content: center;
+  position: absolute; inset: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
 }
 .mc-panel {
-  background: #c6c6c6; border: 3px solid; border-color: #fff #555 #555 #fff;
-  color: #333; font-family: 'Courier New', monospace;
   max-height: 85vh; max-width: 95vw;
   display: flex; flex-direction: column; overflow: hidden;
 }
 .mc-panel-scroll {
-  flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 12px;
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 16px 18px;
 }
 .mc-hotbar-sticky {
-  flex: 0 0 auto; padding: 4px 12px 10px; border-top: 2px solid #555;
-  background: #c6c6c6;
+  flex: 0 0 auto; padding: 10px 18px 14px;
+  border-top: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  background: rgba(255,255,255,0.03);
 }
 .mc-hotbar-sticky .mc-grid { margin-bottom: 0; }
-.mc-hotbar-label { font-size: var(--mc-fs-xs, 12.5px); color: #555; margin-bottom: 4px; }
-.mc-panel h3 { margin: 0 0 8px; font-size: var(--mc-fs-md, 16px); }
-.mc-panel-body { display: flex; gap: 12px; align-items: flex-start; }
-.mc-cats { display: flex; flex-direction: column; gap: 5px; flex: 0 0 auto; }
+.mc-hotbar-label {
+  font-size: var(--mc-fs-2xs, 11px); color: var(--mc-text-faint, #8a8f98);
+  margin-bottom: 6px; letter-spacing: 0.9px; text-transform: uppercase;
+}
+.mc-panel h3 {
+  margin: 0 0 10px; font-size: var(--mc-fs-xs, 12.5px); font-weight: 600;
+  letter-spacing: 1.1px; text-transform: uppercase; color: var(--mc-text-faint, #8a8f98);
+}
+.mc-panel-body { display: flex; gap: 16px; align-items: flex-start; }
+.mc-cats { display: flex; flex-direction: column; gap: 4px; flex: 0 0 auto; }
 .mc-cat-btn {
-  min-width: 72px; padding: 10px 8px; font-family: 'Courier New', monospace;
-  font-size: var(--mc-fs-sm, 14px); font-weight: bold; color: #333; cursor: pointer;
-  background: #8b8b8b; border: 2px solid; border-color: #fff #555 #555 #fff;
-  -webkit-tap-highlight-color: transparent; text-align: left;
+  min-width: 92px; padding: 9px 12px; text-align: left;
+  font-family: var(--mc-font, sans-serif); font-size: var(--mc-fs-sm, 14px); font-weight: 500;
+  color: var(--mc-text-dim, #ccc); cursor: pointer;
+  background: transparent; border: 1px solid transparent;
+  border-radius: var(--mc-radius-sm, 10px);
+  transition: background 0.16s var(--mc-ease, ease), color 0.16s var(--mc-ease, ease);
+  -webkit-tap-highlight-color: transparent;
 }
-.mc-cat-btn.active { background: #e7d9a0; border-color: #555 #fff #fff #555; }
+.mc-cat-btn:hover { background: var(--mc-raised, rgba(255,255,255,0.06)); color: var(--mc-text, #fff); }
+.mc-cat-btn.active {
+  background: var(--mc-accent-soft, rgba(124,215,255,0.16));
+  border-color: var(--mc-accent-line, rgba(124,215,255,0.55));
+  color: #dcf3ff; font-weight: 600;
+}
 .mc-panel-main { flex: 1 1 auto; min-width: 0; }
-.mc-grid { display: grid; grid-template-columns: repeat(9, var(--mc-pslot, 50px)); gap: 4px; margin-bottom: 10px; }
+.mc-grid { display: grid; grid-template-columns: repeat(9, var(--mc-pslot, 50px)); gap: 6px; margin-bottom: 14px; }
 .mc-pslot {
-  width: var(--mc-pslot, 50px); height: var(--mc-pslot, 50px); background: #8b8b8b; border: 2px solid;
-  border-color: #373737 #fff #fff #373737; position: relative; cursor: pointer;
+  width: var(--mc-pslot, 50px); height: var(--mc-pslot, 50px); position: relative; cursor: pointer;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-radius: var(--mc-radius-sm, 10px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.07);
+  transition: background 0.14s var(--mc-ease, ease), border-color 0.14s var(--mc-ease, ease);
 }
+.mc-pslot:hover { background: var(--mc-raised-hover, rgba(255,255,255,0.12)); }
 /* Narrow screens: shrink slots and stack the category rail above the grid so
    the 9-wide inventory always fits without horizontal cutoff. */
 @media (max-width: 720px) {
   :root { --mc-pslot: 40px; }
   .mc-panel-body { flex-direction: column; }
   .mc-cats { flex-direction: row; flex-wrap: wrap; }
-  .mc-cat-btn { min-width: 0; padding: 8px 8px; font-size: var(--mc-fs-xs, 12.5px); }
+  .mc-cat-btn { min-width: 0; padding: 7px 12px; font-size: var(--mc-fs-xs, 12.5px); }
 }
 @media (max-width: 470px) {
   :root { --mc-pslot: 33px; }
   .mc-pslot .count { font-size: var(--mc-fs-xs, 12.5px); }
+  .mc-panel-scroll { padding: 12px; }
+  .mc-hotbar-sticky { padding: 8px 12px 12px; }
 }
-.mc-pslot.picked { outline: 3px solid #ffd34d; }
-.mc-pslot.catalog-empty { opacity: 0.32; cursor: default; }
-.mc-pslot canvas { width: 100%; height: 100%; image-rendering: pixelated; }
+.mc-pslot.picked {
+  border-color: var(--mc-warn, #ffcc5c);
+  box-shadow: 0 0 0 2px var(--mc-warn-soft, rgba(255,204,92,0.18)), 0 0 16px rgba(255,204,92,0.35);
+}
+.mc-pslot.catalog-empty { opacity: 0.26; cursor: default; }
+.mc-pslot canvas {
+  width: 100%; height: 100%; image-rendering: pixelated; display: block;
+  padding: 3px; border-radius: inherit;
+}
 .mc-pslot .count {
-  position: absolute; right: 2px; bottom: 0; color: #fff; font-size: var(--mc-fs-sm, 14px);
-  font-weight: bold; text-shadow: 1px 1px 0 #000; pointer-events: none;
+  position: absolute; right: 4px; bottom: 2px; color: #fff; font-size: var(--mc-fs-xs, 12.5px);
+  font-family: var(--mc-font-mono, monospace); font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.9); pointer-events: none;
 }
-.mc-empty { font-size: var(--mc-fs-sm, 14px); color: #555; margin: 4px 0 10px; }
+.mc-empty { font-size: var(--mc-fs-sm, 14px); color: var(--mc-text-faint, #888); margin: 4px 0 10px; }
 .mc-picked-name {
-  min-height: 1.4em; margin: 0 0 8px; font-size: var(--mc-fs-sm, 14px); font-weight: bold;
-  color: #1d3a5f; line-height: 1.4;
+  min-height: 1.4em; margin: 0 0 12px; font-size: var(--mc-fs-sm, 14px); font-weight: 600;
+  color: var(--mc-accent, #7cd7ff); line-height: 1.4;
 }
-.mc-picked-name .dim { color: #666; font-weight: normal; }
-.mc-summary-msg { font-size: var(--mc-fs-sm, 14px); margin: 0 0 10px; }
-.mc-summary-names { font-size: var(--mc-fs-sm, 14px); margin: 4px 0 12px; line-height: 1.7; }
-.mc-summary-close {
-  cursor: pointer; background: #8b8b8b; border: 2px solid; border-color: #fff #555 #555 #fff;
-  font-family: 'Courier New', monospace; font-size: var(--mc-fs-sm, 14px); font-weight: bold; color: #333;
-  padding: 8px 16px; -webkit-tap-highlight-color: transparent;
+.mc-picked-name .dim { color: var(--mc-text-faint, #888); font-weight: 400; }
+.mc-summary-msg { font-size: var(--mc-fs-sm, 14px); margin: 0 0 12px; color: var(--mc-text-dim, #ccc); }
+.mc-summary-names {
+  font-size: var(--mc-fs-sm, 14px); margin: 4px 0 16px; line-height: 1.8;
+  color: var(--mc-text, #fff);
 }
 `
 
@@ -117,10 +143,10 @@ export class Panels {
     style.textContent = STYLE
     document.head.appendChild(style)
     this.backdrop = document.createElement('div')
-    this.backdrop.className = 'mc-panel-backdrop'
+    this.backdrop.className = 'mc-panel-backdrop mc-scrim'
     this.backdrop.style.display = 'none'
     this.panel = document.createElement('div')
-    this.panel.className = 'mc-panel'
+    this.panel.className = 'mc-panel mc-glass'
     this.backdrop.appendChild(this.panel)
     root.appendChild(this.backdrop)
     this.backdrop.addEventListener('mousedown', (e) => {
@@ -139,7 +165,7 @@ export class Panels {
     this.category = 'all'
     this.clickedInfo = null
     this.render()
-    this.backdrop.style.display = 'flex'
+    this.reveal()
   }
 
   openChest(contents: (Slot | null)[]): void {
@@ -149,7 +175,7 @@ export class Panels {
     this.category = 'all'
     this.clickedInfo = null
     this.render()
-    this.backdrop.style.display = 'flex'
+    this.reveal()
   }
 
   /** Show a read-only list of items collected from a treasure box. */
@@ -158,7 +184,13 @@ export class Panels {
     this.summary = items
     this.picked = null
     this.render()
+    this.reveal()
+  }
+
+  /** Show the backdrop and replay the pane's entrance animation. */
+  private reveal(): void {
     this.backdrop.style.display = 'flex'
+    revealPane(this.panel)
   }
 
   close(): void {
@@ -332,7 +364,7 @@ export class Panels {
       container.appendChild(names)
     }
     const close = document.createElement('button')
-    close.className = 'mc-summary-close'
+    close.className = 'mc-ui-btn primary'
     close.textContent = 'Close'
     close.addEventListener('click', () => this.close())
     close.addEventListener('touchstart', (e) => { e.preventDefault(); this.close() }, { passive: false })

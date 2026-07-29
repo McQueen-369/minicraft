@@ -1,6 +1,7 @@
 import { WATER_LEVEL } from '../constants'
 import type { Terrain } from '../world/terrain'
 import type { WorldKind } from '../world/worldKind'
+import { revealPane } from './theme'
 
 export interface MapMarker {
   x: number
@@ -47,61 +48,72 @@ const ISLAND_COLOR = '#ff5fa2'
 const STYLE = `
 .mc-minimap {
   position: absolute; top: 12px; right: 12px; z-index: 7;
-  width: var(--mc-map, ${MINI_CSS}px); border-radius: 10px;
-  border: 2px solid rgba(255,255,255,0.6); overflow: hidden; cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.45); -webkit-tap-highlight-color: transparent;
-  background: #12161d;
+  width: var(--mc-map, ${MINI_CSS}px); overflow: hidden; cursor: pointer;
+  border-radius: var(--mc-radius, 16px);
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  box-shadow: var(--mc-shadow-sm, 0 6px 18px rgba(0,0,0,0.35)), var(--mc-sheen, none);
+  background: var(--mc-surface-soft, rgba(16,19,26,0.52));
+  -webkit-backdrop-filter: var(--mc-blur-soft, blur(12px));
+  backdrop-filter: var(--mc-blur-soft, blur(12px));
+  transition: border-color 0.16s var(--mc-ease, ease), transform 0.16s var(--mc-ease, ease);
+  -webkit-tap-highlight-color: transparent;
 }
+.mc-minimap:hover { border-color: var(--mc-stroke-strong, rgba(255,255,255,0.26)); }
+.mc-minimap:active { transform: scale(0.985); }
 .mc-minimap canvas {
   width: 100%; height: var(--mc-map, ${MINI_CSS}px); display: block; image-rendering: pixelated;
 }
 /* Narrow phones: keep the radar from eating a third of the screen width. */
 @media (max-width: 470px) { :root { --mc-map: 112px; } }
 .mc-minimap-tag {
-  position: absolute; left: 0; top: 0; padding: 1px 6px;
-  font-family: 'Courier New', monospace; font-size: var(--mc-fs-2xs, 11px);
-  font-weight: bold; letter-spacing: 1px; color: #fff;
-  background: rgba(0,0,0,0.5); border-bottom-right-radius: 6px; pointer-events: none;
+  position: absolute; left: 0; top: 0; padding: 3px 9px;
+  font-family: var(--mc-font, sans-serif); font-size: var(--mc-fs-2xs, 11px);
+  font-weight: 600; letter-spacing: 1.2px; color: var(--mc-text, #fff);
+  background: rgba(10,12,16,0.55); border-bottom-right-radius: var(--mc-radius-sm, 10px);
+  pointer-events: none;
 }
 /* Distances to the fixed landmarks, in readable DOM text rather than a few
    pixels of canvas lettering. */
 .mc-minimap-dist {
-  display: flex; justify-content: space-around; gap: 4px; padding: 3px 4px;
-  font-family: 'Courier New', monospace; font-size: var(--mc-fs-2xs, 11px);
-  font-weight: bold; color: #fff; background: rgba(0,0,0,0.62);
+  display: flex; justify-content: space-around; gap: 4px; padding: 5px 6px;
+  font-family: var(--mc-font-mono, monospace); font-size: var(--mc-fs-2xs, 11px);
+  font-weight: 600; color: var(--mc-text-dim, #ccc);
+  border-top: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
   pointer-events: none; white-space: nowrap;
 }
 .mc-map-overlay {
-  position: absolute; inset: 0; background: rgba(0,0,0,0.75); z-index: 21;
-  display: none; align-items: center; justify-content: center;
+  position: absolute; inset: 0; z-index: 21;
+  display: none; align-items: center; justify-content: center; padding: 16px;
 }
 .mc-map-box {
-  background: #c6c6c6; border: 3px solid; border-color: #fff #555 #555 #fff;
-  padding: 12px; color: #333; font-family: 'Courier New', monospace;
-  max-width: 95vw; max-height: 94vh; overflow-y: auto;
+  padding: 18px 20px; max-width: 95vw; max-height: 94vh; overflow-y: auto;
 }
-.mc-map-box h3 { margin: 0 0 8px; font-size: var(--mc-fs-lg, 18px); }
+.mc-map-box h3 {
+  margin: 0 0 12px; font-size: var(--mc-fs-xs, 12.5px); font-weight: 600;
+  letter-spacing: 1.2px; text-transform: uppercase; color: var(--mc-text-faint, #888);
+}
 .mc-map-box canvas {
   display: block; width: ${BIG_CSS}px; max-width: min(86vw, 62vh); height: auto;
-  aspect-ratio: 1; image-rendering: pixelated; border: 2px solid #555;
+  aspect-ratio: 1; image-rendering: pixelated;
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-radius: var(--mc-radius-sm, 10px);
 }
 .mc-map-coords {
-  display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px;
-  font-size: var(--mc-fs-sm, 14px); font-weight: bold; line-height: 1.5;
+  display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 12px;
+  font-size: var(--mc-fs-sm, 14px); font-weight: 600; line-height: 1.6;
+  color: var(--mc-text, #fff);
 }
-.mc-map-scale { font-size: var(--mc-fs-xs, 12.5px); color: #555; margin-top: 4px; }
+.mc-map-scale { font-size: var(--mc-fs-xs, 12.5px); color: var(--mc-text-faint, #888); margin-top: 6px; }
 .mc-map-legend {
-  display: flex; flex-wrap: wrap; gap: 3px 14px; margin-top: 8px;
-  font-size: var(--mc-fs-xs, 12.5px); line-height: 1.7;
+  display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 12px;
+  font-size: var(--mc-fs-xs, 12.5px); line-height: 1.8; color: var(--mc-text-dim, #ccc);
 }
-.mc-map-legend .lg { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
-.mc-map-legend .sw { width: 0.85em; height: 0.85em; flex: 0 0 auto; border: 1px solid #0006; }
-.mc-map-close {
-  margin-top: 10px; cursor: pointer; background: #8b8b8b; border: 2px solid;
-  border-color: #fff #555 #555 #fff; font-family: 'Courier New', monospace;
-  font-size: var(--mc-fs-sm, 14px); font-weight: bold; color: #333; padding: 9px 18px;
-  -webkit-tap-highlight-color: transparent;
+.mc-map-legend .lg { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.mc-map-legend .sw {
+  width: 0.85em; height: 0.85em; flex: 0 0 auto; border-radius: 3px;
+  border: 1px solid rgba(255,255,255,0.25);
 }
+.mc-map-close { margin-top: 16px; }
 `
 
 /**
@@ -216,9 +228,9 @@ export class Minimap {
     root.appendChild(this.container)
 
     this.overlay = document.createElement('div')
-    this.overlay.className = 'mc-map-overlay'
+    this.overlay.className = 'mc-map-overlay mc-scrim'
     const box = document.createElement('div')
-    box.className = 'mc-map-box'
+    box.className = 'mc-map-box mc-glass mc-pane-in'
     const title = document.createElement('h3')
     title.textContent = 'Navigation Map'
     this.bigCanvas = document.createElement('canvas')
@@ -257,8 +269,8 @@ export class Minimap {
       legend.appendChild(item)
     }
     const close = document.createElement('button')
-    close.className = 'mc-map-close'
-    close.textContent = '✕ Close'
+    close.className = 'mc-map-close mc-ui-btn'
+    close.textContent = 'Close'
     box.append(title, this.bigCanvas, this.coordsEl, this.scaleEl, legend, close)
     this.overlay.appendChild(box)
     root.appendChild(this.overlay)
@@ -301,6 +313,7 @@ export class Minimap {
   private openBig(): void {
     if (this.isBigOpen) return
     this.overlay.style.display = 'flex'
+    revealPane(this.overlay.firstElementChild as HTMLElement)
     this.drawBig()
     this.onMapOpen()
   }

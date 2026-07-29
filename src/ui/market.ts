@@ -9,94 +9,151 @@ import {
   type StockEntry,
 } from '../items/trading'
 import { drawItemIcon } from './icons'
+import { revealPane } from './theme'
 
 const STYLE = `
 .mc-mkt-overlay {
-  position: absolute; inset: 0; background: rgba(0,0,0,0.75); z-index: 20;
-  display: none; align-items: center; justify-content: center;
+  position: absolute; inset: 0; z-index: 20;
+  display: none; align-items: center; justify-content: center; padding: 14px;
 }
 .mc-mkt-box {
-  background: #c6c6c6; border: 3px solid; border-color: #fff #555 #555 #fff;
-  color: #333; font-family: 'Courier New', monospace;
-  width: 400px; max-width: 95vw; max-height: 88vh; display: flex; flex-direction: column; overflow: hidden;
+  width: 440px; max-width: 100%; max-height: 88vh;
+  display: flex; flex-direction: column; overflow: hidden;
 }
 .mc-mkt-hdr {
-  flex: 0 0 auto; padding: 9px 14px; border-bottom: 2px solid #555;
-  display: flex; align-items: center; justify-content: space-between; font-size: var(--mc-fs-md, 16px); font-weight: bold;
+  flex: 0 0 auto; padding: 14px 18px;
+  border-bottom: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  font-size: var(--mc-fs-md, 16px); font-weight: 600; letter-spacing: 0.3px;
 }
-.mc-mkt-tabs { flex: 0 0 auto; display: flex; gap: 3px; padding: 5px 7px 0; background: #b8b8b8; }
+.mc-mkt-tabs {
+  flex: 0 0 auto; display: flex; gap: 4px; padding: 10px 14px 0;
+}
 .mc-mkt-tab {
-  flex: 1; padding: 7px 0; text-align: center; cursor: pointer; font-size: var(--mc-fs-sm, 14px); font-weight: bold;
-  font-family: 'Courier New', monospace; color: #444;
-  background: #9d9d9d; border: 2px solid; border-color: #cfcfcf #555 #555 #cfcfcf;
+  flex: 1; padding: 9px 0; text-align: center; cursor: pointer;
+  font-family: var(--mc-font, sans-serif); font-size: var(--mc-fs-sm, 14px); font-weight: 600;
+  color: var(--mc-text-dim, #ccc); background: transparent;
+  border: 1px solid transparent; border-radius: var(--mc-radius-sm, 10px);
+  transition: background 0.16s var(--mc-ease, ease), color 0.16s var(--mc-ease, ease);
   -webkit-tap-highlight-color: transparent;
 }
-.mc-mkt-tab.active { background: #c6c6c6; color: #1c1c1c; border-bottom-color: #c6c6c6; }
+.mc-mkt-tab:hover { background: var(--mc-raised, rgba(255,255,255,0.06)); color: var(--mc-text, #fff); }
+.mc-mkt-tab.active {
+  background: var(--mc-accent-soft, rgba(124,215,255,0.16));
+  border-color: var(--mc-accent-line, rgba(124,215,255,0.55)); color: #dcf3ff;
+}
 .mc-mkt-gold-bar {
-  flex: 0 0 auto; padding: 5px 14px; background: #7a6520; color: #ffe060;
-  border-bottom: 2px solid #555; font-size: var(--mc-fs-sm, 14px); font-weight: bold;
+  flex: 0 0 auto; margin: 10px 14px 0; padding: 8px 13px;
+  background: var(--mc-warn-soft, rgba(255,204,92,0.18));
+  border: 1px solid rgba(255,204,92,0.35); border-radius: var(--mc-radius-sm, 10px);
+  color: var(--mc-gold, #ffd77a); font-size: var(--mc-fs-sm, 14px); font-weight: 600;
 }
-.mc-mkt-refresh { font-size: var(--mc-fs-2xs, 11px); color: #ccc0a0; font-weight: normal; margin-left: 8px; }
-.mc-mkt-list { flex: 1 1 auto; overflow-y: auto; padding: 7px; display: flex; flex-direction: column; gap: 4px; }
+.mc-mkt-refresh {
+  font-size: var(--mc-fs-2xs, 11px); color: var(--mc-text-faint, #888);
+  font-weight: 400; margin-left: 8px;
+}
+.mc-mkt-list { flex: 1 1 auto; overflow-y: auto; padding: 10px 14px 14px; display: flex; flex-direction: column; gap: 5px; }
 .mc-mkt-row {
-  display: flex; align-items: center; gap: 8px; padding: 5px 8px; cursor: pointer;
-  background: #b0b0b0; border: 2px solid; border-color: #fff #555 #555 #fff;
+  display: flex; align-items: center; gap: 10px; padding: 8px 11px; cursor: pointer;
+  background: var(--mc-raised, rgba(255,255,255,0.06));
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-radius: var(--mc-radius-sm, 10px);
+  transition: background 0.16s var(--mc-ease, ease), border-color 0.16s var(--mc-ease, ease);
 }
-.mc-mkt-row:hover { background: #c2c2c2; }
-.mc-mkt-row.cant-afford { opacity: 0.55; }
-.mc-mkt-row.sold-out { opacity: 0.4; cursor: default; }
+.mc-mkt-row:hover { background: var(--mc-raised-hover, rgba(255,255,255,0.12)); border-color: var(--mc-stroke-strong, rgba(255,255,255,0.26)); }
+.mc-mkt-row.cant-afford { opacity: 0.5; }
+.mc-mkt-row.sold-out { opacity: 0.34; cursor: default; }
 .mc-mkt-icon {
-  width: 32px; height: 32px; flex: 0 0 32px;
-  background: #8b8b8b; border: 2px solid; border-color: #555 #fff #fff #555;
+  width: 34px; height: 34px; flex: 0 0 34px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-radius: var(--mc-radius-xs, 6px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.07);
 }
-.mc-mkt-icon canvas { width: 100%; height: 100%; image-rendering: pixelated; }
-.mc-mkt-iname { flex: 1; font-size: var(--mc-fs-xs, 12.5px); font-weight: bold; }
-.mc-mkt-isub { display: block; font-size: var(--mc-fs-2xs, 11px); font-weight: normal; color: #555; }
-.mc-mkt-iprice { font-size: var(--mc-fs-xs, 12.5px); font-weight: bold; color: #5a3d00; white-space: nowrap; text-align: right; }
-.mc-mkt-empty { padding: 22px 14px; text-align: center; font-size: var(--mc-fs-xs, 12.5px); color: #555; line-height: 1.6; }
-.mc-mkt-detail { flex: 1 1 auto; overflow-y: auto; padding: 12px 15px; display: flex; flex-direction: column; gap: 10px; }
+.mc-mkt-icon canvas { width: 100%; height: 100%; image-rendering: pixelated; padding: 2px; }
+.mc-mkt-iname { flex: 1; font-size: var(--mc-fs-xs, 12.5px); font-weight: 600; color: var(--mc-text, #fff); }
+.mc-mkt-isub {
+  display: block; font-size: var(--mc-fs-2xs, 11px); font-weight: 400;
+  color: var(--mc-text-faint, #888); margin-top: 2px;
+}
+.mc-mkt-iprice {
+  font-size: var(--mc-fs-xs, 12.5px); font-weight: 700; color: var(--mc-gold, #ffd77a);
+  white-space: nowrap; text-align: right; font-family: var(--mc-font-mono, monospace);
+}
+.mc-mkt-empty {
+  padding: 26px 16px; text-align: center; font-size: var(--mc-fs-xs, 12.5px);
+  color: var(--mc-text-faint, #888); line-height: 1.7;
+}
+.mc-mkt-detail { flex: 1 1 auto; overflow-y: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
 .mc-mkt-detail-icon {
-  width: 52px; height: 52px; flex: 0 0 52px;
-  background: #8b8b8b; border: 2px solid; border-color: #555 #fff #fff #555;
+  width: 54px; height: 54px; flex: 0 0 54px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-radius: var(--mc-radius-sm, 10px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.07);
 }
-.mc-mkt-detail-icon canvas { width: 100%; height: 100%; image-rendering: pixelated; }
-.mc-mkt-detail-title { font-size: var(--mc-fs-md, 16px); font-weight: bold; }
-.mc-mkt-detail-desc { font-size: var(--mc-fs-xs, 12.5px); color: #555; line-height: 1.5; margin: 0; }
+.mc-mkt-detail-icon canvas { width: 100%; height: 100%; image-rendering: pixelated; padding: 3px; }
+.mc-mkt-detail-title { font-size: var(--mc-fs-md, 16px); font-weight: 600; color: var(--mc-text, #fff); }
+.mc-mkt-detail-desc { font-size: var(--mc-fs-xs, 12.5px); color: var(--mc-text-dim, #ccc); line-height: 1.6; margin: 0; }
 .mc-mkt-info-box {
-  background: #b0b0b0; border: 2px solid; border-color: #888 #fff #fff #888;
-  padding: 8px 10px; font-size: var(--mc-fs-xs, 12.5px); line-height: 1.7;
+  background: var(--mc-raised, rgba(255,255,255,0.06));
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-radius: var(--mc-radius-sm, 10px);
+  padding: 11px 13px; font-size: var(--mc-fs-xs, 12.5px); line-height: 1.8;
+  color: var(--mc-text-dim, #ccc);
 }
-.mc-mkt-qty { display: flex; align-items: center; gap: 8px; font-size: var(--mc-fs-sm, 14px); font-weight: bold; }
+.mc-mkt-qty {
+  display: flex; align-items: center; gap: 10px;
+  font-size: var(--mc-fs-sm, 14px); font-weight: 600; color: var(--mc-text, #fff);
+}
 .mc-mkt-step {
-  width: 30px; height: 28px; font-size: var(--mc-fs-md, 16px); font-weight: bold; line-height: 1; cursor: pointer;
-  background: #888; border: 2px solid; border-color: #fff #555 #555 #fff; color: #222;
-  font-family: 'Courier New', monospace; -webkit-tap-highlight-color: transparent;
+  width: 34px; height: 32px; font-size: var(--mc-fs-md, 16px); font-weight: 600; line-height: 1;
+  cursor: pointer; color: var(--mc-text, #fff);
+  background: var(--mc-raised, rgba(255,255,255,0.06));
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-radius: var(--mc-radius-sm, 10px);
+  font-family: var(--mc-font, sans-serif); -webkit-tap-highlight-color: transparent;
+  transition: background 0.16s var(--mc-ease, ease);
 }
-.mc-mkt-step:hover { background: #aaa; }
-.mc-mkt-step:disabled { opacity: 0.45; cursor: default; }
-.mc-mkt-qty-val { min-width: 44px; text-align: center; }
+.mc-mkt-step:hover:not(:disabled) { background: var(--mc-raised-hover, rgba(255,255,255,0.12)); }
+.mc-mkt-step:disabled { opacity: 0.35; cursor: default; }
+.mc-mkt-qty-val { min-width: 48px; text-align: center; font-family: var(--mc-font-mono, monospace); }
 .mc-mkt-btn {
-  background: #888; border: 2px solid; border-color: #fff #555 #555 #fff;
-  color: #333; font-family: 'Courier New', monospace; font-size: var(--mc-fs-xs, 12.5px);
-  padding: 5px 12px; cursor: pointer; width: fit-content; -webkit-tap-highlight-color: transparent;
+  background: var(--mc-raised, rgba(255,255,255,0.06));
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  color: var(--mc-text, #fff); font-family: var(--mc-font, sans-serif);
+  font-size: var(--mc-fs-xs, 12.5px); font-weight: 500;
+  border-radius: var(--mc-radius-sm, 10px);
+  padding: 7px 14px; cursor: pointer; width: fit-content; -webkit-tap-highlight-color: transparent;
+  transition: background 0.16s var(--mc-ease, ease), border-color 0.16s var(--mc-ease, ease);
 }
-.mc-mkt-btn:hover { background: #aaa; }
+.mc-mkt-btn:hover { background: var(--mc-raised-hover, rgba(255,255,255,0.12)); border-color: var(--mc-stroke-strong, rgba(255,255,255,0.26)); }
 .mc-mkt-trade-btn {
-  background: #2a5a3a; border: 2px solid; border-color: #3a7a4a #1a3a24 #1a3a24 #3a7a4a;
-  color: #fff; font-family: 'Courier New', monospace; font-size: var(--mc-fs-sm, 14px); font-weight: bold;
-  padding: 9px 22px; cursor: pointer; -webkit-tap-highlight-color: transparent; align-self: flex-start;
-  margin-top: auto;
+  background: var(--mc-good-soft, rgba(99,221,151,0.18));
+  border: 1px solid rgba(99,221,151,0.5); color: #d8ffe8;
+  font-family: var(--mc-font, sans-serif); font-size: var(--mc-fs-sm, 14px); font-weight: 600;
+  border-radius: var(--mc-radius-sm, 10px);
+  padding: 11px 24px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  align-self: flex-start; margin-top: auto;
+  transition: background 0.16s var(--mc-ease, ease), border-color 0.16s var(--mc-ease, ease);
 }
-.mc-mkt-trade-btn:hover { background: #3a7a4a; }
-.mc-mkt-trade-btn:disabled { background: #555; border-color: #444 #666 #666 #444; cursor: default; opacity: 0.6; }
-.mc-mkt-sell-btn { background: #7a5a12; border-color: #a67c1a #4a3608 #4a3608 #a67c1a; }
-.mc-mkt-sell-btn:hover { background: #a67c1a; }
+.mc-mkt-trade-btn:hover:not(:disabled) { background: rgba(99,221,151,0.32); border-color: var(--mc-good, #63dd97); }
+.mc-mkt-trade-btn:disabled {
+  background: transparent; border-color: var(--mc-stroke, rgba(255,255,255,0.12));
+  color: var(--mc-text-faint, #888); cursor: default;
+}
+.mc-mkt-sell-btn {
+  background: var(--mc-warn-soft, rgba(255,204,92,0.18));
+  border-color: rgba(255,204,92,0.5); color: #ffeec2;
+}
+.mc-mkt-sell-btn:hover:not(:disabled) { background: rgba(255,204,92,0.32); border-color: var(--mc-warn, #ffcc5c); }
 `
 
 type Tab = 'buy' | 'sell'
 
 export class MarketPanel {
   private readonly overlay: HTMLDivElement
+  private readonly box: HTMLDivElement
   private readonly tabsEl: HTMLDivElement
   private readonly goldBar: HTMLDivElement
   private readonly listEl: HTMLDivElement
@@ -126,19 +183,21 @@ export class MarketPanel {
     document.head.appendChild(style)
 
     this.overlay = document.createElement('div')
-    this.overlay.className = 'mc-mkt-overlay'
+    this.overlay.className = 'mc-mkt-overlay mc-scrim'
     this.overlay.addEventListener('mousedown', (e) => { if (e.target === this.overlay) this.close() })
 
     const box = document.createElement('div')
-    box.className = 'mc-mkt-box'
+    box.className = 'mc-mkt-box mc-glass mc-pane-in'
+    this.box = box
 
     const hdr = document.createElement('div')
     hdr.className = 'mc-mkt-hdr'
     const title = document.createElement('span')
     title.textContent = '🏪 Market'
     const closeBtn = document.createElement('button')
-    closeBtn.className = 'mc-mkt-btn'
-    closeBtn.textContent = '✕ Close'
+    closeBtn.className = 'mc-close-btn'
+    closeBtn.textContent = '✕'
+    closeBtn.title = 'Close (Esc)'
     closeBtn.addEventListener('click', () => this.close())
     hdr.append(title, closeBtn)
 
@@ -172,6 +231,7 @@ export class MarketPanel {
     this.worldSeed = worldSeed
     this._isOpen = true
     this.overlay.style.display = 'flex'
+    revealPane(this.box)
     this.refreshItems()
     this.showTab('buy')
   }

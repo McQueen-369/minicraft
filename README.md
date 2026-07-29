@@ -40,7 +40,7 @@ Both types share one seed-driven generator, so a robot world is the same landsca
 - **Lava** — glowing molten lakes pooled in the deepest stone. They always sit at least 12 blocks below the deepest ore, so breaking into one is the reward for a real dig. Lava lights its own cavern (the mesher skips face shading and occlusion on self-lit blocks, and a warm point light follows you into the chamber), cannot be mined, placed or collected, and burns your energy fast if you fall in — you sink slowly and paddle out with Space, so a scorching costs you stamina, never the session
 - **Mystery Boxes** — Common, Rare, and Epic variants found in the wild, each containing random loot
 - **Loot chests** — naturally generated on the surface, filled with tools and resources
-- **TNT** — every session starts with 200 in your bag; place and right-click to light the fuse, or right-click placed TNT to detonate it (2 second fuse, chain-reacts with nearby TNT)
+- **TNT** — every session starts with 200 in your bag. Placing it does *not* light it, so you can stack a charge as high and wide as you like; MINE an unlit stick to start its 2 second fuse (the blast chain-reacts with any TNT it reaches). MINE a stick that is already lit to defuse it and take it back
 
 ### Animals & Taming
 | Animal | Tamed with | Notes |
@@ -102,16 +102,20 @@ Both types share one seed-driven generator, so a robot world is the same landsca
   - 🧩 **Sliding Puzzle** — reorder a shuffled grid; fewer moves win a bigger prize
   - 🏃 **Island Runner** — endless jump-the-obstacle runner; clear the tier's target score to win gold
   - 🎯 **Math Blaster** — shoot the target with the correct answer across a round of ramping arithmetic
-  - 🔤 **Word Wizard** — hangman-style word guessing with vocabulary hints drawn from science and geography
+  - 🔤 **Word Wizard** — hangman-style word guessing with vocabulary hints drawn from science and geography. **Every round ends with the word's dictionary entry** — the word, its part of speech and a plain-language definition — shown on a win and a loss alike, so the word is the takeaway whether or not you guessed it. The riddle you play against and the definition you leave with are kept deliberately separate: a definition up front would hand over the round, and a riddle as the takeaway would teach nothing
 - A couple of bonus Rare Mystery Boxes sit on plinths by the plaza gates for explorers
 
 ### Fun Facts & Learning
 - Look at any animal, plant, block or item and press **I** (or tap the ⓘ on its nameplate) to open its info card. Under the how-to-play instructions sits a **🔎 Did you know?** panel with a real-world fact about the subject — why leaves are green, why gold never tarnishes, how a horse sleeps standing up, what lava is called before it reaches the surface
 - Cards **rotate through their facts**: look at the same sheep again and you get the next one, so repeat visits keep teaching
+- The **Word Wizard** kiosk teaches vocabulary the same way: each round closes on a dictionary card defining the word it hid
 - Coverage spans the animals (pig, chicken, sheep, rabbit, cat, dog, horse), the plants and foods (leaves, apple trees, wood, grass, apples, wheat, carrots, seeds, eggs, fish, bones) and the materials (stone, dirt, sand, glass, brick, gold, diamond, lava, TNT)
 
-### Readability
-- All UI text is driven by one shared fluid type scale (`src/ui/theme.ts`): a comfortable floor on phones, `vmin` growth on larger screens, and a ceiling so desktop text never turns cartoonish. Short landscape phones and large portrait tablets get their own steps
+### Look & Readability
+- The interface is **glass, not chrome**: panels are dark translucent panes that blur the world behind them, edged with a hairline light stroke and a soft top-edge sheen, over rounded corners and a system UI sans. Nothing is a bevelled grey box
+- One set of design tokens in `src/ui/theme.ts` (surfaces, strokes, radii, blur, accents, shadows) drives every panel, so the whole UI shifts together. Panel chrome is sans; monospace is kept only where digits should not jitter — coordinates, the day clock, item counts, room codes
+- Where `backdrop-filter` is unsupported the tokens fall back to denser fills, so the world never reads through a panel
+- All UI text is driven by one shared fluid type scale (also `src/ui/theme.ts`): a comfortable floor on phones, `vmin` growth on larger screens, and a ceiling so desktop text never turns cartoonish. Short landscape phones and large portrait tablets get their own steps
 
 ### Fishing
 - Start with a **Fishing Net** in your hotbar
@@ -246,6 +250,8 @@ Click **Create Profile** on the main menu to save worlds to the cloud (username 
 | Hold left-click on a zombie | Attack it with the held weapon (same action as mining) |
 | Left-click furniture / ladder | Pick it back up into your bag |
 | Left-click villager | Pick up / set down to carry the NPC around |
+| Left-click unlit TNT | Light its fuse (2 seconds) — placing TNT never lights it |
+| Hold left-click on lit TNT | Defuse it and take it back into your bag |
 | Right-click | Place held block / open chest / eat held food / sleep in bed / open arcade kiosk / feed or interact with animal |
 | Shift + right-click (animal) | Capture tamed animal into bag |
 | Right-click ground with capture item | Release animal |

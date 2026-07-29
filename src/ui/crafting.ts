@@ -2,68 +2,81 @@ import type { Inventory } from '../items/inventory'
 import { itemDef } from '../items/items'
 import { itemSource, RECIPES, type Recipe } from '../items/crafting'
 import { drawItemIcon } from './icons'
+import { revealPane } from './theme'
 
 const STYLE = `
 .mc-craft-backdrop {
-  position: absolute; inset: 0; background: rgba(0,0,0,0.5); z-index: 10;
-  display: flex; align-items: center; justify-content: center;
+  position: absolute; inset: 0; z-index: 10;
+  display: flex; align-items: center; justify-content: center; padding: 16px;
 }
 .mc-craft-panel {
-  background: #c6c6c6; border: 3px solid; border-color: #fff #555 #555 #fff;
-  color: #333; font-family: 'Courier New', monospace;
-  max-height: 85vh; max-width: 95vw; width: 420px;
+  max-height: 85vh; max-width: 95vw; width: 460px;
   display: flex; flex-direction: column; overflow: hidden;
 }
 .mc-craft-header {
-  flex: 0 0 auto; padding: 10px 14px; border-bottom: 2px solid #555;
-  display: flex; align-items: center; justify-content: space-between;
-  font-size: var(--mc-fs-md, 16px); font-weight: bold;
+  flex: 0 0 auto; padding: 14px 18px;
+  border-bottom: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  font-size: var(--mc-fs-md, 16px); font-weight: 600; letter-spacing: 0.3px;
 }
-.mc-craft-close {
-  background: #888; border: none; border-radius: 4px; color: #fff;
-  font-size: var(--mc-fs-sm, 14px); font-weight: bold; padding: 3px 10px; cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-.mc-craft-close:hover { background: #666; }
 .mc-craft-list {
-  flex: 1 1 auto; overflow-y: auto; padding: 10px;
+  flex: 1 1 auto; overflow-y: auto; padding: 12px;
   display: flex; flex-direction: column; gap: 6px;
 }
 .mc-craft-row {
-  display: flex; align-items: center; gap: 8px; padding: 6px 8px;
-  background: #b0b0b0; border: 2px solid; border-color: #fff #555 #555 #fff;
+  display: flex; align-items: center; gap: 10px; padding: 9px 11px;
+  background: var(--mc-raised, rgba(255,255,255,0.06));
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-radius: var(--mc-radius-sm, 10px);
+  transition: background 0.16s var(--mc-ease, ease), border-color 0.16s var(--mc-ease, ease);
 }
-.mc-craft-row.unavailable { opacity: 0.5; }
+.mc-craft-row:hover { background: var(--mc-raised-hover, rgba(255,255,255,0.12)); }
+.mc-craft-row.unavailable { opacity: 0.45; }
 .mc-craft-icon {
-  position: relative; width: 36px; height: 36px; flex: 0 0 36px;
-  background: #8b8b8b; border: 2px solid; border-color: #555 #fff #fff #555;
+  position: relative; width: 38px; height: 38px; flex: 0 0 38px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-radius: var(--mc-radius-xs, 6px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.07);
   image-rendering: pixelated;
 }
-.mc-craft-icon canvas { width: 100%; height: 100%; image-rendering: pixelated; }
+.mc-craft-icon canvas { width: 100%; height: 100%; image-rendering: pixelated; padding: 2px; }
 .mc-craft-icon .mc-craft-count {
-  position: absolute; right: 1px; bottom: 0; font-size: var(--mc-fs-xs, 12.5px);
-  font-weight: bold; color: #fff; text-shadow: 1px 1px 0 #000; pointer-events: none;
+  position: absolute; right: 2px; bottom: 0; font-size: var(--mc-fs-2xs, 11px);
+  font-family: var(--mc-font-mono, monospace); font-weight: 700; color: #fff;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.9); pointer-events: none;
 }
-.mc-craft-arrow { font-size: var(--mc-fs-md, 16px); color: #555; flex: 0 0 auto; }
-.mc-craft-label { flex: 1 1 auto; font-size: var(--mc-fs-xs, 12.5px); line-height: 1.4; }
-.mc-craft-label strong { font-size: var(--mc-fs-sm, 14px); }
+.mc-craft-arrow { font-size: var(--mc-fs-sm, 14px); color: var(--mc-text-faint, #888); flex: 0 0 auto; }
+.mc-craft-label {
+  flex: 1 1 auto; font-size: var(--mc-fs-xs, 12.5px); line-height: 1.45;
+  color: var(--mc-text-dim, #ccc);
+}
+.mc-craft-label strong { font-size: var(--mc-fs-sm, 14px); color: var(--mc-text, #fff); font-weight: 600; }
 .mc-craft-btn {
-  flex: 0 0 auto; background: #2a5a3a; border: 2px solid #3a7a4a; color: #fff;
-  font-family: 'Courier New', monospace; font-size: var(--mc-fs-xs, 12.5px); font-weight: bold;
-  padding: 5px 10px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  flex: 0 0 auto;
+  background: var(--mc-good-soft, rgba(99,221,151,0.18));
+  border: 1px solid rgba(99,221,151,0.5); color: #d8ffe8;
+  font-family: var(--mc-font, sans-serif); font-size: var(--mc-fs-xs, 12.5px); font-weight: 600;
+  border-radius: var(--mc-radius-sm, 10px);
+  padding: 7px 14px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background 0.16s var(--mc-ease, ease), border-color 0.16s var(--mc-ease, ease);
 }
-.mc-craft-btn:hover { background: #3a7a4a; }
-.mc-craft-btn:disabled { background: #555; border-color: #666; cursor: default; opacity: 0.6; }
+.mc-craft-btn:hover:not(:disabled) { background: rgba(99,221,151,0.32); border-color: var(--mc-good, #63dd97); }
+.mc-craft-btn:disabled {
+  background: transparent; border-color: var(--mc-stroke, rgba(255,255,255,0.12));
+  color: var(--mc-text-faint, #888); cursor: default;
+}
 .mc-craft-row.crafted {
-  background: #cdeccd; border-color: #8fe08f #2a5a2a #2a5a2a #8fe08f;
+  background: var(--mc-good-soft, rgba(99,221,151,0.18));
+  border-color: var(--mc-good, #63dd97);
   animation: mc-craft-pop 0.6s ease-out;
 }
 @keyframes mc-craft-pop {
-  0% { box-shadow: 0 0 0 0 rgba(70,190,70,0.85); }
-  100% { box-shadow: 0 0 0 12px rgba(70,190,70,0); }
+  0% { box-shadow: 0 0 0 0 rgba(99,221,151,0.6); }
+  100% { box-shadow: 0 0 0 14px rgba(99,221,151,0); }
 }
 .mc-craft-made {
-  flex: 0 0 auto; color: #1a6e1a; font-size: var(--mc-fs-xs, 12.5px); font-weight: bold;
+  flex: 0 0 auto; color: var(--mc-good, #63dd97); font-size: var(--mc-fs-xs, 12.5px); font-weight: 700;
   margin-left: 4px; white-space: nowrap;
 }
 .mc-craft-icon.crafted-pop { animation: mc-craft-spin 0.5s ease; }
@@ -74,34 +87,50 @@ const STYLE = `
 }
 .mc-craft-info-btn {
   flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%;
-  background: #8b8b8b; border: 2px solid; border-color: #fff #555 #555 #fff;
-  color: #333; font-family: Georgia, 'Times New Roman', serif; font-size: var(--mc-fs-sm, 14px);
-  font-weight: bold; font-style: italic; cursor: pointer; padding: 0;
+  background: transparent; border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  color: var(--mc-text-dim, #ccc); font-family: Georgia, 'Times New Roman', serif;
+  font-size: var(--mc-fs-sm, 14px); font-weight: bold; font-style: italic; cursor: pointer; padding: 0;
+  transition: background 0.16s var(--mc-ease, ease), color 0.16s var(--mc-ease, ease);
   -webkit-tap-highlight-color: transparent;
 }
-.mc-craft-info-btn:hover { background: #e7d9a0; }
-.mc-craft-detail { display: flex; flex-direction: column; gap: 10px; font-size: var(--mc-fs-xs, 12.5px); }
-.mc-craft-detail-head { display: flex; align-items: center; gap: 10px; }
-.mc-craft-detail-head .mc-craft-icon { width: 44px; height: 44px; flex: 0 0 44px; }
-.mc-craft-detail-head strong { font-size: var(--mc-fs-md, 16px); }
-.mc-craft-detail-desc { line-height: 1.5; background: #d7d7d7; border: 2px solid; border-color: #555 #fff #fff #555; padding: 8px; }
-.mc-craft-detail h4 { margin: 4px 0 0; font-size: var(--mc-fs-xs, 12.5px); border-bottom: 1px solid #999; padding-bottom: 2px; }
-.mc-craft-need-row { display: flex; align-items: center; gap: 8px; padding: 4px 6px; background: #b0b0b0; border: 2px solid; border-color: #fff #555 #555 #fff; }
-.mc-craft-need-row .who { flex: 1 1 auto; line-height: 1.35; }
-.mc-craft-need-row .have { flex: 0 0 auto; font-weight: bold; white-space: nowrap; }
-.mc-craft-need-row .have.ok { color: #1a6e1a; }
-.mc-craft-need-row .have.missing { color: #a03020; }
-.mc-craft-need-row .src { display: block; font-size: var(--mc-fs-xs, 12.5px); color: #444; }
-.mc-craft-back {
-  align-self: flex-start; background: #8b8b8b; border: 2px solid; border-color: #fff #555 #555 #fff;
-  color: #333; font-family: 'Courier New', monospace; font-size: var(--mc-fs-xs, 12.5px); font-weight: bold;
-  padding: 5px 10px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+.mc-craft-info-btn:hover {
+  background: var(--mc-accent-soft, rgba(124,215,255,0.16));
+  border-color: var(--mc-accent-line, rgba(124,215,255,0.55)); color: #dcf3ff;
 }
-.mc-craft-back:hover { background: #a5a5a5; }
+.mc-craft-detail {
+  display: flex; flex-direction: column; gap: 12px; font-size: var(--mc-fs-xs, 12.5px);
+  color: var(--mc-text-dim, #ccc);
+}
+.mc-craft-detail-head { display: flex; align-items: center; gap: 12px; }
+.mc-craft-detail-head .mc-craft-icon { width: 46px; height: 46px; flex: 0 0 46px; }
+.mc-craft-detail-head strong { font-size: var(--mc-fs-md, 16px); color: var(--mc-text, #fff); }
+.mc-craft-detail-desc {
+  line-height: 1.6; padding: 11px 13px;
+  background: var(--mc-raised, rgba(255,255,255,0.06));
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-left: 2px solid var(--mc-accent-line, rgba(124,215,255,0.55));
+  border-radius: var(--mc-radius-sm, 10px);
+}
+.mc-craft-detail h4 {
+  margin: 6px 0 0; font-size: var(--mc-fs-2xs, 11px); font-weight: 600;
+  letter-spacing: 1.1px; text-transform: uppercase; color: var(--mc-text-faint, #888);
+}
+.mc-craft-need-row {
+  display: flex; align-items: center; gap: 10px; padding: 7px 10px;
+  background: var(--mc-raised, rgba(255,255,255,0.06));
+  border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
+  border-radius: var(--mc-radius-sm, 10px);
+}
+.mc-craft-need-row .who { flex: 1 1 auto; line-height: 1.4; color: var(--mc-text, #fff); }
+.mc-craft-need-row .have { flex: 0 0 auto; font-weight: 700; white-space: nowrap; }
+.mc-craft-need-row .have.ok { color: var(--mc-good, #63dd97); }
+.mc-craft-need-row .have.missing { color: var(--mc-bad, #ff8272); }
+.mc-craft-need-row .src { display: block; font-size: var(--mc-fs-2xs, 11px); color: var(--mc-text-faint, #888); }
 `
 
 export class CraftingPanel {
   private readonly backdrop: HTMLDivElement
+  private readonly panel: HTMLDivElement
   private readonly list: HTMLDivElement
   private _isOpen = false
   /** Output item of the most recent craft, briefly highlighted as feedback. */
@@ -125,7 +154,7 @@ export class CraftingPanel {
     document.head.appendChild(style)
 
     this.backdrop = document.createElement('div')
-    this.backdrop.className = 'mc-craft-backdrop'
+    this.backdrop.className = 'mc-craft-backdrop mc-scrim'
     this.backdrop.style.display = 'none'
     this.backdrop.addEventListener('mousedown', (e) => { if (e.target === this.backdrop) this.close() })
     this.backdrop.addEventListener('touchstart', (e) => {
@@ -133,15 +162,17 @@ export class CraftingPanel {
     }, { passive: false })
 
     const panel = document.createElement('div')
-    panel.className = 'mc-craft-panel'
+    panel.className = 'mc-craft-panel mc-glass mc-pane-in'
+    this.panel = panel
 
     const header = document.createElement('div')
     header.className = 'mc-craft-header'
     const title = document.createElement('span')
     title.textContent = '⚒ Crafting'
     const closeBtn = document.createElement('button')
-    closeBtn.className = 'mc-craft-close'
-    closeBtn.textContent = '✕ Close'
+    closeBtn.className = 'mc-craft-close mc-close-btn'
+    closeBtn.textContent = '✕'
+    closeBtn.title = 'Close (Esc)'
     const doClose = (e: Event) => { e.preventDefault(); this.close() }
     closeBtn.addEventListener('click', doClose)
     closeBtn.addEventListener('touchstart', doClose, { passive: false })
@@ -160,6 +191,7 @@ export class CraftingPanel {
     this._isOpen = true
     this.refresh()
     this.backdrop.style.display = 'flex'
+    revealPane(this.panel)
   }
 
   close(): void {
@@ -195,7 +227,8 @@ export class CraftingPanel {
     detail.className = 'mc-craft-detail'
 
     const back = document.createElement('button')
-    back.className = 'mc-craft-back'
+    back.className = 'mc-craft-back mc-ui-btn ghost'
+    back.style.alignSelf = 'flex-start'
     back.textContent = '← All recipes'
     const goBack = (e: Event) => {
       e.preventDefault()

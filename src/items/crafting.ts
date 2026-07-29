@@ -15,7 +15,7 @@ export const RECIPES: Recipe[] = [
   { id: 'brick', inputs: [{ itemId: BlockId.Stone, count: 4 }], output: { itemId: BlockId.Brick, count: 4 }, desc: 'A sturdy decorative building block for smart-looking walls.' },
   { id: 'glass', inputs: [{ itemId: BlockId.Sand, count: 4 }], output: { itemId: BlockId.Glass, count: 3 }, desc: 'A see-through block — build windows and skylights you can look out of.' },
   { id: 'ladder', inputs: [{ itemId: BlockId.Wood, count: 2 }, { itemId: BlockId.Stone, count: 2 }], output: { itemId: BlockId.Ladder, count: 4 }, desc: 'Place on a wall and walk into it to climb: Space goes up, Shift comes down.' },
-  { id: 'tnt', inputs: [{ itemId: BlockId.Sand, count: 2 }, { itemId: BlockId.Stone, count: 1 }], output: { itemId: BlockId.TNT, count: 2 }, desc: 'Place it, use it to light the fuse, and stand back — blasts a crater after 2 seconds.' },
+  { id: 'tnt', inputs: [{ itemId: BlockId.Sand, count: 2 }, { itemId: BlockId.Stone, count: 1 }], output: { itemId: BlockId.TNT, count: 2 }, desc: 'Stack as many as you like — placing it does not light it. MINE a stick to start its 2 second fuse, then stand back.' },
   { id: 'fence', inputs: [{ itemId: BlockId.Wood, count: 2 }], output: { itemId: BlockId.Fence, count: 6 }, desc: 'Pens in your tamed animals — build a ring of it around your farm.' },
   // Cooking (restores energy when eaten)
   { id: 'cooked-fish', inputs: [{ itemId: ItemId.Fish, count: 1 }, { itemId: BlockId.Wood, count: 1 }], output: { itemId: ItemId.CookedFish, count: 1 }, desc: 'A hot meal — eat it (hold + right-click/USE) to restore 40⚡ energy.' },

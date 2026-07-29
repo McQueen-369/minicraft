@@ -126,8 +126,10 @@ function itemHelp(itemId: number): InfoContent {
     return {
       title: 'TNT',
       lines: [
-        'Use: place it and step back — the fuse burns for a couple of seconds, then it blasts away every block around it.',
-        'USE (right-click) a placed TNT block to relight its fuse; mine it before it blows to defuse and pick it back up.',
+        'Use: placing TNT does nothing on its own — it sits there unlit, so you can stack as many as you like, as high and wide as you like.',
+        'Light it with MINE (hold left-click / the red ⛏): one swing at an unlit stick starts a 2 second fuse, then it blasts away every block around it.',
+        'Lit TNT sets off any TNT caught in its blast, so a stack goes up together — light one and step well back.',
+        'Changed your mind? MINE a stick that is already lit to defuse it and put it back in your bag.',
         'Get: starts in your bag (and refills when empty). Craft more from Sand and Stone.',
       ],
     }
