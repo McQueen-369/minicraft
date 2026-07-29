@@ -30,7 +30,7 @@ const MINI_PIX = 264 // backing store — icons and arrows stay crisp when scale
 const MINI_SAMPLES = 88 // terrain samples per axis (keeps heightAt cheap)
 const MINI_HALF = 64 // world blocks from centre to edge
 
-const BIG_CSS = 500
+/** Backing store for the expanded map; its CSS size comes from the panel. */
 const BIG_PIX = 660
 const BIG_SAMPLES = 220
 /** Never zoom the expanded map in tighter than this, however close things are. */
@@ -85,15 +85,41 @@ const STYLE = `
   position: absolute; inset: 0; z-index: 21;
   display: none; align-items: center; justify-content: center; padding: 16px;
 }
+/*
+ * The expanded map.
+ *
+ * The panel used to size itself to whichever child happened to be widest — the
+ * legend, at around 1100px — which left the fixed 500px map floating in the top
+ * corner with a gutter of empty glass beside it. Now the map is the thing that
+ * sets the size: its column is sized from the viewport, the canvas fills that
+ * column exactly, and the panel shrink-wraps the result.
+ *
+ * A square map is tall, so the column is capped by height as well as width, and
+ * the readouts sit beside it wherever there is room for them. That keeps the
+ * whole panel inside the window — dropping the readouts underneath a map this
+ * tall is what pushes the Close button off the bottom of the screen.
+ */
 .mc-map-box {
-  padding: 18px 20px; max-width: 95vw; max-height: 94vh; overflow-y: auto;
+  box-sizing: border-box; width: fit-content; max-width: 96vw;
+  padding: 18px 20px; max-height: 94vh; overflow-y: auto;
+}
+.mc-map-grid { display: flex; gap: 20px; align-items: flex-start; }
+/* The map column: the largest square that leaves room for the panel chrome. */
+.mc-map-figure { flex: 0 0 auto; width: min(88vw, calc(94vh - 170px), 720px); }
+.mc-map-side { flex: 1 1 260px; min-width: 0; max-width: 360px; }
+.mc-map-side > :first-child { margin-top: 0; }
+/* Not enough width for two columns: stack them, map first, full width. */
+@media (max-width: 900px) {
+  .mc-map-grid { flex-direction: column; }
+  .mc-map-side { flex: 1 1 auto; width: 100%; max-width: none; }
+  .mc-map-side > :first-child { margin-top: 12px; }
 }
 .mc-map-box h3 {
   margin: 0 0 12px; font-size: var(--mc-fs-xs, 14px); font-weight: 600;
   letter-spacing: 1.2px; text-transform: uppercase; color: var(--mc-text-faint, #888);
 }
 .mc-map-box canvas {
-  display: block; width: ${BIG_CSS}px; max-width: min(86vw, 62vh); height: auto;
+  display: block; width: 100%; height: auto;
   aspect-ratio: 1; image-rendering: pixelated;
   border: 1px solid var(--mc-stroke, rgba(255,255,255,0.12));
   border-radius: var(--mc-radius-sm, 10px);
@@ -224,6 +250,12 @@ export class Minimap {
     const tag = document.createElement('div')
     tag.className = 'mc-minimap-tag'
     tag.textContent = 'MAP'
+    // Desktop players can toggle the full map with M; CSS hides the hint where
+    // there is no keyboard.
+    const tagKey = document.createElement('span')
+    tagKey.className = 'mc-key-hint'
+    tagKey.textContent = ' (M)'
+    tag.appendChild(tagKey)
     this.distStrip = document.createElement('div')
     this.distStrip.className = 'mc-minimap-dist'
     this.container.append(this.miniCanvas, tag, this.distStrip)
@@ -273,7 +305,16 @@ export class Minimap {
     const close = document.createElement('button')
     close.className = 'mc-map-close mc-ui-btn'
     close.textContent = 'Close'
-    box.append(title, this.bigCanvas, this.coordsEl, this.scaleEl, legend, close)
+    const grid = document.createElement('div')
+    grid.className = 'mc-map-grid'
+    const figure = document.createElement('div')
+    figure.className = 'mc-map-figure'
+    figure.appendChild(this.bigCanvas)
+    const side = document.createElement('div')
+    side.className = 'mc-map-side'
+    side.append(this.coordsEl, this.scaleEl, legend)
+    grid.append(figure, side)
+    box.append(title, grid, close)
     this.overlay.appendChild(box)
     root.appendChild(this.overlay)
 

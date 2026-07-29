@@ -211,6 +211,11 @@ const STYLE = `
   width: clamp(15px, calc(var(--mc-slot, 52px) * 0.4), 21px);
   height: clamp(15px, calc(var(--mc-slot, 52px) * 0.4), 21px);
 }
+/* The bag button is a square on a phone; on a desktop it widens to fit the
+   \`(E)\` hint (see \`.mc-key-hint\` in the theme). */
+@media (hover: hover) and (pointer: fine) {
+  .mc-bag-slot { width: auto; padding: 0 11px; }
+}
 
 /* --- environment tints ---------------------------------------------------- */
 .mc-underwater {
@@ -478,9 +483,7 @@ export class HUD {
     const bagHandle = document.createElementNS(bagSvgNS, 'path')
     bagHandle.setAttribute('d', 'M9 8a3 3 0 0 1 6 0')
     bagSvg.append(bagBody, bagHandle)
-    const bagLabel = document.createElement('span')
-    bagLabel.textContent = 'BAG'
-    bagSlot.append(bagSvg, bagLabel)
+    bagSlot.append(bagSvg, keyLabel('BAG', 'E'))
     bagSlot.addEventListener('click', () => this.onInventory())
     bagSlot.addEventListener('touchstart', (e) => { e.preventDefault(); this.onInventory() }, { passive: false })
     hotbar.appendChild(bagSlot)
@@ -488,7 +491,7 @@ export class HUD {
     // Chat button
     const chatBtn = document.createElement('div')
     chatBtn.className = 'mc-chat-btn'
-    chatBtn.title = 'Chat'
+    chatBtn.title = 'Chat (C)'
     const chatSvgNS = 'http://www.w3.org/2000/svg'
     const chatSvg = document.createElementNS(chatSvgNS, 'svg')
     chatSvg.setAttribute('viewBox', '0 0 24 24')
@@ -500,9 +503,7 @@ export class HUD {
     const chatBubble = document.createElementNS(chatSvgNS, 'path')
     chatBubble.setAttribute('d', 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z')
     chatSvg.appendChild(chatBubble)
-    const chatLabel = document.createElement('span')
-    chatLabel.textContent = 'CHAT'
-    chatBtn.append(chatSvg, chatLabel)
+    chatBtn.append(chatSvg, keyLabel('CHAT', 'C'))
     chatBtn.addEventListener('click', () => this.onChatToggle())
     chatBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.onChatToggle() }, { passive: false })
     hotbar.appendChild(chatBtn)
@@ -511,7 +512,7 @@ export class HUD {
     // Craft button
     const craftBtnHud = document.createElement('div')
     craftBtnHud.className = 'mc-craft-btn-hud'
-    craftBtnHud.title = 'Crafting'
+    craftBtnHud.title = 'Crafting (Z)'
     const craftNS = 'http://www.w3.org/2000/svg'
     const craftSvg = document.createElementNS(craftNS, 'svg')
     craftSvg.setAttribute('viewBox', '0 0 24 24')
@@ -524,9 +525,7 @@ export class HUD {
     const wrenchPath = document.createElementNS(craftNS, 'path')
     wrenchPath.setAttribute('d', 'M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z')
     craftSvg.appendChild(wrenchPath)
-    const craftLabel = document.createElement('span')
-    craftLabel.textContent = 'CRAFT'
-    craftBtnHud.append(craftSvg, craftLabel)
+    craftBtnHud.append(craftSvg, keyLabel('CRAFT', 'Z'))
     craftBtnHud.addEventListener('click', () => this.onCraftToggle())
     craftBtnHud.addEventListener('touchstart', (e) => { e.preventDefault(); this.onCraftToggle() }, { passive: false })
     hotbar.appendChild(craftBtnHud)
@@ -1049,4 +1048,20 @@ export class HUD {
   setLava(touching: boolean, submerged: boolean): void {
     this.lavaOverlay.style.opacity = submerged ? '1' : touching ? '0.45' : '0'
   }
+}
+
+/**
+ * A HUD button's caption plus the key that triggers it, e.g. "BAG (E)".
+ *
+ * The key rides in its own span so CSS can drop it on touch devices, where
+ * there is no keyboard and the extra characters only cost width.
+ */
+function keyLabel(label: string, key: string): HTMLSpanElement {
+  const span = document.createElement('span')
+  span.textContent = label
+  const hint = document.createElement('span')
+  hint.className = 'mc-key-hint'
+  hint.textContent = ` (${key})`
+  span.appendChild(hint)
+  return span
 }

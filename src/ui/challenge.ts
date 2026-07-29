@@ -81,6 +81,11 @@ export interface MathRules {
 }
 
 export interface WordRules {
+  /**
+   * Wrong guesses allowed. Hard gets five rather than four: an eleven-letter
+   * word with the hint withheld is already the hard part, and four misses left
+   * too many rounds lost before the clue ever appeared.
+   */
   lives: number
   /** Inclusive word-length window this tier draws from. */
   minLength: number
@@ -113,7 +118,7 @@ const RULES: Record<Difficulty, ChallengeRules> = {
     puzzle: { size: 4, shuffle: 260, swiftMoves: 90 },
     runner: { target: 240, speed: 215, spacing: 0.72 },
     math: { questions: 12, lives: 2, target: 8, topLevel: 3, range: 2.2 },
-    word: { lives: 4, minLength: 8, maxLength: 20, hintUpFront: false },
+    word: { lives: 5, minLength: 8, maxLength: 20, hintUpFront: false },
   },
 }
 
